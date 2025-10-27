@@ -1,13 +1,29 @@
-﻿@model SchoolBookPlatform.ViewModels.LoginViewModel
-<!DOCTYPE html>
+﻿@{
+    ViewData["Title"] = "Đăng nhập";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
 
-<html>
-<head>
-    <title>Login Page</title>
-</head>
-<body>
-<div>
-      <p>Login page Here</p>
+<div class="container mt-5" style="max-width: 400px;">
+    <h3 class="text-center mb-4">Đăng nhập</h3>
+    <form method="post" asp-action="Login" class="border rounded-3 p-4 shadow-sm bg-light">
+        <div class="mb-3">
+            <label for="username" class="form-label">Tên đăng nhập</label>
+            <input type="text" id="username" name="username" class="form-control" required autofocus />
+        </div>
+        <div class="mb-3">
+            <label for="password" class="form-label">Mật khẩu</label>
+            <input type="password" id="password" name="password" class="form-control" required />
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Đăng nhập</button>
+    </form>
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger mt-3">
+            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+            {
+                <p>@error.ErrorMessage</p>
+            }
+        </div>
+    }
 </div>
-</body>
-</html>
