@@ -30,7 +30,6 @@ CREATE TABLE UserRoles (
 CREATE TABLE UserTokens (
                             Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
                             UserId UNIQUEIDENTIFIER NOT NULL,
-                            TokenId UNIQUEIDENTIFIER NOT NULL UNIQUE,
                             DeviceInfo NVARCHAR(200),
                             IPAddress NVARCHAR(50),
                             IsRevoked BIT DEFAULT 0,
