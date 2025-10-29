@@ -48,8 +48,11 @@ public class TrustedService
         await _db.SaveChangesAsync();
     }
 }
+
 public static class StringExtensions
 {
     public static string Truncate(this string? value, int maxLength)
-        => value?.Length > maxLength ? value[..maxLength] : value ?? "";
+    {
+        return value?.Length > maxLength ? value[..maxLength] : value ?? "";
+    }
 }

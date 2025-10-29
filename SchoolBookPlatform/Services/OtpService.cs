@@ -6,15 +6,16 @@ using SendGrid.Helpers.Mail;
 using Twilio;
 using Twilio.Exceptions;
 using Twilio.Rest.Api.V2010.Account;
+using Twilio.Types;
 
 namespace SchoolBookPlatform.Services;
 
 public class OtpService
 {
-    private readonly AppDbContext _db;
     private readonly IConfiguration _config;
+    private readonly AppDbContext _db;
     private readonly ILogger<OtpService> _logger;
-    
+
     public OtpService(AppDbContext db, IConfiguration config, ILogger<OtpService> logger)
     {
         _db = db;
@@ -26,15 +27,15 @@ public class OtpService
     {
         //Xóa otp cũ
         var oldOtps = _db.OtpCodes
-            .Where(o => o.UserId == user.Id 
-                        && o.Type == type 
-                        && !o.IsUsed 
+            .Where(o => o.UserId == user.Id
+                        && o.Type == type
+                        && !o.IsUsed
                         && o.ExpiresAt > DateTime.UtcNow);
         _db.OtpCodes.RemoveRange(oldOtps);
         await _db.SaveChangesAsync();
-        
+
         var code = new Random().Next(100000, 999999).ToString();
-        var otp = new OtpCode()
+        var otp = new OtpCode
         {
             UserId = user.Id,
             Code = code,
@@ -56,10 +57,11 @@ public class OtpService
             _logger.LogError(ex, "Lỗi gửi OTP qua {Type}", type);
             throw;
         }
+
         return code;
     }
 
-    private async Task SendOtpAsync(User user, String type, string code)
+    private async Task SendOtpAsync(User user, string type, string code)
     {
         if (type == "SMS" && !string.IsNullOrWhiteSpace(user.PhoneNumber))
         {
@@ -73,8 +75,8 @@ public class OtpService
             {
                 var message = await MessageResource.CreateAsync(
                     body: $"[SchoolBook] OTP: {code}. Effective in 3 minutes!",
-                    from: new Twilio.Types.PhoneNumber(from),
-                    to: new Twilio.Types.PhoneNumber(user.PhoneNumber)
+                    from: new PhoneNumber(from),
+                    to: new PhoneNumber(user.PhoneNumber)
                 );
                 _logger.LogInformation("SMS send successfully: {Sid}", message.Sid);
             }
@@ -85,7 +87,7 @@ public class OtpService
         }
         else if (type == "Email" && !string.IsNullOrWhiteSpace(user.Email))
         {
-            await SendEmailOtpAsync(user, code);        
+            await SendEmailOtpAsync(user, code);
         }
         else
         {
@@ -94,7 +96,7 @@ public class OtpService
             );
         }
     }
-    
+
     private async Task SendEmailOtpAsync(User user, string code)
     {
         var apiKey = _config["SendGrid:ApiKey"];
@@ -136,12 +138,10 @@ public class OtpService
             _logger.LogError("SendGrid lỗi {Status}: {Body}", response.StatusCode, errorBody);
             throw new InvalidOperationException($"SendGrid lỗi: {response.StatusCode}");
         }
-        else
-        {
-            _logger.LogInformation("Email OTP gửi thành công đến {Email}", user.Email);
-        }
+
+        _logger.LogInformation("Email OTP gửi thành công đến {Email}", user.Email);
     }
-    
+
     public async Task<bool> VerifyOtpAsync(Guid userId, string code, string type)
     {
         var otp = await _db.OtpCodes.FirstOrDefaultAsync(o =>
@@ -151,11 +151,8 @@ public class OtpService
             !o.IsUsed &&
             o.ExpiresAt > DateTime.UtcNow
         );
-        if (otp == null)
-        {
-            return false;
-        }
-        otp.IsUsed =  true;
+        if (otp == null) return false;
+        otp.IsUsed = true;
         _db.OtpCodes.Update(otp);
         await _db.SaveChangesAsync();
         return true;

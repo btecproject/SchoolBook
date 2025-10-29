@@ -2,7 +2,7 @@
 
 @{
     ViewData["Title"] = "Otp Verification";
-  var otpMethod = ViewData["OtpType"]?.ToString() ?? "SMS";
+    var otpMethod = ViewData["OtpType"]?.ToString() ?? "SMS";
 }
 
 <div class="container mt-5">
@@ -31,13 +31,16 @@
                         <button type="submit" class="btn btn-primary w-100 mb-2">Xác minh</button>
                     </form>
 
-                    <!-- NÚT GỬI LẠI OTP -->
-                    <div class="text-center">
-                        <button id="resendBtn" class="btn btn-link text-muted p-0" disabled>
-                            Gửi lại OTP
-                        </button>
-                        <span id="countdown" class="text-muted ms-2">(5s)</span>
-                    </div>
+                    <!-- FORM RIÊNG CHO RESEND OTP -->
+                    <form asp-action="ResendOtp" method="post" id="resendForm">
+                        @Html.AntiForgeryToken()
+                        <div class="text-center">
+                            <button type="button" id="resendBtn" class="btn btn-link text-muted p-0" disabled>
+                                Gửi lại OTP
+                            </button>
+                            <span id="countdown" class="text-muted ms-2">(5s)</span>
+                        </div>
+                    </form>
 
                     <div class="text-center mt-3">
                         <a asp-action="Login" class="text-muted">Quay lại đăng nhập</a>
@@ -51,9 +54,10 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial"/>
     <script>
-        let countdownTime = 5; // 60 giây cooldown
+        let countdownTime = 5; // 5 giây cooldown
         const resendBtn = document.getElementById('resendBtn');
         const countdownSpan = document.getElementById('countdown');
+        const resendForm = document.getElementById('resendForm');
 
         // Bắt đầu đếm ngược
         function startCountdown() {
@@ -76,11 +80,12 @@
             resendBtn.disabled = true;
             resendBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Đang gửi...';
 
+            // LẤY TOKEN TỪ FORM RESEND
+            const formData = new FormData(resendForm);
+
             const response = await fetch('@Url.Action("ResendOtp", "Authen")', {
                 method: 'POST',
-                headers: {
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                }
+                body: formData
             });
 
             if (response.ok) {

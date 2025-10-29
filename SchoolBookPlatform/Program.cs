@@ -3,84 +3,83 @@ using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Services;
 
-namespace SchoolBookPlatform
+namespace SchoolBookPlatform;
+
+public class Program
 {
-    public class Program
+    public static void Main(string[] args)
     {
-        public static void Main(string[] args)
-        {
-            var builder = WebApplication.CreateBuilder(args);
-            var config = builder.Configuration;
+        var builder = WebApplication.CreateBuilder(args);
+        var config = builder.Configuration;
 
-            // DB
-            builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
+        // DB
+        builder.Services.AddDbContext<AppDbContext>(options =>
+            options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
 
-            // Services
-            builder.Services.AddHttpClient();
-            builder.Services.AddHttpContextAccessor();
-            builder.Services.AddScoped<TokenService>();
-            builder.Services.AddScoped<FaceService>();
-            builder.Services.AddScoped<OtpService>();
-            builder.Services.AddScoped<TrustedService>();
+        // Services
+        builder.Services.AddHttpClient();
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddScoped<TokenService>();
+        builder.Services.AddScoped<FaceService>();
+        builder.Services.AddScoped<OtpService>();
+        builder.Services.AddScoped<TrustedService>();
 
-            // Authentication
-            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-                .AddCookie(options =>
-                {
-                    options.LoginPath = "/Authen/Login";
-                    options.LogoutPath = "/Authen/Logout";
-                    options.AccessDeniedPath = "/Authen/AccessDenied";
-                    options.ExpireTimeSpan = TimeSpan.FromDays(7);
-                    options.SlidingExpiration = true;
-                    options.Cookie.HttpOnly = true;
-                    options.Cookie.SameSite = SameSiteMode.Strict;
-                    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-
-                    // options.Events = new CookieAuthenticationEvents { OnValidatePrincipal = TokenService.ValidateAsync };
-                });
-
-            // Logging
-            builder.Logging.AddConsole();
-            builder.Logging.SetMinimumLevel(LogLevel.Debug);
-
-            // Authorization + Policy
-            builder.Services.AddAuthorization(options =>
+        // Authentication
+        builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddCookie(options =>
             {
-                options.AddPolicy("AdminOrHigher", policy =>
-                    policy.RequireRole("HighAdmin", "Admin"));
+                options.LoginPath = "/Authen/Login";
+                options.LogoutPath = "/Authen/Logout";
+                options.AccessDeniedPath = "/Authen/AccessDenied";
+                options.ExpireTimeSpan = TimeSpan.FromDays(7);
+                options.SlidingExpiration = true;
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SameSite = SameSiteMode.Strict;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+
+                // options.Events = new CookieAuthenticationEvents { OnValidatePrincipal = TokenService.ValidateAsync };
             });
 
-            builder.Services.AddControllersWithViews();
+        // Logging
+        builder.Logging.AddConsole();
+        builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
-            var app = builder.Build();
+        // Authorization + Policy
+        builder.Services.AddAuthorization(options =>
+        {
+            options.AddPolicy("AdminOrHigher", policy =>
+                policy.RequireRole("HighAdmin", "Admin"));
+        });
 
-            if (!app.Environment.IsDevelopment())
-            {
-                app.UseExceptionHandler("/Home/Error");
-                app.UseHsts();
-            }
+        builder.Services.AddControllersWithViews();
 
-            app.UseHttpsRedirection();
-            app.UseStaticFiles();
-            app.UseRouting();
-            app.UseAuthentication();
-            app.UseAuthorization();
+        var app = builder.Build();
 
-            app.MapStaticAssets();
-
-            // Route mặc định: Home/Index → Chào mừng
-            app.MapControllerRoute(
-                name: "default",
-                pattern: "{controller=Home}/{action=Index}");
-
-            // Route cho TokenManager
-            app.MapControllerRoute(
-                name: "tokenmanager",
-                pattern: "TokenManager/{action=Index}/{id?}",
-                defaults: new { controller = "TokenManager" });
-
-            app.Run();
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseExceptionHandler("/Home/Error");
+            app.UseHsts();
         }
+
+        app.UseHttpsRedirection();
+        app.UseStaticFiles();
+        app.UseRouting();
+        app.UseAuthentication();
+        app.UseAuthorization();
+
+        app.MapStaticAssets();
+
+        // Route mặc định: Home/Index → Chào mừng
+        app.MapControllerRoute(
+            "default",
+            "{controller=Home}/{action=Index}");
+
+        // Route cho TokenManager
+        app.MapControllerRoute(
+            "tokenmanager",
+            "TokenManager/{action=Index}/{id?}",
+            new { controller = "TokenManager" });
+
+        app.Run();
     }
 }

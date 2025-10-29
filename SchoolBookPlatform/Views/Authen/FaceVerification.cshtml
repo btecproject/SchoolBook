@@ -16,7 +16,7 @@
                 <canvas id="canvas" style="display:none;"></canvas>
                 <button type="button" class="btn btn-secondary" onclick="captureImage()">Chụp ảnh</button>
             </div>
-            <input asp-for="ImageData" type="hidden" id="imageData" />
+            <input asp-for="ImageData" type="hidden" id="imageData"/>
         </div>
         <button type="submit" class="btn btn-primary">Xác minh</button>
     </form>
@@ -28,7 +28,7 @@
         const canvas = document.getElementById('canvas');
         const imageDataInput = document.getElementById('imageData');
 
-        navigator.mediaDevices.getUserMedia({ video: true })
+        navigator.mediaDevices.getUserMedia({video: true})
             .then(stream => {
                 video.srcObject = stream;
             })

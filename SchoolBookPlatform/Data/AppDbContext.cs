@@ -5,7 +5,9 @@ namespace SchoolBookPlatform.Data;
 
 public class AppDbContext : DbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+    {
+    }
 
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<Role> Roles { get; set; } = null!;
@@ -37,7 +39,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<TrustedDevice>(entity =>
         {
             entity.HasIndex(e => new { e.UserId, e.IPAddress, e.DeviceInfo })
-                  .IsUnique();
+                .IsUnique();
         });
 
         // UserToken
@@ -60,10 +62,10 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(f => f.UserId);
             entity.HasOne(f => f.User)
-                  .WithOne(u => u.FaceProfile)
-                  .HasForeignKey<FaceProfile>(f => f.UserId);
+                .WithOne(u => u.FaceProfile)
+                .HasForeignKey<FaceProfile>(f => f.UserId);
         });
-        
+
         modelBuilder.Entity<UserToken>(entity =>
         {
             entity.HasKey(t => t.Id);

@@ -22,21 +22,22 @@
                         <!-- Username -->
                         <div class="mb-3">
                             <label asp-for="Username" class="form-label"></label>
-                            <input asp-for="Username" class="form-control form-control-lg" placeholder="Nhập tên đăng nhập" />
+                            <input asp-for="Username" class="form-control form-control-lg"
+                                   placeholder="Nhập tên đăng nhập"/>
                             <span asp-validation-for="Username" class="text-danger"></span>
                         </div>
 
                         <!-- Password -->
                         <div class="mb-3">
                             <label asp-for="Password" class="form-label"></label>
-                            <input asp-for="Password" class="form-control form-control-lg" placeholder="Nhập mật khẩu" />
+                            <input asp-for="Password" class="form-control form-control-lg" placeholder="Nhập mật khẩu"/>
                             <span asp-validation-for="Password" class="text-danger"></span>
                         </div>
 
                         <!-- Checkbox: Gửi OTP qua Email -->
                         <div class="mb-4">
                             <div class="form-check">
-                                <input class="form-check-input" asp-for="RememberMe" id="rememberMe" checked />
+                                <input class="form-check-input" asp-for="RememberMe" id="rememberMe" checked/>
                                 <label class="form-check-label" for="rememberMe">
                                     <strong>Gửi mã OTP qua Email</strong>
                                     <small class="text-muted d-block">
@@ -47,7 +48,7 @@
                         </div>
 
                         <!-- Ẩn OtpType -->
-                        <input asp-for="OtpType" type="hidden" />
+                        <input asp-for="OtpType" type="hidden"/>
 
                         <!-- Submit -->
                         <button type="submit" class="btn btn-primary btn-lg w-100">
@@ -67,7 +68,7 @@
 </div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+    <partial name="_ValidationScriptsPartial"/>
 
     <script>
         // Đồng bộ RememberMe → OtpType
