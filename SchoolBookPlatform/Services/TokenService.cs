@@ -93,5 +93,6 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
         context.ShouldRenew = true;
         // Token hợp lệ
         logger?.LogDebug("Token {TokenId} validated successfully for user {UserId}", tokenId, userId);
+        TokenService ts =  new TokenService(db, logger);
     }
 }

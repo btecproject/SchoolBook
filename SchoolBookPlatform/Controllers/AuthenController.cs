@@ -35,7 +35,7 @@ public class AuthenController(
             return View(model);
         }
 
-        var user = await db.Users.Include(u => u.FaceProfile)
+        var user = await db.Users
             .FirstOrDefaultAsync(u => u.Username == model.Username && u.IsActive);
 
         if (user == null || !BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash))
