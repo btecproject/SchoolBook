@@ -1,0 +1,46 @@
+﻿@model SchoolBookPlatform.ViewModels.FaceVerificationViewModel
+
+@{
+    ViewData["Title"] = "Xác minh khuôn mặt";
+}
+
+<div class="container">
+    <h2>Xác minh khuôn mặt</h2>
+    <p>Vui lòng chụp ảnh khuôn mặt của bạn để xác minh.</p>
+    <form asp-action="FaceVerification" method="post">
+        <div asp-validation-summary="All" class="text-danger"></div>
+        <div class="form-group">
+            <label>Chụp ảnh</label>
+            <div>
+                <video id="webcam" autoplay></video>
+                <canvas id="canvas" style="display:none;"></canvas>
+                <button type="button" class="btn btn-secondary" onclick="captureImage()">Chụp ảnh</button>
+            </div>
+            <input asp-for="ImageData" type="hidden" id="imageData"/>
+        </div>
+        <button type="submit" class="btn btn-primary">Xác minh</button>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const imageDataInput = document.getElementById('imageData');
+
+        navigator.mediaDevices.getUserMedia({video: true})
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                alert('Không thể truy cập webcam: ' + err);
+            });
+
+        function captureImage() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            imageDataInput.value = canvas.toDataURL('image/jpeg');
+        }
+    </script>
+}

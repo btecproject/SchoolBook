@@ -1,29 +1,87 @@
-﻿@{
+﻿@model SchoolBookPlatform.ViewModels.LoginViewModel
+
+@{
     ViewData["Title"] = "Đăng nhập";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    var returnUrl = ViewData["ReturnUrl"]?.ToString();
 }
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            < επισ
 
-<div class="container mt-5" style="max-width: 400px;">
-    <h3 class="text-center mb-4">Đăng nhập</h3>
-    <form method="post" asp-action="Login" class="border rounded-3 p-4 shadow-sm bg-light">
-        <div class="mb-3">
-            <label for="username" class="form-label">Tên đăng nhập</label>
-            <input type="text" id="username" name="username" class="form-control" required autofocus />
-        </div>
-        <div class="mb-3">
-            <label for="password" class="form-label">Mật khẩu</label>
-            <input type="password" id="password" name="password" class="form-control" required />
-        </div>
-        <button type="submit" class="btn btn-primary w-100">Đăng nhập</button>
-    </form>
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-5">
+                    <h3 class="text-center mb-4 fw-bold text-primary">SchoolBook</h3>
+                    <h5 class="text-center mb-4 text-muted">Đăng nhập hệ thống</h5>
 
-    @if (!ViewData.ModelState.IsValid)
-    {
-        <div class="alert alert-danger mt-3">
-            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-            {
-                <p>@error.ErrorMessage</p>
-            }
+                    <form asp-action="Login" asp-route-returnUrl="@returnUrl" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                        <!-- Username -->
+                        <div class="mb-3">
+                            <label asp-for="Username" class="form-label"></label>
+                            <input asp-for="Username" class="form-control form-control-lg"
+                                   placeholder="Nhập tên đăng nhập"/>
+                            <span asp-validation-for="Username" class="text-danger"></span>
+                        </div>
+
+                        <!-- Password -->
+                        <div class="mb-3">
+                            <label asp-for="Password" class="form-label"></label>
+                            <input asp-for="Password" class="form-control form-control-lg" placeholder="Nhập mật khẩu"/>
+                            <span asp-validation-for="Password" class="text-danger"></span>
+                        </div>
+
+                        <!-- Checkbox: Gửi OTP qua Email -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" asp-for="RememberMe" id="rememberMe" checked/>
+                                <label class="form-check-label" for="rememberMe">
+                                    <strong>Gửi mã OTP qua Email</strong>
+                                    <small class="text-muted d-block">
+                                        (Mặc định. Nếu bỏ chọn → gửi qua SMS)
+                                    </small>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Ẩn OtpType -->
+                        <input asp-for="OtpType" type="hidden"/>
+
+                        <!-- Submit -->
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <small class="text-muted">
+                            <a asp-action="Register" class="text-decoration-none">Chưa có tài khoản?</a>
+                        </small>
+                    </div>
+                </div>
+            </div>
         </div>
-    }
+    </div>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial"/>
+
+    <script>
+        // Đồng bộ RememberMe → OtpType
+        document.getElementById('rememberMe').addEventListener('change', function () {
+            const otpTypeInput = document.querySelector('input[name="OtpType"]');
+            otpTypeInput.value = this.checked ? 'Email' : 'SMS';
+        });
+
+        // Khởi tạo mặc định
+        document.addEventListener('DOMContentLoaded', function () {
+            const rememberMe = document.getElementById('rememberMe');
+            const otpTypeInput = document.querySelector('input[name="OtpType"]');
+            otpTypeInput.value = rememberMe.checked ? 'Email' : 'SMS';
+        });
+    </script>
+}

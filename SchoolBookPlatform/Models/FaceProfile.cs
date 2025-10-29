@@ -5,8 +5,8 @@ namespace SchoolBookPlatform.Models;
 
 public class FaceProfile
 {
-    [Key, ForeignKey(nameof(User))]
-    public Guid UserId { get; set; }
+    [Key] [ForeignKey(nameof(User))] public Guid UserId { get; set; }
+
     public string PersonId { get; set; } // Azure PersonId
     public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastVerifiedAt { get; set; }
