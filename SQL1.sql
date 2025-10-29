@@ -30,13 +30,13 @@ CREATE TABLE UserRoles (
 CREATE TABLE UserTokens (
                             Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
                             UserId UNIQUEIDENTIFIER NOT NULL,
-                            DeviceInfo NVARCHAR(200),
-                            IPAddress NVARCHAR(50),
                             LoginAt DATETIME DEFAULT GETUTCDATE(),
-                            ExpiredAt DATETIME,
+                            ExpiredAt DATETIME NOT NULL, -- Hết hạn sau 7 ngày
                             IsRevoked BIT DEFAULT 0,
                             FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
+-- Index để tìm nhanh
+CREATE INDEX IX_UserTokens_UserId ON UserTokens (UserId);
 
 CREATE TABLE OtpCodes (
                           Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
@@ -58,6 +58,20 @@ CREATE TABLE FaceProfiles (
                               IsLivenessVerified BIT DEFAULT 0,
                               FOREIGN KEY (UserId) REFERENCES Users(Id)
 );
+CREATE TABLE TrustedDevices (
+                                Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                                UserId UNIQUEIDENTIFIER NOT NULL,
+                                IPAddress NVARCHAR(50) NOT NULL,
+                                DeviceInfo NVARCHAR(200) NOT NULL,
+                                TrustedAt DATETIME DEFAULT GETUTCDATE(),
+                                ExpiresAt DATETIME NOT NULL, -- Hết hạn sau 30 ngày
+                                IsRevoked BIT DEFAULT 0,
+                                FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+);
+
+-- Index để tìm nhanh
+CREATE INDEX IX_TrustedDevices_UserId_IP_Device
+    ON TrustedDevices (UserId, IPAddress, DeviceInfo);
 
 INSERT INTO Roles (Name, Description)
 VALUES
