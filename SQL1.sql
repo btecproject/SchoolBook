@@ -32,10 +32,10 @@ CREATE TABLE UserTokens (
                             UserId UNIQUEIDENTIFIER NOT NULL,
                             DeviceInfo NVARCHAR(200),
                             IPAddress NVARCHAR(50),
-                            IsRevoked BIT DEFAULT 0,
-                            CreatedAt DATETIME DEFAULT GETUTCDATE(),
+                            LoginAt DATETIME DEFAULT GETUTCDATE(),
                             ExpiredAt DATETIME,
-                            FOREIGN KEY (UserId) REFERENCES Users(Id)
+                            IsRevoked BIT DEFAULT 0,
+                            FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
 
 CREATE TABLE OtpCodes (
