@@ -85,7 +85,7 @@ VALUES
 DECLARE @highAdminId UNIQUEIDENTIFIER = NEWID();
 INSERT INTO Users (Id, Username, PasswordHash, Email, PhoneNumber, FaceRegistered, MustChangePassword, TokenVersion, IsActive)
 VALUES
-    (@highAdminId, 'highadmin', '$2a$12$1z0WFrouH5JZdDkmpjQPiuyOcYIOeswMPhJMDa7VwJe9uT/d0QoD.', 'highadmin@mail.com', NULL, 0, 1, 1, 1);
+    (@highAdminId, 'highadmin', '$2a$12$1z0WFrouH5JZdDkmpjQPiuyOcYIOeswMPhJMDa7VwJe9uT/d0QoD.', 'highadmin@mail.com', 0123456789, 0, 1, 1, 1);
 
 
 INSERT INTO UserRoles (UserId, RoleId)
