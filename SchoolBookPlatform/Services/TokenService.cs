@@ -1,18 +1,12 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Models;
 
-public class TokenService
+public class TokenService(AppDbContext db, ILogger<TokenService> logger)
 {
-    private readonly AppDbContext _db;
-
-    public TokenService(AppDbContext db)
-    {
-        _db = db;
-    }
-
     public async Task SignInAsync(HttpContext ctx, User user)
     {
         var token = new UserToken
@@ -21,8 +15,8 @@ public class TokenService
             ExpiredAt = DateTime.UtcNow.AddDays(7)
         };
 
-        _db.UserTokens.Add(token);
-        await _db.SaveChangesAsync();
+        db.UserTokens.Add(token);
+        await db.SaveChangesAsync();
 
         var claims = new List<Claim>
         {
@@ -46,14 +40,56 @@ public class TokenService
         var tokenId = ctx.User.FindFirst("TokenId")?.Value;
         if (Guid.TryParse(tokenId, out var tid))
         {
-            var token = await _db.UserTokens.FindAsync(tid);
+            var token = await db.UserTokens.FindAsync(tid);
             if (token != null)
             {
                 token.IsRevoked = true;
-                await _db.SaveChangesAsync();
+                await db.SaveChangesAsync();
             }
         }
 
         await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    }
+
+    public static async Task ValidateAsync(CookieValidatePrincipalContext context)
+    {
+        var tokenIdClaim = context.Principal?.FindFirst("TokenId")?.Value;
+        var userIdClaim = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(tokenIdClaim) || string.IsNullOrEmpty(userIdClaim))
+        {
+            context.RejectPrincipal();
+            await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return;
+        }
+
+        if (!Guid.TryParse(tokenIdClaim, out var tokenId) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            context.RejectPrincipal();
+            await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return;
+        }
+
+        // Lấy DbContext từ DI
+        var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+        var logger = context.HttpContext.RequestServices.GetService<ILogger<TokenService>>();
+
+        // Kiểm tra token trong database
+        var token = await db.UserTokens
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == tokenId && t.UserId == userId);
+
+        if (token == null || token.IsRevoked || token.ExpiredAt < DateTime.UtcNow)
+        {
+            logger?.LogWarning("Invalid token {TokenId} for user {UserId}. Revoked: {IsRevoked}, Expired: {ExpiredAt}",
+                tokenId, userId, token?.IsRevoked, token?.ExpiredAt);
+
+            context.RejectPrincipal();
+            await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return;
+        }
+
+        // Token hợp lệ
+        logger?.LogDebug("Token {TokenId} validated successfully for user {UserId}", tokenId, userId);
     }
 }

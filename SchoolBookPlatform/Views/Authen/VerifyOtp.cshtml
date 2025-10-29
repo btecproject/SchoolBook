@@ -2,7 +2,8 @@
 
 @{
     ViewData["Title"] = "Otp Verification";
-    var otpMethod = ViewData["OtpType"]?.ToString() ?? "SMS";
+    //ĐỌC TỪ MODEL TRƯỚC, SAU ĐÓ MỚI ĐẾN ViewData
+    var otpType = Model.Type ?? ViewData["OtpType"]?.ToString() ?? "SMS";
 }
 
 <div class="container mt-5">
@@ -12,8 +13,8 @@
                 <div class="card-body">
                     <h3 class="text-center mb-4">Xác minh OTP</h3>
                     <p class="text-center text-muted">
-                        Mã OTP đã được gửi qua <strong>@(ViewData["OtpType"] == "Email" ? "Email" : "SMS")</strong>
-                        đến <strong>@(ViewData["OtpType"] == "Email" ? "email" : "số điện thoại")</strong> của bạn.
+                        Mã OTP đã được gửi qua <strong>@(otpType == "Email" ? "Email" : "SMS")</strong>
+                        đến <strong>@(otpType == "Email" ? "email" : "số điện thoại")</strong> của bạn.
                     </p>
 
                     <form asp-action="VerifyOtp" method="post" id="verifyForm">
@@ -54,12 +55,11 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial"/>
     <script>
-        let countdownTime = 5; // 5 giây cooldown
+        let countdownTime = 5;
         const resendBtn = document.getElementById('resendBtn');
         const countdownSpan = document.getElementById('countdown');
         const resendForm = document.getElementById('resendForm');
 
-        // Bắt đầu đếm ngược
         function startCountdown() {
             resendBtn.disabled = true;
             const timer = setInterval(() => {
@@ -75,12 +75,10 @@
             }, 1000);
         }
 
-        // Gắn sự kiện click
         resendBtn.addEventListener('click', async () => {
             resendBtn.disabled = true;
             resendBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Đang gửi...';
 
-            // LẤY TOKEN TỪ FORM RESEND
             const formData = new FormData(resendForm);
 
             const response = await fetch('@Url.Action("ResendOtp", "Authen")', {
@@ -107,7 +105,6 @@
             }
         });
 
-        // Bắt đầu đếm ngược khi load trang
         startCountdown();
     </script>
 }

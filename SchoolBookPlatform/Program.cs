@@ -37,6 +37,10 @@ public class Program
                 options.Cookie.SameSite = SameSiteMode.Strict;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 
+                options.Events = new CookieAuthenticationEvents
+                {
+                    OnValidatePrincipal = TokenService.ValidateAsync
+                };
                 // options.Events = new CookieAuthenticationEvents { OnValidatePrincipal = TokenService.ValidateAsync };
             });
 

@@ -140,9 +140,9 @@ public class AuthenController(
         
         if (!isTrusted)
         {
-            await otpService.GenerateOtpAsync(user, "SMS");
+            await otpService.GenerateOtpAsync(user, "Email");
             TempData["UserId"] = user.Id.ToString();
-            TempData["OtpType"] = "SMS";
+            TempData["OtpType"] = "Email";
             return RedirectToAction(nameof(VerifyOtp));
         }
 
@@ -177,11 +177,18 @@ public class AuthenController(
         if (!ModelState.IsValid)
         {
             logger.LogWarning("VerifyOtp POST - ModelState invalid");
-            ViewData["OtpType"] = model.Type;
+            var otpType = TempData.Peek("OtpType")?.ToString() ?? model.Type;
+            ViewData["OtpType"] = otpType;
+            model.Type = otpType;
             TempData.Keep("UserId");
             TempData.Keep("OtpType");
             TempData.Keep("ReturnUrl");
             return View(model);
+            // ViewData["OtpType"] = model.Type;
+            // TempData.Keep("UserId");
+            // TempData.Keep("OtpType");
+            // TempData.Keep("ReturnUrl");
+            // return View(model);
         }
 
         var userId = TempData.Peek("UserId")?.ToString();
@@ -206,7 +213,9 @@ public class AuthenController(
         if (!isValid)
         {
             ModelState.AddModelError("Code", "Mã OTP không đúng hoặc đã hết hạn.");
-            ViewData["OtpType"] = model.Type;
+            var otpType = TempData.Peek("OtpType")?.ToString() ?? model.Type;
+            ViewData["OtpType"] = otpType;
+            model.Type = otpType;
             TempData.Keep("UserId");
             TempData.Keep("OtpType");
             TempData.Keep("ReturnUrl");
