@@ -48,7 +48,7 @@ project.fragment.lock.json
 artifacts/
 
 # ASP.NET Core
-**/wwwroot/lib/
+#**/wwwroot/lib/
 **/wwwroot/dist/
 
 # StyleCop

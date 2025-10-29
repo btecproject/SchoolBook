@@ -41,7 +41,6 @@ public class Program
                 {
                     OnValidatePrincipal = TokenService.ValidateAsync
                 };
-                // options.Events = new CookieAuthenticationEvents { OnValidatePrincipal = TokenService.ValidateAsync };
             });
 
         // Logging

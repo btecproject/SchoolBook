@@ -88,7 +88,9 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
             await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return;
         }
-
+        
+        context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7);
+        context.ShouldRenew = true;
         // Token hợp lệ
         logger?.LogDebug("Token {TokenId} validated successfully for user {UserId}", tokenId, userId);
     }
