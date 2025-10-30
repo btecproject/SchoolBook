@@ -38,6 +38,5 @@ namespace SchoolBookPlatform.Manager
                 .FirstOrDefaultAsync();
             return deviceInfo;
         }
-
     }
 }
