@@ -82,7 +82,7 @@ public class AuthenController(
             }
         }
 
-        await tokenService.SignInAsync(HttpContext, user);
+        await tokenService.SignInAsync(HttpContext, user, db);
         return LocalRedirect(returnUrl ?? Url.Action("Home", "Feeds"));
     }
 
@@ -146,7 +146,7 @@ public class AuthenController(
             return RedirectToAction(nameof(VerifyOtp));
         }
 
-        await tokenService.SignInAsync(HttpContext, user);
+        await tokenService.SignInAsync(HttpContext, user, db);
         return RedirectToAction("Home", "Feeds");
     }
 
@@ -227,7 +227,7 @@ public class AuthenController(
         await trustedService.AddTrustedDeviceAsync(user.Id, ip, device);
         logger.LogInformation("Trusted device added for user {UserId}", user.Id);
         
-        await tokenService.SignInAsync(HttpContext, user);
+        await tokenService.SignInAsync(HttpContext, user, db);
         logger.LogInformation("User {UserId} signed in successfully", user.Id);
 
         var returnUrl = TempData["ReturnUrl"]?.ToString() ?? Url.Action("Home", "Feeds");

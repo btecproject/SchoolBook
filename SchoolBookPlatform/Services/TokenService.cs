@@ -3,11 +3,12 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Models;
 
 public class TokenService(AppDbContext db, ILogger<TokenService> logger)
 {
-    public async Task SignInAsync(HttpContext ctx, User user)
+    public async Task SignInAsync(HttpContext ctx, User user, AppDbContext db)
     {
         var token = new UserToken
         {
@@ -18,12 +19,18 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
         db.UserTokens.Add(token);
         await db.SaveChangesAsync();
 
+        IEnumerable<string> roleNames = await UserManager.GetUserRolesAsync(db, user.Id);
+
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.Username),
             new("TokenId", token.Id.ToString())
         };
+        foreach (var roleName in roleNames)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, roleName));
+        }
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);
