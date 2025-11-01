@@ -1,0 +1,61 @@
+﻿.text-center {
+    text-align: center;
+}
+
+.home-container {
+    background: var(--primary-gradient);
+    color: white;
+    padding: 80px 20px;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.home-container h1 {
+    font-size: 2.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.home-container p {
+    font-size: 1.2rem;
+    color: #fff;
+}
+
+.btn-outline-primary {
+    color: white;
+    border: 2px solid white;
+    background: transparent;
+}
+
+.btn-outline-primary:hover {
+    background: white;
+    color: var(--primary-color);
+}
+
+.btn-outline-success {
+    border: 2px solid white;
+    color: white;
+    background: transparent;
+}
+
+.btn-outline-success:hover {
+    background: white;
+    color: var(--secondary-color);
+}
+/* Nút login chính – viền xanh lá nhạt */
+.btn-login {
+    background-color: #f8fff8;       /* nền rất nhạt, gần trắng */
+    color: #3b7c3b;                  /* chữ xanh đậm */
+    border: 2px solid #a8e6a3;       /* viền xanh lá nhạt */
+    padding: 0.7rem 1.6rem;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.btn-login:hover {
+    background: #7cd67c;             /* xanh lá tươi hơn */
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(124, 214, 124, 0.4);
+}

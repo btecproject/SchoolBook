@@ -1,0 +1,12 @@
+﻿.main-navbar {
+    background: linear-gradient(45deg, #ff7e5f, #feb47b);
+}
+
+.main-navbar .nav-link:hover {
+    text-decoration: underline;
+    opacity: 0.9;
+}
+
+.footer {
+    background: linear-gradient(45deg, #feb47b, #ff7e5f);
+}
