@@ -6,7 +6,6 @@ namespace SchoolBookPlatform.Controllers;
 [Authorize]
 public class FeedsController : Controller
 {
-    // GET
     public IActionResult Home()
     {
         return View();
