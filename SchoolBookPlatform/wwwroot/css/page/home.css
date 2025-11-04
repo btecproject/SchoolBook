@@ -28,7 +28,7 @@
 
 .btn-outline-primary:hover {
     background: white;
-    color: var(--primary-color);
+    color: #FF7E5FFF;
 }
 
 .btn-outline-success {
@@ -39,13 +39,13 @@
 
 .btn-outline-success:hover {
     background: white;
-    color: var(--secondary-color);
+    color: #FEB47BFF;
 }
-/* Nút login chính – viền xanh lá nhạt */
+/* Nút login chính */
 .btn-login {
-    background-color: #f8fff8;       /* nền rất nhạt, gần trắng */
-    color: #3b7c3b;                  /* chữ xanh đậm */
-    border: 2px solid #a8e6a3;       /* viền xanh lá nhạt */
+    background-color: #f8fff8;       
+    color: black;                  
+    border: 2px solid #FF7E5FFF;       
     padding: 0.7rem 1.6rem;
     border-radius: 8px;
     font-weight: 600;
@@ -54,8 +54,8 @@
 }
 
 .btn-login:hover {
-    background: #7cd67c;             /* xanh lá tươi hơn */
+    background: #FEB47BFF;             
     color: white;
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(124, 214, 124, 0.4);
+    box-shadow: 0 6px 16px #FF7E5FFF;
 }

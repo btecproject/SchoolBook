@@ -1,5 +1,5 @@
 ﻿.main-navbar {
-    background: linear-gradient(45deg, #ff7e5f, #feb47b);
+    
 }
 
 .main-navbar .nav-link:hover {
@@ -8,5 +8,9 @@
 }
 
 .footer {
-    background: linear-gradient(45deg, #feb47b, #ff7e5f);
+    
+}
+
+main {
+    flex: 1;
 }
