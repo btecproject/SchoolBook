@@ -1,6 +1,10 @@
 # SchoolBook
 
-Add appsettings.json to run:
+## Project Setup
+
+To run this project, create an `appsettings.json` file with the following content:
+
+```json
 {
   "ConnectionStrings": {
     "DefaultConnection": "..."
