@@ -1,9 +1,21 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Trang chủ";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Btec SchoolBook</p>
-    <button type="button" onclick="location.href='@Url.Action("Login", "Authen")'">Login</button>
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/home.css" />
+}
+
+<div class="home-hero text-center">
+    <div class="overlay"></div>
+    <div class="home-content">
+        <h1 class="display-4 fw-bold mb-3">Chào mừng đến với <span class="highlight">BTEC SchoolBook</span></h1>
+        <p class="lead mb-4">
+            Mạng xã hội học đường — nơi học sinh và sinh viên cùng chia sẻ bài viết, kiến thức và kết nối bạn bè.
+        </p>
+        <button type="button" class="btn btn-login" onclick="location.href='@Url.Action("Login", "Authen")'">
+            <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập
+        </button>
+    </div>
 </div>

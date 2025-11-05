@@ -1,0 +1,16 @@
+﻿.main-navbar {
+    
+}
+
+.main-navbar .nav-link:hover {
+    text-decoration: underline;
+    opacity: 0.9;
+}
+
+.footer {
+    
+}
+
+main {
+    flex: 1;
+}

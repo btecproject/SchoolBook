@@ -1,0 +1,7 @@
+﻿:root {
+    --primary-gradient: linear-gradient(45deg, #ff7e5f, #feb47b);
+    --primary-color: #ff7e5f;
+    --secondary-color: #feb47b;
+    --text-color: #333;
+    --bg-light: #fffaf5;
+}
