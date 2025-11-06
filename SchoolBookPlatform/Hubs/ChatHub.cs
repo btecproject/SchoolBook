@@ -5,7 +5,7 @@ using SchoolBookPlatform.Services;
 
 namespace SchoolBookPlatform.Hubs
 {
-    [Authorize]  // Yêu cầu JWT token
+    [Authorize] 
     public class ChatHub : Hub
     {
         private readonly ChatService _chatService;
@@ -17,7 +17,7 @@ namespace SchoolBookPlatform.Hubs
 
         public async Task SendMessage(int threadId, int segmentId, string content)
         {
-            var userId = Context.UserIdentifier;  // Từ JWT claim (cấu hình IUserIdProvider nếu cần)
+            var userId = Context.UserIdentifier;
             var message = new ChatMessage { UserId = userId, Content = content, Timestamp = DateTime.UtcNow };
 
             await _chatService.AddMessageToSegment(segmentId, message);

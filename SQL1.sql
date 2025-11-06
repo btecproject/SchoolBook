@@ -97,12 +97,12 @@ GO
 
 -- Kiểm tra xem bảng đã tồn tại chưa
 SELECT
-    CASE WHEN OBJECT_ID('ChatThreads') IS NOT NULL THEN '✅ ChatThreads exists'
-         ELSE '❌ ChatThreads missing' END as Status
+    CASE WHEN OBJECT_ID('ChatThreads') IS NOT NULL THEN 'ChatThreads exists'
+         ELSE 'ChatThreads missing' END as Status
 UNION ALL
 SELECT
-    CASE WHEN OBJECT_ID('ChatSegments') IS NOT NULL THEN '✅ ChatSegments exists'
-         ELSE '❌ ChatSegments missing' END;
+    CASE WHEN OBJECT_ID('ChatSegments') IS NOT NULL THEN 'ChatSegments exists'
+         ELSE 'ChatSegments missing' END;
 GO
 
 -- Nếu ChatSegments chưa có, tạo nó
@@ -122,7 +122,7 @@ CREATE TABLE ChatSegments (
 );
 
 CREATE INDEX IX_ChatSegments_ThreadId ON ChatSegments(ThreadId);
-PRINT '✅ Created ChatSegments table';
+PRINT 'Created ChatSegments table';
 END
 GO
 
@@ -134,6 +134,6 @@ INSERT INTO ChatThreads (ThreadName, UserIds) VALUES
                                                   (N'Project Team', '["hungnp","user1"]'),
                                                   (N'Study Group', '["user1","user2","user3"]'),
                                                   (N'Admin Chat', '["hungnp"]');
-PRINT '✅ Seeded sample chat threads';
+PRINT 'Seeded sample chat threads';
 END
 GO

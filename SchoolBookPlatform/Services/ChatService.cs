@@ -168,7 +168,7 @@ namespace SchoolBookPlatform.Services
             return thread;
         }
         
-        // Xóa tất cả chats (for testing)
+        // Xóa tất cả chats
         public async Task ClearAllChats()
         {
             _context.ChatSegments.RemoveRange(_context.ChatSegments);

@@ -18,7 +18,7 @@ namespace SchoolBookPlatform.Views.Chat
 
         public IActionResult OnGet(int threadId)
         {
-            var userId = User.Identity.Name; // Hoặc từ claim
+            var userId = User.Identity.Name;
             Thread = _chatService.GetThreadById(threadId, userId);
             if (Thread == null) return NotFound();
             return Page();
