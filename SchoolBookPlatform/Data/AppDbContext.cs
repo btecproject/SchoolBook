@@ -8,7 +8,9 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
-
+    
+    public DbSet<ChatThread> ChatThreads { get; set; }
+    public DbSet<ChatSegment> ChatSegments { get; set; }
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<Role> Roles { get; set; } = null!;
     public DbSet<UserRole> UserRoles { get; set; } = null!;
@@ -46,6 +48,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<UserToken>(entity =>
         {
             entity.HasKey(t => t.Id);
+            entity.Property(t => t.LoginAt).HasDefaultValueSql("GETUTCDATE()");
             entity.Property(t => t.ExpiredAt).IsRequired();
             entity.HasIndex(t => t.UserId);
         });
@@ -66,12 +69,25 @@ public class AppDbContext : DbContext
                 .HasForeignKey<FaceProfile>(f => f.UserId);
         });
 
-        modelBuilder.Entity<UserToken>(entity =>
+        // ChatThread - Cấu hình UserIdsJson
+        modelBuilder.Entity<ChatThread>(entity =>
         {
             entity.HasKey(t => t.Id);
-            entity.Property(t => t.LoginAt).HasDefaultValueSql("GETUTCDATE()");
-            entity.Property(t => t.ExpiredAt).IsRequired();
-            entity.HasIndex(t => t.UserId);
+            entity.Property(t => t.ThreadName).IsRequired().HasMaxLength(200);
+            entity.Property(t => t.UserIdsJson).IsRequired().HasColumnName("UserIds");
+            
+            entity.HasMany(t => t.Segments)
+                .WithOne()
+                .HasForeignKey(s => s.ThreadId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ChatSegment
+        modelBuilder.Entity<ChatSegment>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.MessagesJson).IsRequired();
+            entity.Property(s => s.StartTime).IsRequired();
         });
     }
 }
