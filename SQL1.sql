@@ -85,8 +85,55 @@ VALUES
 DECLARE @highAdminId UNIQUEIDENTIFIER = NEWID();
 INSERT INTO Users (Id, Username, PasswordHash, Email, PhoneNumber, FaceRegistered, MustChangePassword, TokenVersion, IsActive)
 VALUES
-    (@highAdminId, 'highadmin', '$2a$12$1z0WFrouH5JZdDkmpjQPiuyOcYIOeswMPhJMDa7VwJe9uT/d0QoD.', 'highadmin@mail.com', NULL, 0, 1, 1, 1);
+    (@highAdminId, 'hungnp', '$2a$12$1z0WFrouH5JZdDkmpjQPiuyOcYIOeswMPhJMDa7VwJe9uT/d0QoD.', 'hungnp1005@mail.com', NULL, 0, 1, 1, 1);
 
 
 INSERT INTO UserRoles (UserId, RoleId)
 SELECT @highAdminId, Id FROM Roles WHERE Name = 'HighAdmin';
+
+
+USE SchoolBookDB;
+GO
+
+-- Kiểm tra xem bảng đã tồn tại chưa
+SELECT
+    CASE WHEN OBJECT_ID('ChatThreads') IS NOT NULL THEN 'ChatThreads exists'
+         ELSE 'ChatThreads missing' END as Status
+UNION ALL
+SELECT
+    CASE WHEN OBJECT_ID('ChatSegments') IS NOT NULL THEN 'ChatSegments exists'
+         ELSE 'ChatSegments missing' END;
+GO
+
+-- Nếu ChatSegments chưa có, tạo nó
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ChatSegments')
+BEGIN
+CREATE TABLE ChatSegments (
+                              Id INT PRIMARY KEY IDENTITY(1,1),
+                              ThreadId INT NOT NULL,
+                              StartTime DATETIME2 NOT NULL,
+                              EndTime DATETIME2 NULL,
+                              MessagesJson NVARCHAR(MAX) NOT NULL,
+                              IsProtected BIT NOT NULL DEFAULT 0,
+                              PinHash NVARCHAR(500) NULL,
+                              Salt VARBINARY(16) NULL,
+                              CONSTRAINT FK_ChatSegments_ChatThreads FOREIGN KEY (ThreadId)
+                                  REFERENCES ChatThreads(Id) ON DELETE CASCADE
+);
+
+CREATE INDEX IX_ChatSegments_ThreadId ON ChatSegments(ThreadId);
+PRINT 'Created ChatSegments table';
+END
+GO
+
+-- Thêm dữ liệu mẫu nếu chưa có
+IF NOT EXISTS (SELECT * FROM ChatThreads)
+BEGIN
+INSERT INTO ChatThreads (ThreadName, UserIds) VALUES
+                                                  (N'General Discussion', '["hungnp","user1","user2"]'),
+                                                  (N'Project Team', '["hungnp","user1"]'),
+                                                  (N'Study Group', '["user1","user2","user3"]'),
+                                                  (N'Admin Chat', '["hungnp"]');
+PRINT 'Seeded sample chat threads';
+END
+GO
