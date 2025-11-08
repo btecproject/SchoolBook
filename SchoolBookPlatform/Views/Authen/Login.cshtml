@@ -49,6 +49,19 @@
                         <button type="submit" class="btn btn-primary btn-lg w-100">
                             <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
                         </button>
+                        
+                        <!-- Dòng chữ "Hoặc" -->
+                        <div class="d-flex align-items-center my-3">
+                            <hr class="flex-grow-1">
+                            <span class="mx-2 text-muted fw-bold">Hoặc</span>
+                            <hr class="flex-grow-1">
+                        </div>
+
+                        <!-- Nút đăng nhập Google -->
+                        <a href="~/account/google-login" class="btn btn-google btn-lg w-100">
+                            <i class="bi bi-google"></i> Đăng nhập bằng Google
+                        </a>
+                        
                     </form>
                     
                 </div>
@@ -56,6 +69,42 @@
         </div>
     </div>
 </div>
+
+@section Styles {
+    <style>
+        /* Nút Google - tông xanh lá */
+        .btn-google {
+            background-color: #ffffff;
+            border: 2px solid #47acff !important; /* Xanh lá Google */
+            color: #47acff !important;
+            font-weight: 500 !important;
+            transition: all 0.3s ease !important;
+            
+        }
+
+        /* Khi hover */
+        .btn-google:hover {
+            background-color: #1c98ff;
+            color: #ffffff;
+            box-shadow: 0 4px 12px #014783;
+            transform: translateY(-1px);
+        }
+
+        /* Khi nhấn giữ (active) */
+        .btn-google:active {
+            background-color: #2c8c45;
+            border-color: #2c8c45;
+            box-shadow: none;
+            transform: translateY(1px);
+        }
+
+        /* Icon Google */
+        .btn-google i {
+            font-size: 1.2rem;
+            vertical-align: middle;
+        }
+    </style>
+}
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial"/>

@@ -7,15 +7,27 @@
     opacity: 0.9;
 }
 
+.navbar {
+    background: #FEB47BFF !important;
+    color: white !important;
+}
+
+.nav-link {
+    color: white !important;
+}
+.navbar-brand {
+    color: white !important;
+}
+
 .footer {
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
-    background-color: rgba(255, 191, 160, 0.47);
-    color: white;
+    color: white !important;
     text-align: center;
     padding: 1rem;
+    background: #FEB47BFF;
 }
 
 main {
