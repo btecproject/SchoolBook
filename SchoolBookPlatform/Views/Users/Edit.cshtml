@@ -1,0 +1,128 @@
+@model SchoolBookPlatform.ViewModels.EditUserViewModel
+
+@{
+    ViewData["Title"] = "Chỉnh sửa user";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0"><i class="bi bi-pencil-square"></i> Chỉnh sửa user</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Edit" method="post">
+                        @Html.AntiForgeryToken()
+                        <input asp-for="Id" type="hidden" />
+                        
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Username" class="form-label"></label>
+                                <input asp-for="Username" class="form-control" />
+                                <span asp-validation-for="Username" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Vai trò hiện tại</label>
+                                <div>
+                                    @foreach (var role in Model.CurrentRoles)
+                                    {
+                                        var badgeClass = role switch
+                                        {
+                                            "HighAdmin" => "bg-danger",
+                                            "Admin" => "bg-warning text-dark",
+                                            "Moderator" => "bg-info text-dark",
+                                            "Teacher" => "bg-success",
+                                            "Student" => "bg-secondary",
+                                            _ => "bg-light text-dark"
+                                        };
+                                        <span class="badge @badgeClass me-1">@role</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Email" class="form-label"></label>
+                                <input asp-for="Email" type="email" class="form-control" />
+                                <span asp-validation-for="Email" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="PhoneNumber" class="form-label"></label>
+                                <input asp-for="PhoneNumber" class="form-control" />
+                                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="RoleIds" class="form-label"></label>
+                            <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                @foreach (var role in Model.AvailableRoles)
+                                {
+                                    var isChecked = Model.RoleIds.Contains(role.Id);
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="RoleIds" value="@role.Id" 
+                                               id="role_@role.Id" @(isChecked ? "checked" : "") />
+                                        <label class="form-check-label" for="role_@role.Id">
+                                            <strong>@role.Name</strong>
+                                            @if (!string.IsNullOrEmpty(role.Description))
+                                            {
+                                                <small class="text-muted d-block">@role.Description</small>
+                                            }
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                            <span asp-validation-for="RoleIds" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check">
+                                    <input asp-for="MustChangePassword" class="form-check-input" type="checkbox" />
+                                    <label asp-for="MustChangePassword" class="form-check-label"></label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check">
+                                    <input asp-for="IsActive" class="form-check-input" type="checkbox" />
+                                    <label asp-for="IsActive" class="form-check-label"></label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check">
+                                    <input asp-for="FaceRegistered" class="form-check-input" type="checkbox" disabled />
+                                    <label asp-for="FaceRegistered" class="form-check-label">
+                                        Đã đăng ký Face (Chỉ đọc)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Quay lại
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="bi bi-check-circle"></i> Cập nhật
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+
