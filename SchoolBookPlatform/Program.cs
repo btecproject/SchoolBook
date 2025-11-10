@@ -34,15 +34,23 @@ public class Program
                 options.ExpireTimeSpan = TimeSpan.FromDays(7);
                 options.SlidingExpiration = true;
                 options.Cookie.HttpOnly = true;
-                options.Cookie.SameSite = SameSiteMode.Strict;
+                options.Cookie.SameSite = SameSiteMode.Lax;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 
                 options.Events = new CookieAuthenticationEvents
                 {
                     OnValidatePrincipal = TokenService.ValidateAsync
                 };
-            });
-
+            }).AddGoogle(options =>
+        {
+            options.ClientId = config["Authentication:Google:ClientId"];
+            options.ClientSecret = config["Authentication:Google:ClientSecret"];
+            options.SaveTokens = true;
+            options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+            options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
+        });
+        
         // Logging
         builder.Logging.AddConsole();
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
