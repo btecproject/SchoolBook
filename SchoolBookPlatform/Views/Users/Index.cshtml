@@ -1,0 +1,226 @@
+@model List<SchoolBookPlatform.ViewModels.UserListViewModel>
+
+@{
+    ViewData["Title"] = "Quản lý người dùng";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-people"></i> Quản lý người dùng</h2>
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Tạo user mới
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="card shadow">
+        <div class="card-body">
+            @if (Model.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Số điện thoại</th>
+                            <th>Vai trò</th>
+                            <th>Trạng thái</th>
+                            <th>Face</th>
+                            <th>Ngày tạo</th>
+                            <th>Thao tác</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var user in Model)
+                        {
+                            <tr>
+                                <td><strong>@user.Username</strong></td>
+                                <td>@(user.Email ?? "-")</td>
+                                <td>@(user.PhoneNumber ?? "-")</td>
+                                <td>
+                                    @foreach (var role in user.Roles)
+                                    {
+                                        var badgeClass = role switch
+                                        {
+                                            "HighAdmin" => "bg-danger",
+                                            "Admin" => "bg-warning text-dark",
+                                            "Moderator" => "bg-info text-dark",
+                                            "Teacher" => "bg-success",
+                                            "Student" => "bg-secondary",
+                                            _ => "bg-light text-dark"
+                                        };
+                                        <span class="badge @badgeClass me-1">@role</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (user.IsActive)
+                                    {
+                                        <span class="badge bg-success">Hoạt động</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Vô hiệu hóa</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (user.FaceRegistered)
+                                    {
+                                        <span class="badge bg-primary"><i class="bi bi-check-circle"></i></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-dark"><i class="bi bi-x-circle"></i></span>
+                                    }
+                                </td>
+                                <td>@user.CreatedAt.ToString("dd/MM/yyyy")</td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-sm btn-outline-primary" title="Chỉnh sửa">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <a asp-action="Delete" asp-route-id="@user.Id" class="btn btn-sm btn-outline-danger" title="Xóa">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-warning" 
+                                                onclick="showResetPasswordModal('@user.Id', '@user.Username')" title="Reset mật khẩu">
+                                            <i class="bi bi-key"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                                onclick="revokeTokens('@user.Id', '@user.Username')" title="Hủy tokens">
+                                            <i class="bi bi-shield-x"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                    <p class="mt-3">Chưa có user nào.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reset mật khẩu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Reset mật khẩu cho user: <strong id="resetPasswordUsername"></strong></p>
+                <div class="mb-3">
+                    <label for="newPassword" class="form-label">Mật khẩu mới</label>
+                    <input type="password" class="form-control" id="newPassword" minlength="6" required>
+                    <small class="text-muted">Mật khẩu tối thiểu 6 ký tự</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="confirmResetPassword()">Reset</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentResetUserId = null;
+
+        function showResetPasswordModal(userId, username) {
+            currentResetUserId = userId;
+            document.getElementById('resetPasswordUsername').textContent = username;
+            document.getElementById('newPassword').value = '';
+            new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+        }
+
+        function confirmResetPassword() {
+            const newPassword = document.getElementById('newPassword').value;
+            if (!newPassword || newPassword.length < 6) {
+                alert('Mật khẩu phải có ít nhất 6 ký tự!');
+                return;
+            }
+
+            fetch('@Url.Action("ResetPassword", "Users")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    id: currentResetUserId,
+                    newPassword: newPassword
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+                    location.reload();
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra!');
+            });
+        }
+
+        function revokeTokens(userId, username) {
+            if (!confirm(`Bạn có chắc muốn hủy tất cả tokens của user "${username}"? User sẽ bị đăng xuất khỏi tất cả thiết bị.`)) {
+                return;
+            }
+
+            fetch('@Url.Action("RevokeTokens", "Users")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ id: userId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra!');
+            });
+        }
+    </script>
+}
+

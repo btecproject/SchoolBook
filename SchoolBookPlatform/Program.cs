@@ -23,6 +23,7 @@ public class Program
         builder.Services.AddScoped<FaceService>();
         builder.Services.AddScoped<OtpService>();
         builder.Services.AddScoped<TrustedService>();
+        builder.Services.AddScoped<UserManagementService>();
 
         // Authentication
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -50,6 +51,9 @@ public class Program
         // Authorization + Policy
         builder.Services.AddAuthorization(options =>
         {
+            options.AddPolicy("HighAdminOnly", policy =>
+                policy.RequireRole("HighAdmin"));
+            
             options.AddPolicy("AdminOrHigher", policy =>
                 policy.RequireRole("HighAdmin", "Admin"));
         });
