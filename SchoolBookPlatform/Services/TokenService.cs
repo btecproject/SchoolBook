@@ -102,4 +102,36 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
         logger?.LogDebug("Token {TokenId} validated successfully for user {UserId}", tokenId, userId);
         TokenService ts =  new TokenService(db, logger);
     }
+    public async Task<bool> RevokeAllTokensAsync(Guid userId)
+    {
+        try
+        {
+            var user = await db.Users.FindAsync(userId);
+            if (user == null)
+                return false;
+
+            // Tăng TokenVersion để invalidate tất cả tokens hiện tại
+            user.TokenVersion++;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            // Revoke tất cả tokens trong database
+            var tokens = await db.UserTokens
+                .Where(t => t.UserId == userId && !t.IsRevoked)
+                .ToListAsync();
+
+            foreach (var token in tokens)
+            {
+                token.IsRevoked = true;
+            }
+
+            await db.SaveChangesAsync();
+            logger.LogInformation("All tokens revoked for user {UserId}", userId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error revoking tokens for user {UserId}", userId);
+            return false;
+        }
+    }
 }

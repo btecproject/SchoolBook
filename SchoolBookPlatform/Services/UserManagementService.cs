@@ -9,11 +9,13 @@ public class UserManagementService
 {
     private readonly AppDbContext _db;
     private readonly ILogger<UserManagementService> _logger;
+    private readonly TokenService _tokenService;
 
-    public UserManagementService(AppDbContext db, ILogger<UserManagementService> logger)
+    public UserManagementService(AppDbContext db, ILogger<UserManagementService> logger,  TokenService tokenService)
     {
         _db = db;
         _logger = logger;
+        _tokenService = tokenService;
     }
 
     /// <summary>
@@ -23,17 +25,19 @@ public class UserManagementService
     /// </summary>
     public async Task<bool> CanManageUserAsync(Guid currentUserId, Guid targetUserId)
     {
+        if (currentUserId == targetUserId)
+            return false; // Không được quản lý chính mình
+
         var currentUserRoles = await _db.GetUserRolesAsync(currentUserId);
-        
-        // HighAdmin có thể quản lý tất cả
+    
+        //HighAdmin có thể quản lý tất cả trừ chính mình
         if (currentUserRoles.Contains("HighAdmin"))
             return true;
 
-        // Admin chỉ quản lý Moderator, Teacher, Student
+        //Admin chỉ quản lý Moderator, Teacher, Student
         if (currentUserRoles.Contains("Admin"))
         {
             var targetUserRoles = await _db.GetUserRolesAsync(targetUserId);
-            // Admin không được quản lý HighAdmin và Admin khác
             if (targetUserRoles.Contains("HighAdmin") || targetUserRoles.Contains("Admin"))
                 return false;
             return true;
@@ -136,35 +140,40 @@ public class UserManagementService
     /// </summary>
     public async Task<bool> RevokeAllTokensAsync(Guid userId)
     {
-        try
+        if (await _tokenService.RevokeAllTokensAsync(userId))
         {
-            var user = await _db.Users.FindAsync(userId);
-            if (user == null)
-                return false;
-
-            // Tăng TokenVersion để invalidate tất cả tokens hiện tại
-            user.TokenVersion++;
-            user.UpdatedAt = DateTime.UtcNow;
-
-            // Revoke tất cả tokens trong database
-            var tokens = await _db.UserTokens
-                .Where(t => t.UserId == userId && !t.IsRevoked)
-                .ToListAsync();
-
-            foreach (var token in tokens)
-            {
-                token.IsRevoked = true;
-            }
-
-            await _db.SaveChangesAsync();
-            _logger.LogInformation("All tokens revoked for user {UserId}", userId);
             return true;
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error revoking tokens for user {UserId}", userId);
-            return false;
-        }
+        return false;
+        // try
+        // {
+        //     var user = await _db.Users.FindAsync(userId);
+        //     if (user == null)
+        //         return false;
+        //
+        //     // Tăng TokenVersion để invalidate tất cả tokens hiện tại
+        //     user.TokenVersion++;
+        //     user.UpdatedAt = DateTime.UtcNow;
+        //
+        //     // Revoke tất cả tokens trong database
+        //     var tokens = await _db.UserTokens
+        //         .Where(t => t.UserId == userId && !t.IsRevoked)
+        //         .ToListAsync();
+        //
+        //     foreach (var token in tokens)
+        //     {
+        //         token.IsRevoked = true;
+        //     }
+        //
+        //     await _db.SaveChangesAsync();
+        //     _logger.LogInformation("All tokens revoked for user {UserId}", userId);
+        //     return true;
+        // }
+        // catch (Exception ex)
+        // {
+        //     _logger.LogError(ex, "Error revoking tokens for user {UserId}", userId);
+        //     return false;
+        // }
     }
 }
 

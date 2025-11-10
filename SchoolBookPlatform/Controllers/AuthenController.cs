@@ -36,8 +36,12 @@ public class AuthenController(
         }
 
         var user = await db.Users
-            .FirstOrDefaultAsync(u => u.Username == model.Username && u.IsActive);
-
+            .FirstOrDefaultAsync(u => u.Username == model.Username);
+        if (!user.IsActive)
+        {
+            ModelState.AddModelError(string.Empty, "User is disabled");
+            return View(model);
+        }
         if (user == null || !BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash))
         {
             ModelState.AddModelError(string.Empty, "Username or password is incorrect");

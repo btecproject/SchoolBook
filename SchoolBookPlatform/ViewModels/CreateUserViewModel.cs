@@ -10,7 +10,9 @@ public class CreateUserViewModel
     public string Username { get; set; } = null!;
 
     [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
-    [MinLength(6, ErrorMessage = "Mật khẩu tối thiểu 6 ký tự")]
+    [MinLength(8, ErrorMessage = "Mật khẩu tối thiểu 8 ký tự")]
+    [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$", 
+        ErrorMessage = "Mật khẩu phải chứa ít nhất một chữ cái viết hoa, một chữ cái viết thường, một số và một ký tự đặc biệt.")]
     [DataType(DataType.Password)]
     [Display(Name = "Mật khẩu")]
     public string Password { get; set; } = null!;
