@@ -52,7 +52,6 @@ public class UserManagementService
     public async Task<bool> CanCreateUserWithRolesAsync(Guid currentUserId, List<Guid> roleIds)
     {
         var currentUserRoles = await _db.GetUserRolesAsync(currentUserId);
-        
         // HighAdmin có thể tạo user với bất kỳ role nào
         if (currentUserRoles.Contains("HighAdmin"))
             return true;

@@ -15,7 +15,6 @@ public class Program
         // DB
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
-
         // Services
         builder.Services.AddHttpClient();
         builder.Services.AddHttpContextAccessor();

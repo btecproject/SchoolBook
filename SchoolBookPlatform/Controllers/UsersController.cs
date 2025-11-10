@@ -90,6 +90,26 @@ public class UsersController : Controller
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
             return View(model);
         }
+        //it nhất 1 role
+        if (model.RoleIds == null || !model.RoleIds.Any())
+        {
+            ModelState.AddModelError("RoleIds", "Phải chọn ít nhất một vai trò.");
+            model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
+            return View(model);
+        }
+        
+        //HighAdmin chỉ 1 role
+        var highAdminRole = await _db.Roles.FirstOrDefaultAsync(r => r.Name == "HighAdmin");
+        if (highAdminRole != null && model.RoleIds.Contains(highAdminRole.Id))
+        {
+            if (model.RoleIds.Count > 1)
+            {
+                ModelState.AddModelError("RoleIds",
+                    "HighAdmin chỉ được có duy nhất role HighAdmin, không được có thêm role khác.");
+                model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync(); 
+                return View(model);
+            }
+        }
 
         // Kiểm tra username đã tồn tại
         if (await _db.Users.AnyAsync(u => u.Username == model.Username))
@@ -196,7 +216,7 @@ public class UsersController : Controller
                 .Where(r => r.Name != "HighAdmin" && r.Name != "Admin")
                 .ToList();
         }
-
+        
         var viewModel = new EditUserViewModel
         {
             Id = user.Id,
@@ -235,7 +255,29 @@ public class UsersController : Controller
             TempData["ErrorMessage"] = "Bạn không có quyền chỉnh sửa user này.";
             return RedirectToAction(nameof(Index));
         }
-
+        
+        //it nhất 1 role
+        if (model.RoleIds == null || !model.RoleIds.Any())
+        {
+            ModelState.AddModelError("RoleIds", "Phải chọn ít nhất một vai trò.");
+            model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
+            model.CurrentRoles = await _db.GetUserRolesAsync(id);
+            return View(model);
+        }
+        
+        //HighAdmin chỉ 1 role
+        var highAdminRole = await _db.Roles.FirstOrDefaultAsync(r => r.Name == "HighAdmin");
+        if (highAdminRole != null && model.RoleIds.Contains(highAdminRole.Id))
+        {
+            if (model.RoleIds.Count > 1)
+            {
+                ModelState.AddModelError("RoleIds", "HighAdmin chỉ được có duy nhất role HighAdmin, không được có thêm role khác.");
+                model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
+                model.CurrentRoles = await _db.GetUserRolesAsync(id);
+                return View(model);
+            }
+        }
+        
         // Kiểm tra quyền tạo user với các roles này
         if (!await _userManagementService.CanCreateUserWithRolesAsync(currentUserId, model.RoleIds))
         {
@@ -310,7 +352,6 @@ public class UsersController : Controller
             var rolesToAdd = model.RoleIds
                 .Where(rid => !currentRoleIds.Contains(rid))
                 .ToList();
-
             foreach (var roleId in rolesToAdd)
             {
                 _db.UserRoles.Add(new UserRole
