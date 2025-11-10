@@ -18,11 +18,16 @@ namespace SchoolBookPlatform.Controllers
         }
 
         [HttpGet("messages")]
-        public IActionResult GetMessages(int segmentId, string pin)
+        public IActionResult GetMessages(int segmentId, string pin = null)  // Thêm = null
         {
             try
             {
+                Console.WriteLine($"GetMessages called: segmentId={segmentId}, pin={pin ?? "null"}");
+        
                 var messages = _chatService.GetMessagesFromSegment(segmentId, pin);
+        
+                Console.WriteLine($"Messages returned: {messages?.Count ?? 0}");
+        
                 return Ok(messages);
             }
             catch (UnauthorizedAccessException)
@@ -31,7 +36,8 @@ namespace SchoolBookPlatform.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                Console.WriteLine($"Error in GetMessages: {ex.Message}");
+                return BadRequest(new { error = ex.Message });
             }
         }
 

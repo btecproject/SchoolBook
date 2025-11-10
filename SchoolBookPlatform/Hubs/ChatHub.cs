@@ -5,45 +5,208 @@ using SchoolBookPlatform.Services;
 
 namespace SchoolBookPlatform.Hubs
 {
-    [Authorize] 
+    [Authorize]
     public class ChatHub : Hub
     {
         private readonly ChatService _chatService;
+        private readonly ILogger<ChatHub> _logger;
 
-        public ChatHub(ChatService chatService)
+        public ChatHub(ChatService chatService, ILogger<ChatHub> logger)
         {
             _chatService = chatService;
+            _logger = logger;
         }
 
+        public override async Task OnConnectedAsync()
+        {
+            var userId = Context.User?.Identity?.Name;
+            _logger.LogInformation($"User {userId} connected with connection ID: {Context.ConnectionId}");
+            await base.OnConnectedAsync();
+        }
+
+        public override async Task OnDisconnectedAsync(Exception exception)
+        {
+            var userId = Context.User?.Identity?.Name;
+            _logger.LogInformation($"User {userId} disconnected");
+            await base.OnDisconnectedAsync(exception);
+        }
+
+        // Gửi tin nhắn
         public async Task SendMessage(int threadId, int segmentId, string content)
         {
-            var userId = Context.UserIdentifier;
-            var message = new ChatMessage { UserId = userId, Content = content, Timestamp = DateTime.UtcNow };
+            try
+            {
+                _logger.LogInformation("=== SendMessage Received ===");
+                _logger.LogInformation($"threadId: {threadId} (Type: {threadId.GetType()})");
+                _logger.LogInformation($"segmentId: {segmentId} (Type: {segmentId.GetType()})");
+                _logger.LogInformation($"content: {content} (Type: {content?.GetType()?.ToString() ?? "null"})");
+        
+                var userId = Context.User?.Identity?.Name;
+                _logger.LogInformation($"userId from Context: {userId}");
+                
+                _logger.LogInformation($"SendMessage called - ThreadId: {threadId}, SegmentId: {segmentId}, UserId: {userId}, Content: {content}");
+                
+                if (string.IsNullOrEmpty(userId))
+                {
+                    _logger.LogError("User not authenticated");
+                    throw new HubException("User not authenticated");
+                }
+                
+                if (threadId <= 0)
+                {
+                    _logger.LogError($"Invalid threadId: {threadId}");
+                    throw new HubException("Invalid thread ID");
+                }
+                
+                if (segmentId <= 0)
+                {
+                    _logger.LogError($"Invalid segmentId: {segmentId}");
+                    throw new HubException("Invalid segment ID. Please create a segment first.");
+                }
+                
+                if (string.IsNullOrWhiteSpace(content))
+                {
+                    _logger.LogError("Message content is empty");
+                    throw new HubException("Message content cannot be empty");
+                }
 
-            await _chatService.AddMessageToSegment(segmentId, message);
+                var message = new ChatMessage 
+                { 
+                    UserId = userId, 
+                    Content = content, 
+                    Timestamp = DateTime.UtcNow 
+                };
 
-            // Broadcast đến group (thread)
-            await Clients.Group($"thread-{threadId}").SendAsync("ReceiveMessage", userId, content);
+                // Lưu tin nhắn vào database
+                await _chatService.AddMessageToSegment(segmentId, message);
+
+                _logger.LogInformation($"Message saved to database successfully");
+
+                // Broadcast đến tất cả members trong thread
+                await Clients.Group($"thread-{threadId}").SendAsync(
+                    "ReceiveMessage", 
+                    userId, 
+                    content, 
+                    message.Timestamp.ToString("o") // ISO 8601 format
+                );
+
+                _logger.LogInformation($"Message broadcast successfully from {userId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Exception: {ex.GetType().Name}");
+                _logger.LogError($"Message: {ex.Message}");
+                _logger.LogError($"StackTrace: {ex.StackTrace}");
+                throw;
+            }
         }
 
-        // Join thread
+        // Join thread (room)
         public async Task JoinThread(int threadId)
         {
-            await Groups.AddToGroupAsync(Context.ConnectionId, $"thread-{threadId}");
+            try
+            {
+                var userId = Context.User?.Identity?.Name;
+                
+                // Kiểm tra user có quyền join thread không
+                var thread = _chatService.GetThreadById(threadId, userId);
+                if (thread == null)
+                {
+                    throw new HubException("Thread not found or access denied");
+                }
+
+                await Groups.AddToGroupAsync(Context.ConnectionId, $"thread-{threadId}");
+                
+                _logger.LogInformation($"User {userId} joined thread {threadId}");
+
+                // Thông báo cho các thành viên khác
+                await Clients.OthersInGroup($"thread-{threadId}").SendAsync(
+                    "UserJoined", 
+                    userId
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error joining thread: {ex.Message}");
+                throw new HubException($"Failed to join thread: {ex.Message}");
+            }
         }
 
-        // Tạo protected segment (client gửi PIN)
-        public async Task StartProtectedSegment(int threadId, string pin)
+        // Leave thread
+        public async Task LeaveThread(int threadId)
         {
-            await _chatService.CreateSegment(threadId, true, pin);
-            await Clients.Group($"thread-{threadId}").SendAsync("SegmentStarted", "Protected segment started");
+            var userId = Context.User?.Identity?.Name;
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"thread-{threadId}");
+            
+            await Clients.OthersInGroup($"thread-{threadId}").SendAsync(
+                "UserLeft", 
+                userId
+            );
+            
+            _logger.LogInformation($"User {userId} left thread {threadId}");
         }
+
+        // Typing indicator
+        public async Task SendTyping(int threadId, bool isTyping)
+        {
+            var userId = Context.User?.Identity?.Name;
+            
+            await Clients.OthersInGroup($"thread-{threadId}").SendAsync(
+                "UserTyping", 
+                userId, 
+                isTyping
+            );
+        }
+
+        // Tạo segment mới
         public async Task StartNewSegment(int threadId)
         {
-            await _chatService.CreateSegment(threadId, false); // Không protected
-            await Clients.Group($"thread-{threadId}").SendAsync("SegmentStarted", "New segment started");
+            try
+            {
+                var segment = await _chatService.CreateSegment(threadId, false);
+                
+                await Clients.Group($"thread-{threadId}").SendAsync(
+                    "SegmentStarted", 
+                    segment.Id,
+                    "New segment started"
+                );
+            }
+            catch (Exception ex)
+            {
+                throw new HubException($"Failed to start segment: {ex.Message}");
+            }
         }
-        
-        
+
+        // Tạo protected segment
+        public async Task StartProtectedSegment(int threadId, string pin)
+        {
+            try
+            {
+                var segment = await _chatService.CreateSegment(threadId, true, pin);
+                
+                await Clients.Group($"thread-{threadId}").SendAsync(
+                    "SegmentStarted",
+                    segment.Id, 
+                    "Protected segment started"
+                );
+            }
+            catch (Exception ex)
+            {
+                throw new HubException($"Failed to start protected segment: {ex.Message}");
+            }
+        }
+
+        // Mark messages as read
+        public async Task MarkAsRead(int threadId, int segmentId)
+        {
+            var userId = Context.User?.Identity?.Name;
+            
+            // Broadcast đến các thành viên khác
+            await Clients.OthersInGroup($"thread-{threadId}").SendAsync(
+                "MessagesRead", 
+                userId, 
+                segmentId
+            );
+        }
     }
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Hubs;
 using SchoolBookPlatform.Services;
@@ -26,46 +27,27 @@ public class Program
         builder.Services.AddScoped<FaceService>();
         builder.Services.AddScoped<OtpService>();
         builder.Services.AddScoped<TrustedService>();
-        builder.Services.AddSignalR();
         builder.Services.AddScoped<ChatService>();
         builder.Services.AddSingleton<EncryptionService>();
+        
+        builder.Services.AddSignalR(options =>
+        {
+            options.EnableDetailedErrors = true;
+            options.MaximumReceiveMessageSize = 102400; // 100KB
+        });
+        
         builder.Services.AddControllersWithViews();
         
         builder.Services.AddCors(options =>
         {
             options.AddPolicy("AllowAll", policy =>
-                policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+                policy.WithOrigins("https://localhost:5001", "http://localhost:5000")
+                      .AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .AllowCredentials());
         });
         
-        builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
-            {
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    // Cấu hình ValidateIssuer, ValidateAudience, IssuerSigningKey, v.v.
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    // Thêm key và issuer/audience nếu có
-                    // IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("your-secret-key")),
-                    // ValidIssuer = "your-issuer",
-                    // ValidAudience = "your-audience"
-                };
-                options.Events = new JwtBearerEvents
-                {
-                    OnMessageReceived = context =>
-                    {
-                        if (context.Request.Path.Value.StartsWith("/hubs/chat") && context.Request.Query.TryGetValue("access_token", out var token))
-                        {
-                            context.Token = token;
-                        }
-                        return Task.CompletedTask;
-                    }
-                };
-            });
-        
-        // Authentication
+        // Cookie Authentication (Primary)
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(options =>
             {
@@ -112,15 +94,15 @@ public class Program
         app.UseAuthentication();
         app.UseAuthorization();
 
+        // Map SignalR Hub
         app.MapHub<ChatHub>("/chatHub");
         app.MapControllers();
 
-        // Route mặc định: Home/Index → Chào mừng
+        // Routes
         app.MapControllerRoute(
             "default",
             "{controller=Home}/{action=Index}");
 
-        // Route cho TokenManager
         app.MapControllerRoute(
             "tokenmanager",
             "TokenManager/{action=Index}/{id?}",

@@ -48,10 +48,18 @@ namespace SchoolBookPlatform.Services
             var segment = await _context.ChatSegments.FindAsync(segmentId);
             if (segment == null) throw new Exception("Segment not found");
 
-            var messages = DeserializeMessages(segment.MessagesJson, segment.IsProtected, null);
+            // Không cần decrypt nếu không protected
+            var messages = segment.IsProtected 
+                ? DeserializeMessages(segment.MessagesJson, true, null) 
+                : DeserializeMessages(segment.MessagesJson, false, null);
+                
             messages.Add(message);
 
-            segment.MessagesJson = SerializeMessages(messages, segment.IsProtected, null);
+            // Không cần encrypt nếu không protected
+            segment.MessagesJson = segment.IsProtected
+                ? SerializeMessages(messages, true, null)
+                : SerializeMessages(messages, false, null);
+                
             await _context.SaveChangesAsync();
         }
 
@@ -62,38 +70,59 @@ namespace SchoolBookPlatform.Services
 
             if (segment.IsProtected)
             {
+                if (string.IsNullOrEmpty(pin))
+                    throw new UnauthorizedAccessException("PIN required for protected segment");
+                    
                 if (!VerifyPin(pin, segment.PinHash, segment.Salt)) 
                     throw new UnauthorizedAccessException("Invalid PIN");
+                    
+                return DeserializeMessages(segment.MessagesJson, true, pin);
             }
 
-            return DeserializeMessages(segment.MessagesJson, segment.IsProtected, pin);
+            return DeserializeMessages(segment.MessagesJson, false, null);
         }
 
         private string SerializeMessages(List<ChatMessage> messages, bool isProtected, string pin)
         {
             var json = JsonSerializer.Serialize(messages);
-            if (!isProtected) return json;
+            
+            if (!isProtected || string.IsNullOrEmpty(pin)) 
+                return json;
 
-            var key = DeriveKeyFromPin(pin, null);
+            var key = DeriveKeyFromPin(pin, RandomNumberGenerator.GetBytes(16));
             return _encryptionService.Encrypt(json, key);
         }
 
         private List<ChatMessage> DeserializeMessages(string json, bool isProtected, string pin)
         {
-            if (string.IsNullOrEmpty(json)) return new List<ChatMessage>();
-            if (isProtected)
+            if (string.IsNullOrEmpty(json)) 
+                return new List<ChatMessage>();
+                
+            if (!isProtected || string.IsNullOrEmpty(pin))
             {
-                var key = DeriveKeyFromPin(pin, null);
-                json = _encryptionService.Decrypt(json, key);
+                try
+                {
+                    return JsonSerializer.Deserialize<List<ChatMessage>>(json) ?? new List<ChatMessage>();
+                }
+                catch
+                {
+                    return new List<ChatMessage>();
+                }
             }
+            
+            var key = DeriveKeyFromPin(pin, RandomNumberGenerator.GetBytes(16));
+            json = _encryptionService.Decrypt(json, key);
             return JsonSerializer.Deserialize<List<ChatMessage>>(json) ?? new List<ChatMessage>();
         }
 
         private byte[] DeriveKeyFromPin(string pin, byte[] salt)
         {
+            if (salt == null || salt.Length == 0)
+                salt = RandomNumberGenerator.GetBytes(16);
+                
             using var pbkdf2 = new Rfc2898DeriveBytes(
                 Encoding.UTF8.GetBytes(pin), 
-                salt ?? RandomNumberGenerator.GetBytes(16), 
+                salt, 
                 100000, 
                 HashAlgorithmName.SHA256
             );
@@ -102,6 +131,9 @@ namespace SchoolBookPlatform.Services
 
         private string ComputePinHash(string pin, byte[] salt)
         {
+            if (salt == null || salt.Length == 0)
+                throw new ArgumentException("Salt cannot be null or empty");
+                
             var key = DeriveKeyFromPin(pin, salt);
             using var sha256 = SHA256.Create();
             return Convert.ToBase64String(sha256.ComputeHash(key));
@@ -109,6 +141,9 @@ namespace SchoolBookPlatform.Services
 
         private bool VerifyPin(string pin, string storedHash, byte[] salt)
         {
+            if (string.IsNullOrEmpty(pin) || string.IsNullOrEmpty(storedHash) || salt == null)
+                return false;
+                
             var computedHash = ComputePinHash(pin, salt);
             return computedHash == storedHash;
         }
@@ -125,6 +160,22 @@ namespace SchoolBookPlatform.Services
                 t.Id == threadId && 
                 t.UserIds.Contains(userId)
             );
+            
+            // Tạo segment mặc định nếu chưa có
+            if (thread != null && !thread.Segments.Any())
+            {
+                var segment = new ChatSegment
+                {
+                    ThreadId = thread.Id,
+                    StartTime = DateTime.UtcNow,
+                    IsProtected = false,
+                    MessagesJson = "[]"
+                };
+                _context.ChatSegments.Add(segment);
+                _context.SaveChanges();
+                
+                thread.Segments.Add(segment);
+            }
             
             return thread;
         }
@@ -168,7 +219,7 @@ namespace SchoolBookPlatform.Services
             return thread;
         }
         
-        // Xóa tất cả chats
+        // Xóa tất cả chats (for testing)
         public async Task ClearAllChats()
         {
             _context.ChatSegments.RemoveRange(_context.ChatSegments);
