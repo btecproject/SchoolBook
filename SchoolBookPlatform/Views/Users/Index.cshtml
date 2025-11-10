@@ -106,6 +106,20 @@
                                                 onclick="revokeTokens('@user.Id', '@user.Username')" title="Hủy tokens">
                                             <i class="bi bi-shield-x"></i>
                                         </button>
+                                        @if (user.IsActive)
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                    onclick="disableUser('@user.Id', '@user.Username')" title="Vô hiệu hóa">
+                                                <i class="bi bi-lock"></i>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-success" 
+                                                    onclick="enableUser('@user.Id', '@user.Username')" title="Kích hoạt">
+                                                <i class="bi bi-unlock"></i>
+                                            </button>
+                                        }
                                     </div>
                                 </td>
                             </tr>
@@ -138,7 +152,7 @@
                 <div class="mb-3">
                     <label for="newPassword" class="form-label">Mật khẩu mới</label>
                     <input type="password" class="form-control" id="newPassword" minlength="6" required>
-                    <small class="text-muted">Mật khẩu tối thiểu 6 ký tự</small>
+                    <small class="text-muted">Mật khẩu phải chứa ít nhất một chữ cái viết hoa, một chữ cái viết thường, một số và một ký tự đặc biệt.</small>
                 </div>
             </div>
             <div class="modal-footer">
@@ -220,6 +234,62 @@
                 console.error('Error:', error);
                 alert('Có lỗi xảy ra!');
             });
+        }
+
+        function disableUser(userId, username) {
+            if (!confirm(`Bạn có chắc muốn vô hiệu hóa user "${username}"? User sẽ bị đăng xuất và không thể đăng nhập.`)) {
+                return;
+            }
+
+            fetch('@Url.Action("DisableUser", "Users")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ id: userId })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra!');
+                });
+        }
+
+        function enableUser(userId, username) {
+            if (!confirm(`Bạn có chắc muốn kích hoạt user "${username}"?`)) {
+                return;
+            }
+
+            fetch('@Url.Action("EnableUser", "Users")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ id: userId })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra!');
+                });
         }
     </script>
 }
