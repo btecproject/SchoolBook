@@ -12,7 +12,7 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         var config = builder.Configuration;
-
+        var google = config.GetSection("Authentication:Google");
         // DB
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
@@ -24,6 +24,7 @@ public class Program
         builder.Services.AddScoped<OtpService>();
         builder.Services.AddScoped<TrustedService>();
         builder.Services.AddScoped<UserManagementService>();
+        builder.Services.AddScoped<GoogleAuthenService>();
 
         // Authentication
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -42,6 +43,11 @@ public class Program
                 {
                     OnValidatePrincipal = TokenService.ValidateAsync
                 };
+            }).AddGoogle(options =>
+            {
+                options.ClientId = google["ClientId"];
+                options.ClientSecret = google["ClientSecret"];
+                options.CallbackPath = "/signin-google";
             });
         
         // Logging
