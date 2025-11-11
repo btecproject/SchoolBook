@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Services;
@@ -41,15 +42,7 @@ public class Program
                 {
                     OnValidatePrincipal = TokenService.ValidateAsync
                 };
-            }).AddGoogle(options =>
-        {
-            options.ClientId = config["Authentication:Google:ClientId"];
-            options.ClientSecret = config["Authentication:Google:ClientSecret"];
-            options.SaveTokens = true;
-            options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-            options.CorrelationCookie.SameSite = SameSiteMode.Lax;
-            options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
-        });
+            });
         
         // Logging
         builder.Logging.AddConsole();
