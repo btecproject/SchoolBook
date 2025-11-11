@@ -34,7 +34,9 @@ public class CreateUserViewModel
 
     [Display(Name = "Tài khoản hoạt động")]
     public bool IsActive { get; set; } = true;
-
+    
+    [Display(Name = "Gửi thông tin đăng nhập qua email")]
+    public bool SendEmail { get; set; } = true;
     // Helper để hiển thị danh sách roles
     public List<RoleOption> AvailableRoles { get; set; } = new();
 }

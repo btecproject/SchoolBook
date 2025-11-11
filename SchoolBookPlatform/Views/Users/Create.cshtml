@@ -27,7 +27,15 @@
 
                             <div class="col-md-6 mb-3">
                                 <label asp-for="Password" class="form-label"></label>
-                                <input asp-for="Password" type="password" class="form-control" />
+                                <div class="input-group">
+                                    <input asp-for="Password" type="password" class="form-control" id="passwordInput" />
+                                    <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('passwordInput')">
+                                        <i class="bi bi-eye-slash" id="passwordInputToggleIcon"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="generateRandomPassword()">
+                                        <i class="bi bi-shuffle"></i> Tạo ngẫu nhiên
+                                    </button>
+                                </div>
                                 <span asp-validation-for="Password" class="text-danger"></span>
                             </div>
                         </div>
@@ -80,6 +88,13 @@
                                     <label asp-for="IsActive" class="form-check-label"></label>
                                 </div>
                             </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input asp-for="SendEmail" class="form-check-input" type="checkbox" />
+                                    <label asp-for="SendEmail" class="form-check-label">Gửi thông tin đăng nhập qua email</label>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
@@ -99,5 +114,40 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
-}
+    <script>
+        function generateRandomPassword() {
+            const length = 12;
+            const uppercase = 'ABCDEFGHIKLMNOPQRSTUVXYZ';
+            const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+            const digits = '0123456789';
+            const special = '!#$%^&*()_+-=[]{}|;:,.<>?'
+            
+            let password = "";
+            password += uppercase[Math.floor(Math.random() * uppercase.length)];
+            password += lowercase[Math.floor(Math.random() * lowercase.length)];
+            password += digits[Math.floor(Math.random() * digits.length)];
+            password += special[Math.floor(Math.random() * special.length)];
+            
+            const allChars = uppercase + lowercase + digits + special;
+            for (let i =4; i < length; i++) {
+                password += allChars[Math.floor(Math.random() * allChars.length)];
+            }
+            password = password.split("").sort(() => 0.5 - Math.random()).join("");
+            document.querySelector('#passwordInput').value = password;
+        }
 
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(inputId + 'ToggleIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            }
+        }
+    </script>
+}
