@@ -7,6 +7,8 @@ using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels;
+using SendGrid;
+using SendGrid.Helpers.Mail;
 
 namespace SchoolBookPlatform.Controllers;
 
@@ -14,17 +16,20 @@ namespace SchoolBookPlatform.Controllers;
 public class UsersController : Controller
 {
     private readonly AppDbContext _db;
+    private readonly IConfiguration _config;
     private readonly UserManagementService _userManagementService;
     private readonly ILogger<UsersController> _logger;
 
     public UsersController(
         AppDbContext db,
         UserManagementService userManagementService,
+        IConfiguration config,
         ILogger<UsersController> logger)
     {
         _db = db;
         _userManagementService = userManagementService;
         _logger = logger;
+        _config =  config;
     }
     // GET: Users
     public async Task<IActionResult> Index()
@@ -170,6 +175,11 @@ public class UsersController : Controller
 
             await _db.SaveChangesAsync();
             _logger.LogInformation("User {UserId} created by {CurrentUserId}", user.Id, currentUserId);
+
+            if (model.SendEmail && !string.IsNullOrEmpty(model.Email))
+            {
+                await SendLoginInfoToEmail(model.Email, model.Username,  model.Password);
+            }
             
             TempData["SuccessMessage"] = "Tạo user thành công!";
             return RedirectToAction(nameof(Index));
@@ -183,6 +193,51 @@ public class UsersController : Controller
         }
     }
 
+    public async Task SendLoginInfoToEmail(string email, string username, string password)
+    {
+        var apiKey = _config["SendGrid:ApiKey"];
+        var fromEmail = _config["SendGrid:FromEmail"];
+        var fromName = _config["SendGrid:FromName"];
+
+        if (string.IsNullOrEmpty(apiKey))
+            throw new InvalidOperationException("SendGrid API Key chưa cấu hình.");
+
+        var client = new SendGridClient(apiKey);
+        var from = new EmailAddress(fromEmail, fromName);
+        var to = new EmailAddress(email);
+        var subject = "Mã OTP Xác Thực Đăng Nhập - SchoolBook";
+
+        var htmlContent = $@"
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;'>
+            <h2 style='text-align: center; color: #007bff;'>SchoolBook Platform</h2>
+            <p>Xin chào <strong>{email}</strong>,</p>
+            <p>Thông tin đăng nhập của bạn:</p>
+            <div style='text-align: center; margin: 20px 0;'>
+                <span style='font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #007bff;'>
+                    Username:  {username}<br>
+                    Password:  {password}<br>
+                </span>
+            </div>
+            <hr>
+            <small style='color: #666;'>
+                Vui lòng bảo quản kỹ thông tin đăng nhập của mình ! <br>
+                Email được gửi tự động, không trả lời.
+            </small>
+        </div>";
+
+        var msg = MailHelper.CreateSingleEmail(from, to, subject, null, htmlContent);
+        var response = await client.SendEmailAsync(msg);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Body.ReadAsStringAsync();
+            _logger.LogError("SendGrid lỗi {Status}: {Body}", response.StatusCode, errorBody);
+            throw new InvalidOperationException($"SendGrid lỗi: {response.StatusCode}");
+        }
+
+        _logger.LogInformation("Email OTP gửi thành công đến {Email}",email);
+    }
+    
     // GET: Users/Edit
     public async Task<IActionResult> Edit(Guid? id)
     {
