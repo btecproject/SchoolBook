@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Services;
@@ -15,7 +16,6 @@ public class Program
         // DB
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
-
         // Services
         builder.Services.AddHttpClient();
         builder.Services.AddHttpContextAccessor();
@@ -23,6 +23,7 @@ public class Program
         builder.Services.AddScoped<FaceService>();
         builder.Services.AddScoped<OtpService>();
         builder.Services.AddScoped<TrustedService>();
+        builder.Services.AddScoped<UserManagementService>();
 
         // Authentication
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -34,7 +35,7 @@ public class Program
                 options.ExpireTimeSpan = TimeSpan.FromDays(7);
                 options.SlidingExpiration = true;
                 options.Cookie.HttpOnly = true;
-                options.Cookie.SameSite = SameSiteMode.Strict;
+                options.Cookie.SameSite = SameSiteMode.Lax;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 
                 options.Events = new CookieAuthenticationEvents
@@ -42,7 +43,7 @@ public class Program
                     OnValidatePrincipal = TokenService.ValidateAsync
                 };
             });
-
+        
         // Logging
         builder.Logging.AddConsole();
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
@@ -50,6 +51,9 @@ public class Program
         // Authorization + Policy
         builder.Services.AddAuthorization(options =>
         {
+            options.AddPolicy("HighAdminOnly", policy =>
+                policy.RequireRole("HighAdmin"));
+            
             options.AddPolicy("AdminOrHigher", policy =>
                 policy.RequireRole("HighAdmin", "Admin"));
         });

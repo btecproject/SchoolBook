@@ -24,11 +24,24 @@
             <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                 <ul class="navbar-nav flex-grow-1">
                     <li class="nav-item">
-                        <a class="nav-link text-dark" asp-area="" asp-controller="Authen" asp-action="Login">Home - CHC</a>
+                        <a class="nav-link text-dark" asp-area="" asp-controller="Authen" asp-action="Login">Home</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                     </li>
+                </ul>
+                <ul class="navbar-nav">
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        @if (User.IsInRole("HighAdmin") || User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Users" asp-action="Index">
+                                    <i class="bi bi-people"></i> User Management
+                                </a>
+                            </li>
+                        }
+                    }
                 </ul>
                 <ul class="navbar-nav">
                     @if (User.Identity?.IsAuthenticated == true)
@@ -49,7 +62,7 @@
                                     <span class="badge @badgeClass">@role</span>
                                 }
                             </li>
-
+                            
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button"
                                    data-bs-toggle="dropdown" aria-expanded="false">
@@ -57,13 +70,13 @@
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
                                     <li>
-                                        <a class="dropdown-item" asp-controller="User" asp-action="Profile">
-                                            <i class="bi bi-person"></i> Hồ sơ
+                                        <a class="dropdown-item" asp-controller="Profile" asp-action="Index">
+                                            <i class="bi bi-person"></i> Profile
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" asp-controller="Manage" asp-action="Index">
-                                            <i class="bi bi-gear"></i> Quản lý
+                                        <a class="dropdown-item" asp-controller="Setting" asp-action="Index">
+                                            <i class="bi bi-gear"></i> Setting
                                         </a>
                                     </li>
                                     <li><hr class="dropdown-divider"></li>
@@ -71,7 +84,7 @@
                                         <form asp-controller="Authen" asp-action="Logout" method="post" class="d-inline">
                                             @Html.AntiForgeryToken()
                                             <button type="submit" class="dropdown-item text-danger">
-                                                <i class="bi bi-box-arrow-right"></i> Đăng xuất
+                                                <i class="bi bi-box-arrow-right"></i>Log out
                                             </button>
                                         </form>
                                     </li>
