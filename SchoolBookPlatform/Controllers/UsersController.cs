@@ -214,8 +214,8 @@ public class UsersController : Controller
             <p>Thông tin đăng nhập của bạn:</p>
             <div style='text-align: center; margin: 20px 0;'>
                 <span style='font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #007bff;'>
-                    Username: <p font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #970035;>{username}</p><br>
-                    Password: <p font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #970035;> {password} <<br>
+                    Username: {username}<br>
+                    Password: {password}<br>
                 </span>
             </div>
             <hr>
