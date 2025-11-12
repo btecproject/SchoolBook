@@ -1,27 +1,27 @@
 ﻿@model SchoolBookPlatform.Models.ChatThread
 
 @{
-ViewData["Title"] = Model?.ThreadName ?? "Chat";
-Layout = "~/Views/Shared/_Layout.cshtml";
-
-var currentUser = User.Identity?.Name ?? "Unknown";
-
-// Lấy segment hiện tại
-var currentSegment = Model.Segments?.OrderByDescending(s => s.StartTime).FirstOrDefault();
-var hasSegment = currentSegment != null;
+    ViewData["Title"] = Model?.ThreadName ?? "Chat";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    
+    var currentUser = User.Identity?.Name ?? "Unknown";
+    
+    // Lấy segment hiện tại
+    var currentSegment = Model.Segments?.OrderByDescending(s => s.StartTime).FirstOrDefault();
+    var hasSegment = currentSegment != null;
 }
 
 <style>
     body {
         overflow: hidden;
     }
-
+    
     .chat-container {
         display: flex;
         height: calc(100vh - 100px);
         background: #fff;
     }
-
+    
     /* Left Sidebar - Thread List */
     .thread-list {
         width: 380px;
@@ -31,24 +31,24 @@ var hasSegment = currentSegment != null;
         flex-direction: column;
         height: 100%;
     }
-
+    
     .thread-list-header {
         padding: 15px 20px;
         border-bottom: 1px solid #e8e8e8;
         background: #f5f5f5;
     }
-
+    
     .thread-list-header h5 {
         margin: 0;
         font-weight: 600;
         color: #2c3e50;
     }
-
+    
     .search-box {
         padding: 10px 15px;
         border-bottom: 1px solid #e8e8e8;
     }
-
+    
     .search-box input {
         width: 100%;
         padding: 8px 12px;
@@ -57,12 +57,12 @@ var hasSegment = currentSegment != null;
         outline: none;
         font-size: 14px;
     }
-
+    
     .threads-scroll {
         flex: 1;
         overflow-y: auto;
     }
-
+    
     .thread-item {
         padding: 12px 20px;
         border-bottom: 1px solid #f0f0f0;
@@ -73,16 +73,16 @@ var hasSegment = currentSegment != null;
         text-decoration: none;
         color: inherit;
     }
-
+    
     .thread-item:hover {
         background: #f8f9fa;
     }
-
+    
     .thread-item.active {
         background: #e8f4fd;
         border-left: 3px solid #0088cc;
     }
-
+    
     .thread-avatar {
         width: 50px;
         height: 50px;
@@ -97,12 +97,12 @@ var hasSegment = currentSegment != null;
         margin-right: 15px;
         flex-shrink: 0;
     }
-
+    
     .thread-content {
         flex: 1;
         min-width: 0;
     }
-
+    
     .thread-name {
         font-weight: 600;
         font-size: 15px;
@@ -111,7 +111,7 @@ var hasSegment = currentSegment != null;
         overflow: hidden;
         text-overflow: ellipsis;
     }
-
+    
     .thread-preview {
         font-size: 14px;
         color: #8e8e93;
@@ -119,7 +119,7 @@ var hasSegment = currentSegment != null;
         overflow: hidden;
         text-overflow: ellipsis;
     }
-
+    
     /* Right Panel - Chat */
     .chat-panel {
         flex: 1;
@@ -127,7 +127,7 @@ var hasSegment = currentSegment != null;
         flex-direction: column;
         background: #f5f5f5;
     }
-
+    
     .chat-header {
         padding: 15px 20px;
         background: #fff;
@@ -136,12 +136,12 @@ var hasSegment = currentSegment != null;
         align-items: center;
         justify-content: space-between;
     }
-
+    
     .chat-header-info {
         display: flex;
         align-items: center;
     }
-
+    
     .chat-header-avatar {
         width: 40px;
         height: 40px;
@@ -154,76 +154,76 @@ var hasSegment = currentSegment != null;
         font-weight: bold;
         margin-right: 12px;
     }
-
+    
     .chat-header-title {
         font-weight: 600;
         font-size: 16px;
         color: #2c3e50;
     }
-
+    
     .chat-header-status {
         font-size: 13px;
         color: #8e8e93;
     }
-
+    
     .chat-messages {
         flex: 1;
         overflow-y: auto;
         padding: 20px;
         background: #e5ddd5;
     }
-
+    
     .message {
         margin-bottom: 10px;
         display: flex;
         align-items: flex-end;
     }
-
+    
     .message.sent {
         justify-content: flex-end;
     }
-
+    
     .message.received {
         justify-content: flex-start;
     }
-
+    
     .message-bubble {
         max-width: 60%;
         padding: 8px 12px;
         border-radius: 10px;
         position: relative;
     }
-
+    
     .message.sent .message-bubble {
         background: #dcf8c6;
         border-bottom-right-radius: 2px;
     }
-
+    
     .message.received .message-bubble {
         background: #fff;
         border-bottom-left-radius: 2px;
     }
-
+    
     .message-sender {
         font-weight: 600;
         font-size: 13px;
         color: #0088cc;
         margin-bottom: 2px;
     }
-
+    
     .message-content {
         font-size: 14px;
         color: #2c3e50;
         word-wrap: break-word;
     }
-
+    
     .message-time {
         font-size: 11px;
         color: #8e8e93;
         margin-top: 4px;
         text-align: right;
     }
-
+    
     .chat-input {
         padding: 15px 20px;
         background: #fff;
@@ -232,7 +232,7 @@ var hasSegment = currentSegment != null;
         align-items: center;
         gap: 10px;
     }
-
+    
     .chat-input input {
         flex: 1;
         padding: 10px 15px;
@@ -241,7 +241,7 @@ var hasSegment = currentSegment != null;
         outline: none;
         font-size: 14px;
     }
-
+    
     .chat-input button {
         width: 40px;
         height: 40px;
@@ -255,21 +255,21 @@ var hasSegment = currentSegment != null;
         cursor: pointer;
         transition: background 0.2s;
     }
-
+    
     .chat-input button:hover {
         background: #0077b3;
     }
-
+    
     .chat-input button:disabled {
         background: #ccc;
         cursor: not-allowed;
     }
-
+    
     /* Segments dropdown */
     .segments-dropdown {
         position: relative;
     }
-
+    
     .segments-btn {
         background: #f0f0f0;
         border: none;
@@ -280,34 +280,34 @@ var hasSegment = currentSegment != null;
         color: #2c3e50;
         transition: background 0.2s;
     }
-
+    
     .segments-btn:hover {
         background: #e0e0e0;
     }
-
+    
     /* Scrollbar */
     .chat-messages::-webkit-scrollbar,
     .threads-scroll::-webkit-scrollbar {
         width: 6px;
     }
-
+    
     .chat-messages::-webkit-scrollbar-track,
     .threads-scroll::-webkit-scrollbar-track {
         background: #f1f1f1;
     }
-
+    
     .chat-messages::-webkit-scrollbar-thumb,
     .threads-scroll::-webkit-scrollbar-thumb {
         background: #888;
         border-radius: 3px;
     }
-
+    
     /* Date separator */
     .date-separator {
         text-align: center;
         margin: 20px 0;
     }
-
+    
     .date-separator span {
         background: rgba(0, 0, 0, 0.2);
         color: white;
@@ -330,13 +330,13 @@ var hasSegment = currentSegment != null;
                 </a>
             </div>
         </div>
-
+        
         <div class="search-box">
             <input type="text" placeholder="Search conversations..." />
         </div>
-
+        
         <div class="threads-scroll">
-            <a href="@Url.Action("Thread", "Chat", new { threadId = Model.Id })"
+            <a href="@Url.Action("Thread", "Chat", new { threadId = Model.Id })" 
                class="thread-item active">
                 <div class="thread-avatar">
                     @Model.ThreadName.Substring(0, 1).ToUpper()
@@ -348,7 +348,7 @@ var hasSegment = currentSegment != null;
             </a>
         </div>
     </div>
-
+    
     <!-- Right Panel - Chat -->
     <div class="chat-panel">
         <!-- Chat Header -->
@@ -368,7 +368,7 @@ var hasSegment = currentSegment != null;
                 </button>
             </div>
         </div>
-
+        
         <!-- Chat Messages -->
         <div class="chat-messages" id="messages">
             <div class="date-separator">
@@ -376,33 +376,59 @@ var hasSegment = currentSegment != null;
             </div>
             <!-- Messages will be loaded here -->
         </div>
-
+        
         <!-- Chat Input -->
         <div class="chat-input">
-            <button type="button" onclick="attachFile()">
+            <input type="file" 
+                   id="fileInput" 
+                   style="display: none;" 
+                   accept="image/*,video/*,.pdf,.doc,.docx,.txt,.xlsx,.xls,.zip,.rar"
+                   onchange="handleFileSelect(event)" />
+            <button type="button" onclick="document.getElementById('fileInput').click()">
                 <i class="bi bi-paperclip"></i>
             </button>
-            <input type="text"
-                   id="messageInput"
+            <input type="text" 
+                   id="messageInput" 
                    placeholder="Type a message..."
                    onkeypress="if(event.key === 'Enter') sendMessage()"
                    @(!hasSegment ? "disabled" : "") />
-            <button type="button" id="sendBtn" onclick="sendMessage()" @(!hasSegment ? "disabled" : "")>
+            <button type="button" id="sendBtn" onclick="selectedFile ? uploadAndSend() : sendMessage()" @(!hasSegment ? "disabled" : "")>
                 <i class="bi bi-send-fill"></i>
             </button>
         </div>
-
+        
+        <!-- File Preview -->
+        <div id="filePreview" style="display: none; padding: 10px 20px; background: #f0f0f0; border-top: 1px solid #ddd;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="bi bi-file-earmark" id="fileIcon" style="font-size: 24px;"></i>
+                    <div>
+                        <div id="fileName" style="font-weight: 600;"></div>
+                        <div id="fileSize" style="font-size: 12px; color: #666;"></div>
+                    </div>
+                </div>
+                <button onclick="cancelFile()" class="btn btn-sm btn-danger">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div id="uploadProgress" style="display: none; margin-top: 10px;">
+                <div class="progress">
+                    <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        
         @if (!hasSegment)
         {
-        <div style="padding: 10px 20px; background: #fff3cd; border-top: 1px solid #ffc107; text-align: center;">
-            <small class="text-dark">
-                <i class="bi bi-exclamation-triangle"></i>
-                No active segment.
-                <button class="btn btn-sm btn-primary ms-2" onclick="createFirstSegment()">
-                    <i class="bi bi-plus-circle"></i> Create Segment
-                </button>
-            </small>
-        </div>
+            <div style="padding: 10px 20px; background: #fff3cd; border-top: 1px solid #ffc107; text-align: center;">
+                <small class="text-dark">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    No active segment. 
+                    <button class="btn btn-sm btn-primary ms-2" onclick="createFirstSegment()">
+                        <i class="bi bi-plus-circle"></i> Create Segment
+                    </button>
+                </small>
+            </div>
         }
     </div>
 </div>
@@ -418,25 +444,25 @@ var hasSegment = currentSegment != null;
             <div class="modal-body">
                 @if (Model.Segments != null && Model.Segments.Any())
                 {
-                <div class="list-group">
-                    @foreach (var segment in Model.Segments.OrderByDescending(s => s.StartTime))
-                    {
-                    <button class="list-group-item list-group-item-action"
-                            onclick="selectSegment(@segment.Id, @segment.IsProtected.ToString().ToLower())">
-                        <div class="d-flex justify-content-between">
-                            <span>@segment.StartTime.ToString("MMM dd, yyyy HH:mm")</span>
-                            @if (segment.IsProtected)
-                            {
-                            <span class="badge bg-warning"><i class="bi bi-lock"></i> Protected</span>
-                            }
-                        </div>
-                    </button>
-                    }
-                </div>
+                    <div class="list-group">
+                        @foreach (var segment in Model.Segments.OrderByDescending(s => s.StartTime))
+                        {
+                            <button class="list-group-item list-group-item-action" 
+                                    onclick="selectSegment(@segment.Id, @segment.IsProtected.ToString().ToLower())">
+                                <div class="d-flex justify-content-between">
+                                    <span>@segment.StartTime.ToString("MMM dd, yyyy HH:mm")</span>
+                                    @if (segment.IsProtected)
+                                    {
+                                        <span class="badge bg-warning"><i class="bi bi-lock"></i> Protected</span>
+                                    }
+                                </div>
+                            </button>
+                        }
+                    </div>
                 }
                 else
                 {
-                <p class="text-muted text-center">No segments yet</p>
+                    <p class="text-muted text-center">No segments yet</p>
                 }
             </div>
             <div class="modal-footer">
@@ -460,9 +486,9 @@ var hasSegment = currentSegment != null;
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <input type="password"
-                       id="pinInput"
-                       class="form-control"
+                <input type="password" 
+                       id="pinInput" 
+                       class="form-control" 
                        placeholder="Enter 4-6 digit PIN"
                        onkeypress="if(event.key === 'Enter') submitPin()" />
             </div>
@@ -475,82 +501,117 @@ var hasSegment = currentSegment != null;
 </div>
 
 @section Scripts {
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Debug: Check if SignalR loaded -->
+    <script>
+        if (typeof signalR === 'undefined') {
+            console.error('SignalR not loaded!');
+            alert('SignalR library failed to load. Please check your internet connection.');
+        } else {
+            console.log('SignalR loaded successfully');
+        }
+    </script>
 
-<!-- Debug: Check if SignalR loaded -->
-<script>
-    if (typeof signalR === 'undefined') {
-        console.error('SignalR not loaded!');
-        alert('SignalR library failed to load. Please check your internet connection.');
-    } else {
-        console.log('SignalR loaded successfully');
-    }
-</script>
+    <script>
+        const accessToken = localStorage.getItem("accessToken") || "";
+        const threadId = @Model.Id;
+        const currentUser = "@currentUser";
+        let connection = null;
+        let currentSegmentId = @(Model.Segments.OrderByDescending(s => s.StartTime).FirstOrDefault()?.Id ?? 0);
+        let pinModal = null;
+        let segmentsModal = null;
 
-<script>
-    const accessToken = localStorage.getItem("accessToken") || "";
-    const threadId = @Model.Id;
-    const currentUser = "@currentUser";
-    let connection = null;
-    let currentSegmentId = @(Model.Segments.OrderByDescending(s => s.StartTime).FirstOrDefault()?.Id ?? 0);
-    let pinModal = null;
-    let segmentsModal = null;
+        // Initialize SignalR
+        function initializeSignalR() {
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl("/chatHub?access_token=" + accessToken)
+                .withAutomaticReconnect()
+                .build();
 
-    // Initialize SignalR
-    function initializeSignalR() {
-        connection = new signalR.HubConnectionBuilder()
-            .withUrl("/chatHub?access_token=" + accessToken)
-            .withAutomaticReconnect()
-            .build();
+            connection.on("ReceiveMessage", function (userId, content, timestamp, attachmentUrl, attachmentType, attachmentName, attachmentSize) {
+                appendMessage(userId, content, timestamp, attachmentUrl, attachmentType, attachmentName, attachmentSize);
+            });
 
-        connection.on("ReceiveMessage", (userId, content) => {
-            appendMessage(userId, content, new Date());
-        });
+            connection.on("SegmentStarted", (message) => {
+                alert(message);
+                location.reload();
+            });
 
-        connection.on("SegmentStarted", (message) => {
-            alert(message);
-            location.reload();
-        });
+            connection.start()
+                .then(() => connection.invoke("JoinThread", threadId))
+                .catch(err => console.error("SignalR error:", err));
+        }
 
-        connection.start()
-            .then(() => connection.invoke("JoinThread", threadId))
-            .catch(err => console.error("SignalR error:", err));
-    }
+        // Append message to chat
+        function appendMessage(userId, content, timestamp, attachmentUrl = null, attachmentType = null, attachmentName = null, attachmentSize = null) {
+            const messagesDiv = document.getElementById("messages");
+            const isSent = userId === currentUser;
 
-    // Append message to chat
-    function appendMessage(userId, content, timestamp) {
-        const messagesDiv = document.getElementById("messages");
-        const isSent = userId === currentUser;
-
-        const messageHtml = `
-                <div class="message ${isSent ? 'sent' : 'received'}">
-                    <div class="message-bubble">
-                        ${!isSent ? `<div class="message-sender">${escapeHtml(userId)}</div>` : ''}
-                        <div class="message-content">${escapeHtml(content)}</div>
-                        <div class="message-time">${new Date(timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
-                    </div>
-                </div>
-            `;
-
-        messagesDiv.insertAdjacentHTML('beforeend', messageHtml);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-
-    // Load messages for segment
-    function loadMessages(segmentId, pin = "") {
-        const url = `/api/chat/messages?segmentId=${segmentId}&pin=${encodeURIComponent(pin)}`;
-
-        fetch(url, {
-            headers: {
-                "Authorization": `Bearer ${accessToken}`,
-                "Content-Type": "application/json"
+            let attachmentHtml = "";
+            if (attachmentUrl) {
+                if (attachmentType === "image") {
+                    attachmentHtml = `<img src="${attachmentUrl}" style="max-width:200px; border-radius:8px; display:block; margin-top:5px;">`;
+                } else if (attachmentType === "video") {
+                    attachmentHtml = `<video src="${attachmentUrl}" controls style="max-width:250px; border-radius:8px; margin-top:5px;"></video>`;
+                } else {
+                    attachmentHtml = `<a href="${attachmentUrl}" target="_blank" class="text-decoration-none text-primary">
+                <i class="bi bi-paperclip"></i> ${attachmentName || "Download file"}
+            </a>`;
+                }
             }
-        })
+
+            const messageHtml = `
+        <div class="message ${isSent ? 'sent' : 'received'}">
+            <div class="message-bubble">
+                ${!isSent ? `<div class="message-sender">${escapeHtml(userId)}</div>` : ''}
+                <div class="message-content">${escapeHtml(content || '')}${attachmentHtml}</div>
+                <div class="message-time">${new Date(timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+        </div>
+    `;
+
+            messagesDiv.insertAdjacentHTML('beforeend', messageHtml);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        async function sendImage(file) {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const response = await fetch("/api/chat/upload", {
+                method: "POST",
+                body: formData
+            });
+            const result = await response.json();
+
+            await connection.invoke(
+                "SendMessageWithAttachment",
+                currentThreadId,
+                currentSegmentId,
+                "",
+                result.url,
+                file.type,
+                file.name,
+                file.size
+            );
+        }
+
+        // Load messages for segment
+        function loadMessages(segmentId, pin = "") {
+            const url = `/api/chat/messages?segmentId=${segmentId}&pin=${encodeURIComponent(pin)}`;
+            
+            fetch(url, {
+                headers: { 
+                    "Authorization": `Bearer ${accessToken}`,
+                    "Content-Type": "application/json"
+                }
+            })
             .then(response => response.json())
             .then(messages => {
                 const messagesDiv = document.getElementById("messages");
                 messagesDiv.innerHTML = '<div class="date-separator"><span>November 4</span></div>';
-
+                
                 if (Array.isArray(messages)) {
                     messages.forEach(m => {
                         appendMessage(m.userId, m.content, m.timestamp);
@@ -558,83 +619,167 @@ var hasSegment = currentSegment != null;
                 }
             })
             .catch(err => console.error("Error loading messages:", err));
-    }
-
-    // Send message
-    function sendMessage() {
-        const input = document.getElementById("messageInput");
-        const content = input.value.trim();
-
-        if (!content || !currentSegmentId) return;
-
-        connection.invoke("SendMessage", threadId, currentSegmentId, content)
-            .then(() => input.value = "")
-            .catch(err => console.error(err));
-    }
-
-    // Select segment
-    function selectSegment(segmentId, isProtected) {
-        currentSegmentId = segmentId;
-
-        if (isProtected) {
-            pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
-            pinModal.show();
-        } else {
-            loadMessages(segmentId);
         }
 
-        if (segmentsModal) segmentsModal.hide();
-    }
+        // Send message
+        function sendMessage() {
+            const input = document.getElementById("messageInput");
+            const content = input.value.trim();
+            
+            if (!content || !currentSegmentId) return;
 
-    // Submit PIN
-    function submitPin() {
-        const pin = document.getElementById("pinInput").value;
-        if (pin) {
-            loadMessages(currentSegmentId, pin);
-            if (pinModal) pinModal.hide();
-            document.getElementById("pinInput").value = "";
-        }
-    }
-
-    // Toggle segments
-    function toggleSegments() {
-        segmentsModal = new bootstrap.Modal(document.getElementById('segmentsModal'));
-        segmentsModal.show();
-    }
-
-    // Start new segment
-    function startNewSegment() {
-        connection.invoke("StartNewSegment", threadId)
-            .catch(err => console.error(err));
-    }
-
-    // Start protected segment
-    function startProtectedSegment() {
-        const pin = prompt("Enter PIN (4-6 digits):");
-        if (pin && /^\d{4,6}$/.test(pin)) {
-            connection.invoke("StartProtectedSegment", threadId, pin)
+            connection.invoke("SendMessage", threadId, currentSegmentId, content)
+                .then(() => input.value = "")
                 .catch(err => console.error(err));
         }
-    }
 
-    // Attach file (placeholder)
-    function attachFile() {
-        alert("File attachment coming soon!");
-    }
-
-    // Escape HTML
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // Initialize
-    document.addEventListener('DOMContentLoaded', function() {
-        initializeSignalR();
-        if (currentSegmentId > 0) {
-            loadMessages(currentSegmentId);
+        // Select segment
+        function selectSegment(segmentId, isProtected) {
+            currentSegmentId = segmentId;
+            
+            if (isProtected) {
+                pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
+                pinModal.show();
+            } else {
+                loadMessages(segmentId);
+            }
+            
+            if (segmentsModal) segmentsModal.hide();
         }
-    });
-</script>
+
+        // Submit PIN
+        function submitPin() {
+            const pin = document.getElementById("pinInput").value;
+            if (pin) {
+                loadMessages(currentSegmentId, pin);
+                if (pinModal) pinModal.hide();
+                document.getElementById("pinInput").value = "";
+            }
+        }
+
+        // Toggle segments
+        function toggleSegments() {
+            segmentsModal = new bootstrap.Modal(document.getElementById('segmentsModal'));
+            segmentsModal.show();
+        }
+
+        // Start new segment
+        function startNewSegment() {
+            connection.invoke("StartNewSegment", threadId)
+                .catch(err => console.error(err));
+        }
+
+        // Start protected segment
+        function startProtectedSegment() {
+            const pin = prompt("Enter PIN (4-6 digits):");
+            if (pin && /^\d{4,6}$/.test(pin)) {
+                connection.invoke("StartProtectedSegment", threadId, pin)
+                    .catch(err => console.error(err));
+            }
+        }
+
+        // Attach file (placeholder)
+        function attachFile() {
+            alert("File attachment coming soon!");
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSignalR();
+            if (currentSegmentId > 0) {
+                loadMessages(currentSegmentId);
+            }
+        });
+
+        // === File Upload Handler ===
+        let selectedFile = null;
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            selectedFile = file;
+
+            // Hiển thị preview
+            document.getElementById("filePreview").style.display = "block";
+            document.getElementById("fileName").textContent = file.name;
+            document.getElementById("fileSize").textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
+
+            // Icon theo loại file
+            const ext = file.name.split('.').pop().toLowerCase();
+            const fileIcon = document.getElementById("fileIcon");
+            if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) fileIcon.className = "bi bi-file-earmark-image";
+            else if (["mp4", "webm", "mov", "avi"].includes(ext)) fileIcon.className = "bi bi-file-earmark-play";
+            else fileIcon.className = "bi bi-file-earmark";
+        }
+
+        function cancelFile() {
+            selectedFile = null;
+            document.getElementById("filePreview").style.display = "none";
+            document.getElementById("fileInput").value = "";
+        }
+
+        // Upload và gửi message
+        async function uploadAndSend() {
+            if (!selectedFile) return;
+
+            const progressBar = document.getElementById("progressBar");
+            const uploadProgress = document.getElementById("uploadProgress");
+            uploadProgress.style.display = "block";
+            progressBar.style.width = "0%";
+
+            const formData = new FormData();
+            formData.append("file", selectedFile);
+
+            try {
+                const xhr = new XMLHttpRequest();
+                xhr.open("POST", "/api/files/upload", true);
+                xhr.setRequestHeader("Authorization", "Bearer " + accessToken);
+
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        progressBar.style.width = percent + "%";
+                    }
+                };
+
+                xhr.onload = async () => {
+                    uploadProgress.style.display = "none";
+
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+
+                        await connection.invoke(
+                            "SendMessageWithAttachment",
+                            threadId,
+                            currentSegmentId,
+                            "", // nội dung text (rỗng)
+                            response.url,
+                            response.type,
+                            response.name,
+                            response.size
+                        );
+
+                        cancelFile();
+                    } else {
+                        alert("Upload failed: " + xhr.responseText);
+                    }
+                };
+
+                xhr.onerror = () => alert("Upload error occurred.");
+                xhr.send(formData);
+            } catch (err) {
+                console.error("Upload error:", err);
+                alert("Error uploading file.");
+            }
+}
+
+    </script>
 }

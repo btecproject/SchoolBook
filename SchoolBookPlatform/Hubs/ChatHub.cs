@@ -36,13 +36,7 @@ namespace SchoolBookPlatform.Hubs
         {
             try
             {
-                _logger.LogInformation("=== SendMessage Received ===");
-                _logger.LogInformation($"threadId: {threadId} (Type: {threadId.GetType()})");
-                _logger.LogInformation($"segmentId: {segmentId} (Type: {segmentId.GetType()})");
-                _logger.LogInformation($"content: {content} (Type: {content?.GetType()?.ToString() ?? "null"})");
-        
                 var userId = Context.User?.Identity?.Name;
-                _logger.LogInformation($"userId from Context: {userId}");
                 
                 _logger.LogInformation($"SendMessage called - ThreadId: {threadId}, SegmentId: {segmentId}, UserId: {userId}, Content: {content}");
                 
@@ -94,10 +88,8 @@ namespace SchoolBookPlatform.Hubs
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Exception: {ex.GetType().Name}");
-                _logger.LogError($"Message: {ex.Message}");
-                _logger.LogError($"StackTrace: {ex.StackTrace}");
-                throw;
+                _logger.LogError($"Error in SendMessage: {ex.Message}\nStackTrace: {ex.StackTrace}");
+                throw new HubException($"Failed to send message: {ex.Message}");
             }
         }
 
@@ -193,6 +185,61 @@ namespace SchoolBookPlatform.Hubs
             catch (Exception ex)
             {
                 throw new HubException($"Failed to start protected segment: {ex.Message}");
+            }
+        }
+
+        // Gửi tin nhắn với attachment
+        public async Task SendMessageWithAttachment(int threadId, int segmentId, string content, string attachmentUrl, string attachmentType, string attachmentName, long attachmentSize)
+        {
+            try
+            {
+                var userId = Context.User?.Identity?.Name;
+                
+                _logger.LogInformation($"SendMessageWithAttachment - ThreadId: {threadId}, SegmentId: {segmentId}, UserId: {userId}, Type: {attachmentType}");
+                
+                if (string.IsNullOrEmpty(userId))
+                {
+                    throw new HubException("User not authenticated");
+                }
+                
+                if (threadId <= 0 || segmentId <= 0)
+                {
+                    throw new HubException("Invalid thread or segment ID");
+                }
+
+                var message = new ChatMessage 
+                { 
+                    UserId = userId, 
+                    Content = content ?? "",
+                    Timestamp = DateTime.UtcNow,
+                    AttachmentUrl = attachmentUrl,
+                    AttachmentType = attachmentType,
+                    AttachmentName = attachmentName,
+                    AttachmentSize = attachmentSize
+                };
+
+                await _chatService.AddMessageToSegment(segmentId, message);
+
+                _logger.LogInformation($"Message with attachment saved successfully");
+
+                // Broadcast
+                await Clients.Group($"thread-{threadId}").SendAsync(
+                    "ReceiveMessage", 
+                    userId, 
+                    content ?? "",
+                    message.Timestamp.ToString("o"),
+                    attachmentUrl,
+                    attachmentType,
+                    attachmentName,
+                    attachmentSize
+                );
+
+                _logger.LogInformation($"Message with attachment broadcast successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error in SendMessageWithAttachment: {ex.Message}");
+                throw new HubException($"Failed to send message: {ex.Message}");
             }
         }
 
