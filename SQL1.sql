@@ -137,3 +137,18 @@ INSERT INTO ChatThreads (ThreadName, UserIds) VALUES
 PRINT 'Seeded sample chat threads';
 END
 GO
+
+
+
+-- neu chat ko dc thi don du lieu trong db
+UPDATE ChatSegments
+SET MessagesJson = '[]'
+WHERE MessagesJson IS NULL;
+
+UPDATE ChatSegments
+SET Salt = 0x00
+WHERE Salt IS NULL;
+
+UPDATE ChatSegments
+SET PinHash = ''
+WHERE PinHash IS NULL;
