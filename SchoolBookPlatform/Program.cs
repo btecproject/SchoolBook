@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.AspNetCore.Http.Features;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Hubs;
 using SchoolBookPlatform.Services;
@@ -29,6 +30,7 @@ public class Program
         builder.Services.AddScoped<TrustedService>();
         builder.Services.AddScoped<ChatService>();
         builder.Services.AddSingleton<EncryptionService>();
+        builder.Services.AddControllers();
         
         builder.Services.AddSignalR(options =>
         {
@@ -65,6 +67,17 @@ public class Program
                     OnValidatePrincipal = TokenService.ValidateAsync
                 };
             });
+        
+        builder.Services.Configure<FormOptions>(options =>
+        {
+            options.MultipartBodyLengthLimit = 100_000_000; // 100MB
+        });
+
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.Limits.MaxRequestBodySize = 100_000_000; // 100MB
+        });
+        
 
         // Logging
         builder.Logging.AddConsole();
