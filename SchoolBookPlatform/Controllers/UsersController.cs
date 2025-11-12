@@ -205,7 +205,7 @@ public class UsersController : Controller
         var client = new SendGridClient(apiKey);
         var from = new EmailAddress(fromEmail, fromName);
         var to = new EmailAddress(email);
-        var subject = "Mã OTP Xác Thực Đăng Nhập - SchoolBook";
+        var subject = "Thông tin đăng Nhập - SchoolBook";
 
         var htmlContent = $@"
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;'>
@@ -215,7 +215,7 @@ public class UsersController : Controller
             <div style='text-align: center; margin: 20px 0;'>
                 <span style='font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #007bff;'>
                     Username: <p font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #970035;>{username}</p><br>
-                    Password: <p font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #970035;> {password} </p><br>
+                    Password: <p font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #970035;> {password} <<br>
                 </span>
             </div>
             <hr>
