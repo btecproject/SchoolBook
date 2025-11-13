@@ -46,6 +46,9 @@
                 <ul class="navbar-nav">
                     @if (User.Identity?.IsAuthenticated == true)
                         {
+                            <a asp-action="Index" asp-controller="Chat" class="nav-link text-dark">
+                                <i class="bi bi-chat"></i> Chat
+                            </a>
                             <li class="nav-item d-flex align-items-center gap-1">
                                 @foreach (var claim in User.Claims.Where(c => c.Type == ClaimTypes.Role))
                                 {
