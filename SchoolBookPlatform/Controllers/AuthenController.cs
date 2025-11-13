@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels;
 
@@ -33,18 +34,51 @@ public class AuthenController(
 
     public async Task<IActionResult> GoogleResponse()
     {
-        var result = await HttpContext.AuthenticateAsync(GoogleDefaults.AuthenticationScheme);
-        var claims = result.Principal.Identities.FirstOrDefault().Claims.Select(
-            claim => new
+        try
+        {
+            var result = await HttpContext.AuthenticateAsync(GoogleDefaults.AuthenticationScheme);
+            if (result?.Succeeded != true || result?.Principal == null)
             {
-                claim.Issuer,
-                claim.OriginalIssuer,
-                claim.Type,
-                claim.Value
-            });
-        // TempData["success"] = "Login completed";
-        // return RedirectToAction("Home", "Feeds");
-        return Json(claims);
+                TempData["error"] = "Login with  Google failed";
+                return RedirectToAction(nameof(Login)); 
+            }
+
+            var claims = result.Principal.Identities.FirstOrDefault().Claims;
+            if (claims == null)
+            {
+                TempData["error"] = "Cannot get claims from Google";
+                return RedirectToAction(nameof(Login));
+            }
+            
+            var email = claims.FirstOrDefault(
+                c => 
+                    c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress")?.Value;
+            if (string.IsNullOrEmpty(email))
+            {
+                TempData["error"] = "Cannot get email from Google account";
+                return RedirectToAction(nameof(Login));
+            }
+            
+            var isUserExisted = await db.IsUserEmailExistAsync(email);
+            if (!isUserExisted)
+            {
+                logger.LogWarning("Google login failed - Email not registered: {Email}", email);
+                TempData["error"] = "Email(Account) not registered!.";
+                return RedirectToAction(nameof(Login));
+            }
+            
+            
+            
+            // TempData["success"] = "Login completed";
+            // return RedirectToAction("Home", "Feeds");
+            // return Json(claims);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "GoogleResponse Error");
+            TempData["error"] = "Có lỗi xảy ra trong quá trình đăng nhập. Vui lòng thử lại.";
+            return RedirectToAction(nameof(Login));
+        }
     }
     
     [HttpGet]

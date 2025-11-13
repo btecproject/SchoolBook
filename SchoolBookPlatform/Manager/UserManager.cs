@@ -1,10 +1,20 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Models;
 
 namespace SchoolBookPlatform.Manager
 {
     public static class UserManager
     {
+        public static async Task<User?> GetUserByEmailAsync(this AppDbContext db, string email)
+        {
+            var user  = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+            {
+                return null;
+            }
+            return user;
+        }
         public static async Task<bool> IsUserEmailExistAsync(this AppDbContext db, string email)
         {
             var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
