@@ -401,6 +401,23 @@ public class AuthenController(
         return RedirectToAction(nameof(Login));
     }
     
+    // --- ĐĂNG NHẬP BẰNG GOOGLE ---
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult SigninGoogle()
+    {
+        // URL trả về sau khi xác thực Google xong
+        var redirectUrl = Url.Action("GoogleResponse", "Authen");
+        var properties = new AuthenticationProperties
+        {
+            RedirectUri = redirectUrl
+        };
+
+        // Yêu cầu xác thực Google (ASP.NET sẽ tự tạo "state" hợp lệ)
+        return Challenge(properties, GoogleDefaults.AuthenticationScheme);
+    }
+
+    
 
     [HttpPost]
     [ValidateAntiForgeryToken]
