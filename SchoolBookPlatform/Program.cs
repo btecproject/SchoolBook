@@ -11,8 +11,9 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        // builder.WebHost.UseUrls("https://192.168.1.4:7093");
         var config = builder.Configuration;
-
+        var google = config.GetSection("Authentication:Google");
         // DB
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
@@ -24,9 +25,21 @@ public class Program
         builder.Services.AddScoped<OtpService>();
         builder.Services.AddScoped<TrustedService>();
         builder.Services.AddScoped<UserManagementService>();
-
+        builder.Services.AddScoped<GoogleAuthenService>();
+        
+        // Logging
+        builder.Logging.AddConsole();
+        builder.Logging.SetMinimumLevel(LogLevel.Debug);
+        
+        builder.Services.AddControllersWithViews();
+        
         // Authentication
-        builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+        builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            })
             .AddCookie(options =>
             {
                 options.LoginPath = "/Authen/Login";
@@ -42,12 +55,14 @@ public class Program
                 {
                     OnValidatePrincipal = TokenService.ValidateAsync
                 };
+            }).AddGoogle(GoogleDefaults.AuthenticationScheme,options =>
+            {
+                options.ClientId = google["ClientId"]!;
+                options.ClientSecret = google["ClientSecret"]!;
+                options.CallbackPath = "/signin-google";
+                options.SaveTokens = true;
             });
         
-        // Logging
-        builder.Logging.AddConsole();
-        builder.Logging.SetMinimumLevel(LogLevel.Debug);
-
         // Authorization + Policy
         builder.Services.AddAuthorization(options =>
         {
@@ -57,9 +72,7 @@ public class Program
             options.AddPolicy("AdminOrHigher", policy =>
                 policy.RequireRole("HighAdmin", "Admin"));
         });
-
-        builder.Services.AddControllersWithViews();
-
+        
         var app = builder.Build();
 
         if (!app.Environment.IsDevelopment())
@@ -82,10 +95,10 @@ public class Program
             "{controller=Home}/{action=Index}");
 
         // Route cho TokenManager
-        app.MapControllerRoute(
-            "tokenmanager",
-            "TokenManager/{action=Index}/{id?}",
-            new { controller = "TokenManager" });
+        // app.MapControllerRoute(
+        //     "tokenmanager",
+        //     "TokenManager/{action=Index}/{id?}",
+        //     new { controller = "TokenManager" });
 
         app.Run();
     }

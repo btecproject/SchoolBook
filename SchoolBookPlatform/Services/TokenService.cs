@@ -58,6 +58,15 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
         await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     }
 
+    public static bool IsExternalLoginMethodAsync(CookieValidatePrincipalContext context)
+    {
+        var authMethod = context.Principal?.FindFirst("AuthenticationMethod")?.Value;
+        if (authMethod == "Google" || context.Principal?.Claims.Any(c => c.Issuer.Contains("Google")) == true)
+        {
+            return true;
+        }
+        return false;
+    }
     public static async Task ValidateAsync(CookieValidatePrincipalContext context)
     {
         var tokenIdClaim = context.Principal?.FindFirst("TokenId")?.Value;
@@ -65,6 +74,10 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
 
         if (string.IsNullOrEmpty(tokenIdClaim) || string.IsNullOrEmpty(userIdClaim))
         {
+            if (IsExternalLoginMethodAsync(context))
+            {
+                return;
+            }
             context.RejectPrincipal();
             await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return;
