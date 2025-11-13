@@ -5,6 +5,15 @@ namespace SchoolBookPlatform.Manager
 {
     public static class UserManager
     {
+        public static async Task<bool> IsUserEmailExistAsync(this AppDbContext db, string email)
+        {
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+            {
+                return false;
+            }
+            return true;
+        }
         public static async Task<List<string>> GetUserRolesAsync(this AppDbContext db, Guid userId)
         {
             var roleNames = await db.UserRoles
