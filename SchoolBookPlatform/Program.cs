@@ -50,15 +50,16 @@ public class Program
                 options.Cookie.SameSite = SameSiteMode.Lax;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 
-                // options.Events = new CookieAuthenticationEvents
-                // {
-                //     OnValidatePrincipal = TokenService.ValidateAsync
-                // };
+                options.Events = new CookieAuthenticationEvents
+                {
+                    OnValidatePrincipal = TokenService.ValidateAsync
+                };
             }).AddGoogle(GoogleDefaults.AuthenticationScheme,options =>
             {
                 options.ClientId = google["ClientId"]!;
                 options.ClientSecret = google["ClientSecret"]!;
                 options.CallbackPath = "/signin-google";
+                options.SaveTokens = true;
             });
         
         // Authorization + Policy

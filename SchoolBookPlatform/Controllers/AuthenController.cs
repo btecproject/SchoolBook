@@ -28,7 +28,11 @@ public class AuthenController(
         await HttpContext.ChallengeAsync(GoogleDefaults.AuthenticationScheme,
             new AuthenticationProperties
             {
-                RedirectUri = Url.Action("GoogleResponse")
+                RedirectUri = Url.Action("GoogleResponse"),
+                Items =
+                {
+                    {"prompt", "select_account"}
+                }
             });
     }
 
@@ -62,19 +66,31 @@ public class AuthenController(
             var isUserExisted = await db.IsUserEmailExistAsync(email);
             if (!isUserExisted)
             {
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 logger.LogWarning("Google login failed - Email not registered: {Email}", email);
                 TempData["error"] = "Email(Account) not registered!.";
                 return RedirectToAction(nameof(Login));
             }
+
+            var user = await db.GetUserByEmailAsync(email);
+            if (user != null && !user.IsActive)
+            {
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                logger.LogWarning("Google login failed - Account disabled: {Email}", email);
+                TempData["error"] = "Tài khoản đã bị vô hiệu hóa";
+                return RedirectToAction(nameof(Login));
+            }
             
-            
-            
+            logger.LogInformation("User {UserId} authenticated via Google successfully", user.Id);
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return await ProcessUserLoginAsync(user, null);
             // TempData["success"] = "Login completed";
             // return RedirectToAction("Home", "Feeds");
             // return Json(claims);
         }
         catch (Exception ex)
         {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             logger.LogError(ex, "GoogleResponse Error");
             TempData["error"] = "Có lỗi xảy ra trong quá trình đăng nhập. Vui lòng thử lại.";
             return RedirectToAction(nameof(Login));
@@ -123,7 +139,7 @@ public class AuthenController(
         return await ProcessUserLoginAsync(user, returnUrl);
     }
     
-    private async Task<IActionResult> ProcessUserLoginAsync(Models.User user, string returnUrl)
+    private async Task<IActionResult> ProcessUserLoginAsync(Models.User user, string? returnUrl)
     {
         // Kiểm tra MustChangePassword
         if (user.MustChangePassword)
@@ -173,7 +189,7 @@ public class AuthenController(
         await tokenService.SignInAsync(HttpContext, user, db);
         logger.LogInformation("User {UserId} logged in successfully", user.Id);
 
-        return LocalRedirect(returnUrl ?? Url.Action("Home", "Feeds"));
+        return LocalRedirect((returnUrl ?? Url.Action("Home", "Feeds"))!);
     }
 
     [HttpGet]
