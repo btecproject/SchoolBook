@@ -65,6 +65,7 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
 
         if (string.IsNullOrEmpty(tokenIdClaim) || string.IsNullOrEmpty(userIdClaim))
         {
+            
             context.RejectPrincipal();
             await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return;

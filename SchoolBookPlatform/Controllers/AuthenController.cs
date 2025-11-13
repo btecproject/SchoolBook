@@ -21,7 +21,32 @@ public class AuthenController(
     : Controller
 {
     private readonly FaceService _faceService = faceService;
+    
+    public async Task GoogleLogin()
+    {
+        await HttpContext.ChallengeAsync(GoogleDefaults.AuthenticationScheme,
+            new AuthenticationProperties
+            {
+                RedirectUri = Url.Action("GoogleResponse")
+            });
+    }
 
+    public async Task<IActionResult> GoogleResponse()
+    {
+        var result = await HttpContext.AuthenticateAsync(GoogleDefaults.AuthenticationScheme);
+        var claims = result.Principal.Identities.FirstOrDefault().Claims.Select(
+            claim => new
+            {
+                claim.Issuer,
+                claim.OriginalIssuer,
+                claim.Type,
+                claim.Value
+            });
+        // TempData["success"] = "Login completed";
+        // return RedirectToAction("Home", "Feeds");
+        return Json(claims);
+    }
+    
     [HttpGet]
     [AllowAnonymous]
     public IActionResult Login(string returnUrl = null)
