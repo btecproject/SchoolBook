@@ -1,4 +1,4 @@
-@model List<SchoolBookPlatform.ViewModels.UserListViewModel>
+@model List<SchoolBookPlatform.ViewModels.Admin.UserListViewModel>
 
 @{
     ViewData["Title"] = "Quản lý người dùng";
@@ -181,7 +181,7 @@
                 return;
             }
 
-            fetch('@Url.Action("ResetPassword", "Users")', {
+            fetch('@Url.Action("ResetPassword", "Admin")', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -213,7 +213,7 @@
                 return;
             }
 
-            fetch('@Url.Action("RevokeTokens", "Users")', {
+            fetch('@Url.Action("RevokeTokens", "Admin")', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -241,7 +241,7 @@
                 return;
             }
 
-            fetch('@Url.Action("DisableUser", "Users")', {
+            fetch('@Url.Action("DisableUser", "Admin")', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -269,7 +269,7 @@
                 return;
             }
 
-            fetch('@Url.Action("EnableUser", "Users")', {
+            fetch('@Url.Action("EnableUser", "Admin")', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

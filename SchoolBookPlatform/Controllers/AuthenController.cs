@@ -9,6 +9,7 @@ using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels;
+using SchoolBookPlatform.ViewModels.Authen;
 
 namespace SchoolBookPlatform.Controllers;
 
@@ -22,7 +23,7 @@ public class AuthenController(
     : Controller
 {
     private readonly FaceService _faceService = faceService;
-    
+
     public async Task GoogleLogin()
     {
         await HttpContext.ChallengeAsync(GoogleDefaults.AuthenticationScheme,
@@ -31,7 +32,7 @@ public class AuthenController(
                 RedirectUri = Url.Action("GoogleResponse"),
                 Items =
                 {
-                    {"prompt", "select_account"}
+                    { "prompt", "select_account" }
                 }
             });
     }
@@ -44,7 +45,7 @@ public class AuthenController(
             if (result?.Succeeded != true || result?.Principal == null)
             {
                 TempData["error"] = "Login with  Google failed";
-                return RedirectToAction(nameof(Login)); 
+                return RedirectToAction(nameof(Login));
             }
 
             var claims = result.Principal.Identities.FirstOrDefault().Claims;
@@ -53,16 +54,15 @@ public class AuthenController(
                 TempData["error"] = "Cannot get claims from Google";
                 return RedirectToAction(nameof(Login));
             }
-            
-            var email = claims.FirstOrDefault(
-                c => 
-                    c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress")?.Value;
+
+            var email = claims.FirstOrDefault(c =>
+                c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress")?.Value;
             if (string.IsNullOrEmpty(email))
             {
                 TempData["error"] = "Cannot get email from Google account";
                 return RedirectToAction(nameof(Login));
             }
-            
+
             var isUserExisted = await db.IsUserEmailExistAsync(email);
             if (!isUserExisted)
             {
@@ -80,7 +80,7 @@ public class AuthenController(
                 TempData["error"] = "Tài khoản đã bị vô hiệu hóa";
                 return RedirectToAction(nameof(Login));
             }
-            
+
             logger.LogInformation("User {UserId} authenticated via Google successfully", user.Id);
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return await ProcessUserLoginAsync(user, null);
@@ -96,14 +96,14 @@ public class AuthenController(
             return RedirectToAction(nameof(Login));
         }
     }
-    
+
     [HttpGet]
     [AllowAnonymous]
     public IActionResult Login(string returnUrl = null)
     {
         if (User.Identity?.IsAuthenticated == true)
             return RedirectToAction("Home", "Feeds");
-        
+
         ViewData["ReturnUrl"] = returnUrl;
         return View(new LoginViewModel());
     }
@@ -138,7 +138,7 @@ public class AuthenController(
 
         return await ProcessUserLoginAsync(user, returnUrl);
     }
-    
+
     private async Task<IActionResult> ProcessUserLoginAsync(Models.User user, string? returnUrl)
     {
         // Kiểm tra MustChangePassword
@@ -169,11 +169,11 @@ public class AuthenController(
             try
             {
                 await otpService.GenerateOtpAsync(user, "Email");
-                
+
                 TempData["UserId"] = user.Id.ToString();
                 TempData["OtpType"] = "Email";
                 TempData["ReturnUrl"] = returnUrl;
-                
+
                 logger.LogInformation("OTP sent to user {UserId} via Email", user.Id);
                 return RedirectToAction(nameof(VerifyOtp));
             }
@@ -198,9 +198,9 @@ public class AuthenController(
     {
         var userId = TempData.Peek("UserId")?.ToString();
         var otpType = TempData.Peek("OtpType")?.ToString();
-        
+
         logger.LogInformation("VerifyOtp GET - UserId: {UserId}, OtpType: {OtpType}", userId, otpType);
-        
+
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(otpType))
         {
             logger.LogWarning("VerifyOtp GET failed - Missing TempData");
@@ -217,7 +217,7 @@ public class AuthenController(
     public async Task<IActionResult> VerifyOtp(OtpViewModel model)
     {
         logger.LogInformation("VerifyOtp POST - Code: {Code}, Type: {Type}", model.Code, model.Type);
-        
+
         if (!ModelState.IsValid)
         {
             var otpType = TempData.Peek("OtpType")?.ToString() ?? model.Type;
@@ -228,7 +228,7 @@ public class AuthenController(
         }
 
         var userId = TempData.Peek("UserId")?.ToString();
-        
+
         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
         {
             logger.LogError("VerifyOtp POST - UserId invalid or missing");
@@ -241,10 +241,10 @@ public class AuthenController(
             logger.LogError("VerifyOtp POST - User not found: {UserId}", userGuid);
             return RedirectToAction(nameof(Login));
         }
-        
+
         var isValid = await otpService.VerifyOtpAsync(user.Id, model.Code, model.Type);
         logger.LogInformation("OTP verification result: {IsValid} for user {UserId}", isValid, user.Id);
-        
+
         if (!isValid)
         {
             ModelState.AddModelError("Code", "Mã OTP không đúng hoặc đã hết hạn.");
@@ -254,12 +254,12 @@ public class AuthenController(
             TempData.Keep();
             return View(model);
         }
-        
+
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
         var device = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
         await trustedService.AddTrustedDeviceAsync(user.Id, ip, device);
         logger.LogInformation("Trusted device added for user {UserId}", user.Id);
-        
+
         await tokenService.SignInAsync(HttpContext, user, db);
         logger.LogInformation("User {UserId} signed in successfully", user.Id);
 
@@ -295,7 +295,7 @@ public class AuthenController(
         {
             await otpService.GenerateOtpAsync(user, otpType);
             logger.LogInformation("OTP resent successfully for user {UserId} via {Type}", userId, otpType);
-            
+
             TempData.Keep();
 
             return Json(new { success = true, message = "Gửi lại OTP thành công!" });
@@ -314,7 +314,7 @@ public class AuthenController(
         var userId = TempData.Peek("UserId")?.ToString();
         if (string.IsNullOrEmpty(userId))
             return RedirectToAction(nameof(Login));
-        
+
         return View(new ChangePasswordViewModel());
     }
 
@@ -340,7 +340,7 @@ public class AuthenController(
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
         user.MustChangePassword = false;
         user.UpdatedAt = DateTime.UtcNow;
-        
+
         try
         {
             await db.SaveChangesAsync();
@@ -366,7 +366,7 @@ public class AuthenController(
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
         var device = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
         var isTrusted = await trustedService.IsTrustedAsync(user.Id, ip, device);
-        
+
         if (!isTrusted)
         {
             await otpService.GenerateOtpAsync(user, "Email");
@@ -387,7 +387,7 @@ public class AuthenController(
         var userId = TempData.Peek("UserId")?.ToString();
         if (string.IsNullOrEmpty(userId))
             return RedirectToAction(nameof(Login));
-        
+
         return View(new FaceVerificationViewModel());
     }
 
@@ -401,6 +401,45 @@ public class AuthenController(
         return RedirectToAction(nameof(Login));
     }
     
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult ForgotPassword()
+    {
+        return View();
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            TempData["error"] = "Please enter a valid email address";
+            return View(model);
+        }
+        var user = await db.GetUserByEmailAsync(model.Email);
+        if (user == null)
+        {
+            TempData["error"] = "Email address not found";
+            return View(model);
+        }
+
+        try
+        {
+            await otpService.GenerateOtpAsync(user, "Email");
+            TempData["UserId"] = user.Id.ToString();
+            TempData["OtpType"] = "Email";
+            TempData["ReturnUrl"] = Url.Action("ChangePassword", "Authen");
+            logger.LogInformation("OTP sent to user {UserId} via Email", user.Id);
+            return RedirectToAction(nameof(VerifyOtp));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error resending OTP for user {UserId}", user.Id);
+        }
+        return View(model);
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -416,4 +455,5 @@ public class AuthenController(
     {
         return View();
     }
+    
 }

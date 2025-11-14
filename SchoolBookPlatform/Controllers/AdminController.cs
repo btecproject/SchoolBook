@@ -7,24 +7,25 @@ using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels;
+using SchoolBookPlatform.ViewModels.Admin;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 
 namespace SchoolBookPlatform.Controllers;
 
 [Authorize(Policy = "AdminOrHigher")]
-public class UsersController : Controller
+public class AdminController : Controller
 {
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
     private readonly UserManagementService _userManagementService;
-    private readonly ILogger<UsersController> _logger;
+    private readonly ILogger<AdminController> _logger;
 
-    public UsersController(
+    public AdminController(
         AppDbContext db,
         UserManagementService userManagementService,
         IConfiguration config,
-        ILogger<UsersController> logger)
+        ILogger<AdminController> logger)
     {
         _db = db;
         _userManagementService = userManagementService;

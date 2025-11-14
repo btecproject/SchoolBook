@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace SchoolBookPlatform.ViewModels;
+namespace SchoolBookPlatform.ViewModels.Admin;
 
 public class EditUserViewModel
 {
