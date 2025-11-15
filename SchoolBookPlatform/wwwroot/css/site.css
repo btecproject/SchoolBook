@@ -8,10 +8,17 @@ html {
     }
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+/* Hiệu ứng focus — đổi màu viền sang tông cam thay vì xanh */
+.btn:focus,
+.btn:active:focus,
+.btn-link.nav-link:focus,
+.form-control:focus,
+.form-check-input:focus {
+    box-shadow: 0 0 0 0.1rem white,
+    0 0 0 0.25rem #ff7e5f; /* Màu cam nhấn chính */
 }
 
+/* Đảm bảo body chiếm toàn chiều cao và có nền nhẹ */
 html {
     position: relative;
     min-height: 100%;
@@ -19,13 +26,46 @@ html {
 
 body {
     margin-bottom: 60px;
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #333;
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-    color: var(--bs-secondary-color);
+/* Placeholder trong input */
+.form-floating > .form-control-plaintext::placeholder,
+.form-floating > .form-control::placeholder {
+    color: #ffbfa0; /* cam nhạt cho placeholder */
     text-align: end;
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+.form-floating > .form-control-plaintext:focus::placeholder,
+.form-floating > .form-control:focus::placeholder {
     text-align: start;
+}
+
+/* Nút bấm chung (nếu không override trong file khác) */
+.btn {
+    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-primary {
+    background: linear-gradient(45deg, #ff7e5f, #feb47b);
+    border: none;
+    color: white;
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+/* Liên kết và phần tử có thể tương tác */
+a {
+    color: #ff7e5f;
+    text-decoration: none;
+}
+
+a:hover {
+    color: #feb47b;
 }

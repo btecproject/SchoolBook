@@ -1,0 +1,64 @@
+﻿/* Thanh navbar */
+.navbar {
+    background: linear-gradient(90deg, #fd964b, #ffb067);
+    color: white !important;
+    transition: background 0.3s ease;
+}
+
+.navbar-brand {
+    color: white !important;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Hiệu ứng cho nav-link */
+.nav-link {
+    color: white !important;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.nav-link::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 0%;
+    height: 2px;
+    background-color: white;
+    transition: width 0.3s ease;
+}
+
+/* Khi hover: underline trượt + nhạt màu */
+.nav-link:hover {
+    opacity: 0.85;
+}
+
+.nav-link:hover::after {
+    width: 100%;
+}
+
+/* Giữ active link nổi bật */
+.nav-link.active,
+.nav-link:focus {
+    font-weight: 600;
+    opacity: 1;
+}
+
+/* Footer cố định */
+.footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    color: white !important;
+    text-align: center;
+    padding: 1rem;
+    background: linear-gradient(90deg, #fd964b, #ffb067);
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+}
+
+/* Giúp main không bị footer che mất */
+main {
+    padding-bottom: 80px;
+}

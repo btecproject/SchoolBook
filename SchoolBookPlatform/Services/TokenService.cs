@@ -3,11 +3,12 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Models;
 
 public class TokenService(AppDbContext db, ILogger<TokenService> logger)
 {
-    public async Task SignInAsync(HttpContext ctx, User user)
+    public async Task SignInAsync(HttpContext ctx, User user, AppDbContext db)
     {
         var token = new UserToken
         {
@@ -18,12 +19,18 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
         db.UserTokens.Add(token);
         await db.SaveChangesAsync();
 
+        IEnumerable<string> roleNames = await UserManager.GetUserRolesAsync(db, user.Id);
+
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.Username),
             new("TokenId", token.Id.ToString())
         };
+        foreach (var roleName in roleNames)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, roleName));
+        }
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);
@@ -94,5 +101,37 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
         // Token hợp lệ
         logger?.LogDebug("Token {TokenId} validated successfully for user {UserId}", tokenId, userId);
         TokenService ts =  new TokenService(db, logger);
+    }
+    public async Task<bool> RevokeAllTokensAsync(Guid userId)
+    {
+        try
+        {
+            var user = await db.Users.FindAsync(userId);
+            if (user == null)
+                return false;
+
+            // Tăng TokenVersion để invalidate tất cả tokens hiện tại
+            user.TokenVersion++;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            // Revoke tất cả tokens trong database
+            var tokens = await db.UserTokens
+                .Where(t => t.UserId == userId && !t.IsRevoked)
+                .ToListAsync();
+
+            foreach (var token in tokens)
+            {
+                token.IsRevoked = true;
+            }
+
+            await db.SaveChangesAsync();
+            logger.LogInformation("All tokens revoked for user {UserId}", userId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error revoking tokens for user {UserId}", userId);
+            return false;
+        }
     }
 }
