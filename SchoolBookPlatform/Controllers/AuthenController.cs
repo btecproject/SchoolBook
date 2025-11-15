@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Services;
-using SchoolBookPlatform.ViewModels;
 using SchoolBookPlatform.ViewModels.Authen;
 
 namespace SchoolBookPlatform.Controllers;
@@ -376,6 +375,7 @@ public class AuthenController(
             return RedirectToAction(nameof(VerifyOtp));
         }
 
+        await tokenService.RevokeAllTokensAsync(userGuid);
         await tokenService.SignInAsync(HttpContext, user, db);
         return LocalRedirect(returnUrl ?? Url.Action("Home", "Feeds"));
     }
