@@ -503,188 +503,245 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Debug: Check if SignalR loaded -->
     <script>
-        if (typeof signalR === 'undefined') {
-            console.error('SignalR not loaded!');
-            alert('SignalR library failed to load. Please check your internet connection.');
-        } else {
-            console.log('SignalR loaded successfully');
-        }
-    </script>
-
-    <script>
-        const accessToken = localStorage.getItem("accessToken") || "";
-        const threadId = @Model.Id;
-        const currentUser = "@currentUser";
+        const threadId = parseInt('@Model.Id') || 0;
+        const currentUser = '@currentUser' || 'Unknown';
+        let currentSegmentId = parseInt('@(currentSegment?.Id ?? 0)') || 0;
         let connection = null;
-        let currentSegmentId = @(Model.Segments.OrderByDescending(s => s.StartTime).FirstOrDefault()?.Id ?? 0);
-        let pinModal = null;
-        let segmentsModal = null;
+        let selectedFile = null;
+        let messageIndex = 0; // Track message index
 
         // Initialize SignalR
         function initializeSignalR() {
             connection = new signalR.HubConnectionBuilder()
-                .withUrl("/chatHub?access_token=" + accessToken)
+                .withUrl("/chatHub")
                 .withAutomaticReconnect()
                 .build();
 
-            connection.on("ReceiveMessage", function (userId, content, timestamp, attachmentUrl, attachmentType, attachmentName, attachmentSize) {
-                appendMessage(userId, content, timestamp, attachmentUrl, attachmentType, attachmentName, attachmentSize);
+            // Nhận tin nhắn - CẬP NHẬT: Nhận attachmentId thay vì data
+            connection.on("ReceiveMessage", (userId, content, timestamp, attachmentId, attachmentType, attachmentName, attachmentSize) => {
+                console.log("Received message:", userId, attachmentId);
+                appendMessage(userId, content, new Date(timestamp), attachmentId, attachmentType, attachmentName, attachmentSize);
             });
 
-            connection.on("SegmentStarted", (message) => {
+            connection.on("SegmentStarted", (segmentId, message) => {
+                currentSegmentId = segmentId;
+                messageIndex = 0;
                 alert(message);
-                location.reload();
+                setTimeout(() => location.reload(), 1000);
             });
 
             connection.start()
-                .then(() => connection.invoke("JoinThread", threadId))
-                .catch(err => console.error("SignalR error:", err));
+                .then(() => {
+                    console.log("SignalR connected");
+                    return connection.invoke("JoinThread", threadId);
+                })
+                .catch(err => console.error("Error:", err));
         }
 
-        // Append message to chat
-        function appendMessage(userId, content, timestamp, attachmentUrl = null, attachmentType = null, attachmentName = null, attachmentSize = null) {
+        // Append message - CẬP NHẬT: Load file từ API
+        function appendMessage(userId, content, timestamp, attachmentId, attachmentType, attachmentName, attachmentSize) {
             const messagesDiv = document.getElementById("messages");
             const isSent = userId === currentUser;
-
-            let attachmentHtml = "";
-            if (attachmentUrl) {
-                if (attachmentType === "image") {
-                    attachmentHtml = `<img src="${attachmentUrl}" style="max-width:200px; border-radius:8px; display:block; margin-top:5px;">`;
-                } else if (attachmentType === "video") {
-                    attachmentHtml = `<video src="${attachmentUrl}" controls style="max-width:250px; border-radius:8px; margin-top:5px;"></video>`;
+            
+            let attachmentHtml = '';
+            if (attachmentId) {
+                const fileUrl = `/api/files/${attachmentId}`;
+                
+                if (attachmentType === 'image') {
+                    attachmentHtml = `
+                        <div class="attachment-preview">
+                            <img src="${fileUrl}" 
+                                 alt="${attachmentName}" 
+                                 style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer; display: block; margin-top: 5px;"
+                                 onclick="window.open('${fileUrl}', '_blank')">
+                        </div>`;
+                } else if (attachmentType === 'video') {
+                    attachmentHtml = `
+                        <div class="attachment-preview">
+                            <video controls style="max-width: 400px; border-radius: 8px; margin-top: 5px;">
+                                <source src="${fileUrl}">
+                            </video>
+                        </div>`;
                 } else {
-                    attachmentHtml = `<a href="${attachmentUrl}" target="_blank" class="text-decoration-none text-primary">
-                <i class="bi bi-paperclip"></i> ${attachmentName || "Download file"}
-            </a>`;
+                    attachmentHtml = `
+                        <div class="attachment-file" style="margin-top: 5px;">
+                            <a href="${fileUrl}" download="${attachmentName}" 
+                               style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px;">
+                                <i class="bi bi-file-earmark" style="font-size: 24px;"></i>
+                                <div>
+                                    <div style="font-weight: 600;">${escapeHtml(attachmentName)}</div>
+                                    <small style="color: #666;">${formatFileSize(attachmentSize)}</small>
+                                </div>
+                            </a>
+                        </div>`;
                 }
             }
-
+            
             const messageHtml = `
-        <div class="message ${isSent ? 'sent' : 'received'}">
-            <div class="message-bubble">
-                ${!isSent ? `<div class="message-sender">${escapeHtml(userId)}</div>` : ''}
-                <div class="message-content">${escapeHtml(content || '')}${attachmentHtml}</div>
-                <div class="message-time">${new Date(timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
-            </div>
-        </div>
-    `;
-
+                <div class="message ${isSent ? 'sent' : 'received'}">
+                    <div class="message-bubble">
+                        ${!isSent ? `<div class="message-sender">${escapeHtml(userId)}</div>` : ''}
+                        ${content ? `<div class="message-content">${escapeHtml(content)}</div>` : ''}
+                        ${attachmentHtml}
+                        <div class="message-time">${formatTime(timestamp)}</div>
+                    </div>
+                </div>
+            `;
+            
             messagesDiv.insertAdjacentHTML('beforeend', messageHtml);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        async function sendImage(file) {
-            const formData = new FormData();
-            formData.append("file", file);
-
-            const response = await fetch("/api/chat/upload", {
-                method: "POST",
-                body: formData
-            });
-            const result = await response.json();
-
-            await connection.invoke(
-                "SendMessageWithAttachment",
-                currentThreadId,
-                currentSegmentId,
-                "",
-                result.url,
-                file.type,
-                file.name,
-                file.size
-            );
+        // Load messages
+        function loadMessages(segmentId, pin = null) {
+            let url = `/api/chat/messages?segmentId=${segmentId}`;
+            if (pin) url += `&pin=${encodeURIComponent(pin)}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(messages => {
+                    const messagesDiv = document.getElementById("messages");
+                    messagesDiv.innerHTML = '<div class="date-separator"><span>Today</span></div>';
+                    
+                    if (Array.isArray(messages) && messages.length > 0) {
+                        messages.forEach((m, index) => {
+                            appendMessage(
+                                m.userId, 
+                                m.content, 
+                                new Date(m.timestamp),
+                                m.attachmentId,
+                                m.attachmentType,
+                                m.attachmentName,
+                                m.attachmentSize
+                            );
+                        });
+                        messageIndex = messages.length;
+                    }
+                })
+                .catch(err => console.error("Error:", err));
         }
 
-        // Load messages for segment
-        function loadMessages(segmentId, pin = "") {
-            const url = `/api/chat/messages?segmentId=${segmentId}&pin=${encodeURIComponent(pin)}`;
-            
-            fetch(url, {
-                headers: { 
-                    "Authorization": `Bearer ${accessToken}`,
-                    "Content-Type": "application/json"
-                }
-            })
-            .then(response => response.json())
-            .then(messages => {
-                const messagesDiv = document.getElementById("messages");
-                messagesDiv.innerHTML = '<div class="date-separator"><span>November 4</span></div>';
-                
-                if (Array.isArray(messages)) {
-                    messages.forEach(m => {
-                        appendMessage(m.userId, m.content, m.timestamp);
-                    });
-                }
-            })
-            .catch(err => console.error("Error loading messages:", err));
+        // File handling
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            selectedFile = file;
+
+            document.getElementById('filePreview').style.display = 'block';
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+
+            const fileIcon = document.getElementById('fileIcon');
+            if (file.type.startsWith('image/')) {
+                fileIcon.className = 'bi bi-image';
+            } else if (file.type.startsWith('video/')) {
+                fileIcon.className = 'bi bi-camera-video';
+            } else {
+                fileIcon.className = 'bi bi-file-earmark';
+            }
+        }
+
+        function cancelFile() {
+            selectedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('filePreview').style.display = 'none';
+        }
+
+        async function uploadFile() {
+            if (!selectedFile) return null;
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('segmentId', currentSegmentId);
+            formData.append('messageIndex', messageIndex);
+
+            const progressDiv = document.getElementById('uploadProgress');
+            const progressBar = document.getElementById('progressBar');
+            if (progressDiv) progressDiv.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/files/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error('Upload failed');
+
+                const result = await response.json();
+                console.log('File uploaded to DB:', result);
+
+                if (progressDiv) progressDiv.style.display = 'none';
+                cancelFile();
+
+                return result;
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('Failed to upload: ' + error.message);
+                if (progressDiv) progressDiv.style.display = 'none';
+                return null;
+            }
         }
 
         // Send message
-        function sendMessage() {
+        async function sendMessage() {
             const input = document.getElementById("messageInput");
             const content = input.value.trim();
             
-            if (!content || !currentSegmentId) return;
-
-            connection.invoke("SendMessage", threadId, currentSegmentId, content)
-                .then(() => input.value = "")
-                .catch(err => console.error(err));
-        }
-
-        // Select segment
-        function selectSegment(segmentId, isProtected) {
-            currentSegmentId = segmentId;
-            
-            if (isProtected) {
-                pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
-                pinModal.show();
-            } else {
-                loadMessages(segmentId);
+            if (!content && !selectedFile) return;
+            if (!currentSegmentId) {
+                alert("No active segment");
+                return;
             }
-            
-            if (segmentsModal) segmentsModal.hide();
-        }
-
-        // Submit PIN
-        function submitPin() {
-            const pin = document.getElementById("pinInput").value;
-            if (pin) {
-                loadMessages(currentSegmentId, pin);
-                if (pinModal) pinModal.hide();
-                document.getElementById("pinInput").value = "";
+            if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+                alert("Not connected");
+                return;
             }
-        }
 
-        // Toggle segments
-        function toggleSegments() {
-            segmentsModal = new bootstrap.Modal(document.getElementById('segmentsModal'));
-            segmentsModal.show();
-        }
+            try {
+                if (selectedFile) {
+                    const uploadResult = await uploadFile();
+                    if (!uploadResult) return;
 
-        // Start new segment
-        function startNewSegment() {
-            connection.invoke("StartNewSegment", threadId)
-                .catch(err => console.error(err));
-        }
+                    await connection.invoke("SendMessageWithAttachment", 
+                        threadId, 
+                        currentSegmentId, 
+                        content,
+                        uploadResult.attachmentId,
+                        uploadResult.type,
+                        uploadResult.name,
+                        uploadResult.size
+                    );
+                    
+                    messageIndex++;
+                } else {
+                    await connection.invoke("SendMessage", threadId, currentSegmentId, content);
+                }
 
-        // Start protected segment
-        function startProtectedSegment() {
-            const pin = prompt("Enter PIN (4-6 digits):");
-            if (pin && /^\d{4,6}$/.test(pin)) {
-                connection.invoke("StartProtectedSegment", threadId, pin)
-                    .catch(err => console.error(err));
+                console.log("Message sent");
+                input.value = "";
+            } catch (err) {
+                console.error("Error:", err);
+                alert("Failed: " + err.message);
             }
         }
 
-        // Attach file (placeholder)
-        function attachFile() {
-            alert("File attachment coming soon!");
+        // Helper functions
+        function formatFileSize(bytes) {
+            if (!bytes) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
 
-        // Escape HTML
+        function formatTime(date) {
+            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
@@ -698,88 +755,56 @@
             }
         });
 
-        // === File Upload Handler ===
-        let selectedFile = null;
-
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            selectedFile = file;
-
-            // Hiển thị preview
-            document.getElementById("filePreview").style.display = "block";
-            document.getElementById("fileName").textContent = file.name;
-            document.getElementById("fileSize").textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
-
-            // Icon theo loại file
-            const ext = file.name.split('.').pop().toLowerCase();
-            const fileIcon = document.getElementById("fileIcon");
-            if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) fileIcon.className = "bi bi-file-earmark-image";
-            else if (["mp4", "webm", "mov", "avi"].includes(ext)) fileIcon.className = "bi bi-file-earmark-play";
-            else fileIcon.className = "bi bi-file-earmark";
-        }
-
-        function cancelFile() {
-            selectedFile = null;
-            document.getElementById("filePreview").style.display = "none";
-            document.getElementById("fileInput").value = "";
-        }
-
-        // Upload và gửi message
-        async function uploadAndSend() {
-            if (!selectedFile) return;
-
-            const progressBar = document.getElementById("progressBar");
-            const uploadProgress = document.getElementById("uploadProgress");
-            uploadProgress.style.display = "block";
-            progressBar.style.width = "0%";
-
-            const formData = new FormData();
-            formData.append("file", selectedFile);
-
-            try {
-                const xhr = new XMLHttpRequest();
-                xhr.open("POST", "/api/files/upload", true);
-                xhr.setRequestHeader("Authorization", "Bearer " + accessToken);
-
-                xhr.upload.onprogress = (e) => {
-                    if (e.lengthComputable) {
-                        const percent = Math.round((e.loaded / e.total) * 100);
-                        progressBar.style.width = percent + "%";
-                    }
-                };
-
-                xhr.onload = async () => {
-                    uploadProgress.style.display = "none";
-
-                    if (xhr.status === 200) {
-                        const response = JSON.parse(xhr.responseText);
-
-                        await connection.invoke(
-                            "SendMessageWithAttachment",
-                            threadId,
-                            currentSegmentId,
-                            "", // nội dung text (rỗng)
-                            response.url,
-                            response.type,
-                            response.name,
-                            response.size
-                        );
-
-                        cancelFile();
-                    } else {
-                        alert("Upload failed: " + xhr.responseText);
-                    }
-                };
-
-                xhr.onerror = () => alert("Upload error occurred.");
-                xhr.send(formData);
-            } catch (err) {
-                console.error("Upload error:", err);
-                alert("Error uploading file.");
+        // Other functions (selectSegment, submitPin, etc.)
+        function selectSegment(segmentId, isProtected) {
+            currentSegmentId = segmentId;
+            messageIndex = 0;
+            if (isProtected) {
+                new bootstrap.Modal(document.getElementById('pinModal')).show();
+            } else {
+                loadMessages(segmentId);
             }
-}
+        }
 
+        function submitPin() {
+            const pin = document.getElementById("pinInput").value;
+            if (pin) {
+                loadMessages(currentSegmentId, pin);
+                bootstrap.Modal.getInstance(document.getElementById('pinModal')).hide();
+                document.getElementById("pinInput").value = "";
+            }
+        }
+
+        function toggleSegments() {
+            new bootstrap.Modal(document.getElementById('segmentsModal')).show();
+        }
+
+        function startNewSegment() {
+            connection.invoke("StartNewSegment", threadId).catch(err => console.error(err));
+        }
+
+        function startProtectedSegment() {
+            const pin = prompt("Enter PIN (4-6 digits):");
+            if (pin && /^\d{4,6}$/.test(pin)) {
+                connection.invoke("StartProtectedSegment", threadId, pin).catch(err => console.error(err));
+            }
+        }
+
+        function createFirstSegment() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating...';
+            
+            connection.invoke("StartNewSegment", threadId)
+                .then(() => {
+                    alert("Created!");
+                    setTimeout(() => location.reload(), 1000);
+                })
+                .catch(err => {
+                    alert("Failed: " + err.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-plus-circle"></i> Create Segment';
+                });
+        }
     </script>
 }

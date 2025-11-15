@@ -92,20 +92,28 @@ INSERT INTO UserRoles (UserId, RoleId)
 SELECT @highAdminId, Id FROM Roles WHERE Name = 'HighAdmin';
 
 
+
+-- Chat
 USE SchoolBookDB;
 GO
 
--- Kiểm tra xem bảng đã tồn tại chưa
-SELECT
-    CASE WHEN OBJECT_ID('ChatThreads') IS NOT NULL THEN 'ChatThreads exists'
-         ELSE 'ChatThreads missing' END as Status
-UNION ALL
-SELECT
-    CASE WHEN OBJECT_ID('ChatSegments') IS NOT NULL THEN 'ChatSegments exists'
-         ELSE 'ChatSegments missing' END;
+-- Kiểm tra và tạo bảng ChatThreads
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ChatThreads')
+BEGIN
+CREATE TABLE ChatThreads (
+                             Id INT PRIMARY KEY IDENTITY(1,1),
+                             ThreadName NVARCHAR(200) NOT NULL,
+                             UserIds NVARCHAR(MAX) NOT NULL
+);
+PRINT 'Created ChatThreads table';
+END
+ELSE
+BEGIN
+    PRINT 'ChatThreads table already exists';
+END
 GO
 
--- Nếu ChatSegments chưa có, tạo nó
+-- Kiểm tra và tạo bảng ChatSegments
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ChatSegments')
 BEGIN
 CREATE TABLE ChatSegments (
@@ -124,9 +132,13 @@ CREATE TABLE ChatSegments (
 CREATE INDEX IX_ChatSegments_ThreadId ON ChatSegments(ThreadId);
 PRINT 'Created ChatSegments table';
 END
+ELSE
+BEGIN
+    PRINT 'ChatSegments table already exists';
+END
 GO
 
--- Thêm dữ liệu mẫu nếu chưa có
+-- Thêm dữ liệu mẫu cho ChatThreads
 IF NOT EXISTS (SELECT * FROM ChatThreads)
 BEGIN
 INSERT INTO ChatThreads (ThreadName, UserIds) VALUES
@@ -138,6 +150,29 @@ PRINT 'Seeded sample chat threads';
 END
 GO
 
+-- Kiểm tra kết quả
+SELECT 'ChatThreads' as TableName, COUNT() as RecordCount FROM ChatThreads
+UNION ALL
+SELECT 'ChatSegments', COUNT() FROM ChatSegments;
+
+SELECT * FROM ChatThreads;
+GO
+
+--ChatAttachments moi
+CREATE TABLE ChatAttachments (
+                                 Id INT PRIMARY KEY IDENTITY(1,1),
+                                 SegmentId INT NOT NULL,
+                                 MessageIndex INT NOT NULL, 0
+                                 FileName NVARCHAR(255) NOT NULL,
+                                 FileType NVARCHAR(50) NOT NULL, 0
+                                 MimeType NVARCHAR(100) NOT NULL,
+                                 FileSize BIGINT NOT NULL,
+                                 FileData VARBINARY(MAX) NOT NULL, 0
+                                 UploadedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                                 CONSTRAINT FK_ChatAttachments_Segments FOREIGN KEY (SegmentId) REFERENCES ChatSegments(Id) ON DELETE CASCADE
+);
+
+CREATE INDEX IX_ChatAttachments_SegmentId ON ChatAttachments(SegmentId);
 
 
 -- neu chat ko dc thi don du lieu trong db
