@@ -27,7 +27,8 @@ public class SettingController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SettingChangePassword(SettingChangePasswordViewModel model)
+    public async Task<IActionResult> SettingChangePassword(SettingChangePasswordViewModel model,
+        bool logoutOtherDevices = true)
     {
         if (!ModelState.IsValid)
         {
@@ -58,6 +59,16 @@ public class SettingController(
             {
                 await db.SaveChangesAsync();
                 logger.LogInformation("Password changed successfully for user {UserId}", userId);
+                if (logoutOtherDevices)
+                {
+                    await tokenService.RevokeAllTokensAsync(userGuid);
+                    logger.LogInformation("All tokens revoked for user {UserId}", userId);
+                    TempData["success"] =  "Password changed successfully!, All other devices will be logged out!";
+                }
+                else
+                {
+                    TempData["success"] =  "Password changed successfully!";
+                }
             }
             catch (Exception ex)
             {
@@ -66,7 +77,6 @@ public class SettingController(
                 TempData.Keep();
                 return View(model);
             }
-            TempData["success"] = "Password changed successfully!";
             return RedirectToAction("Index");
         }
         return View(model);

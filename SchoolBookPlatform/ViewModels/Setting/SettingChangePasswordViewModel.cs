@@ -20,4 +20,7 @@ public class SettingChangePasswordViewModel
     [DataType(DataType.Password)]
     [Compare("NewPassword", ErrorMessage = "Passwords do not match")]
     public string ConfirmNewPassword { get; set; }
+    
+    [Display(Name = "Logout other Device")]
+    public bool LogoutOtherDevices { get; set; }
 }
