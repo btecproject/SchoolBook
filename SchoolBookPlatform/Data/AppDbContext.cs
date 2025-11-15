@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     
     public DbSet<ChatThread> ChatThreads { get; set; }
     public DbSet<ChatSegment> ChatSegments { get; set; }
+    public DbSet<ChatAttachment> ChatAttachments { get; set; }
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<Role> Roles { get; set; } = null!;
     public DbSet<UserRole> UserRoles { get; set; } = null!;
@@ -88,6 +89,19 @@ public class AppDbContext : DbContext
             entity.HasKey(s => s.Id);
             entity.Property(s => s.MessagesJson).IsRequired();
             entity.Property(s => s.StartTime).IsRequired();
+        });
+        
+        //ChatAttachment
+        modelBuilder.Entity<ChatAttachment>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.FileName).IsRequired().HasMaxLength(255);
+            entity.Property(a => a.FileType).IsRequired().HasMaxLength(50);
+            entity.Property(a => a.MimeType).IsRequired().HasMaxLength(100);
+            entity.Property(a => a.FileData).IsRequired();
+            entity.Property(a => a.UploadedAt).HasDefaultValueSql("GETUTCDATE()");
+            
+            entity.HasIndex(a => a.SegmentId);
         });
     }
 }
