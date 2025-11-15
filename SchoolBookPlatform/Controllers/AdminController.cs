@@ -7,24 +7,25 @@ using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels;
+using SchoolBookPlatform.ViewModels.Admin;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 
 namespace SchoolBookPlatform.Controllers;
 
 [Authorize(Policy = "AdminOrHigher")]
-public class UsersController : Controller
+public class AdminController : Controller
 {
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
     private readonly UserManagementService _userManagementService;
-    private readonly ILogger<UsersController> _logger;
+    private readonly ILogger<AdminController> _logger;
 
-    public UsersController(
+    public AdminController(
         AppDbContext db,
         UserManagementService userManagementService,
         IConfiguration config,
-        ILogger<UsersController> logger)
+        ILogger<AdminController> logger)
     {
         _db = db;
         _userManagementService = userManagementService;
@@ -205,7 +206,7 @@ public class UsersController : Controller
         var client = new SendGridClient(apiKey);
         var from = new EmailAddress(fromEmail, fromName);
         var to = new EmailAddress(email);
-        var subject = "Mã OTP Xác Thực Đăng Nhập - SchoolBook";
+        var subject = "Thông tin đăng Nhập - SchoolBook";
 
         var htmlContent = $@"
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;'>
@@ -214,8 +215,8 @@ public class UsersController : Controller
             <p>Thông tin đăng nhập của bạn:</p>
             <div style='text-align: center; margin: 20px 0;'>
                 <span style='font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #007bff;'>
-                    Username:  {username}<br>
-                    Password:  {password}<br>
+                    Username: {username}<br>
+                    Password: {password}<br>
                 </span>
             </div>
             <hr>
