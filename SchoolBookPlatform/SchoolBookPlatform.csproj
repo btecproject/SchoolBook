@@ -7,19 +7,25 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <Compile Remove="ViewModels\FeedHomeViewModel.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Include="ViewModels\FeedHomeViewModel.cs" />
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0" />
+    </ItemGroup>
+    
+
+    <ItemGroup>
         <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.3.0" />
-        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.10" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.10" />
         <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1" />
-        <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.0" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10">
-          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-          <PrivateAssets>all</PrivateAssets>
-        </PackageReference>
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.10" />
         <PackageReference Include="SendGrid" Version="9.29.3" />
-        <PackageReference Include="System.Text.Json" Version="9.0.10" />
         <PackageReference Include="Twilio" Version="7.13.5" />
     </ItemGroup>
 

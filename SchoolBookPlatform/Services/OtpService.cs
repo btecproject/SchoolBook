@@ -63,29 +63,29 @@ public class OtpService
 
     private async Task SendOtpAsync(User user, string type, string code)
     {
-        if (type == "SMS" && !string.IsNullOrWhiteSpace(user.PhoneNumber))
-        {
-            var sid = _config["Twilio:AccountSid"];
-            var token = _config["Twilio:AuthToken"];
-            var from = _config["Twilio:FromPhoneNumber"];
-
-            TwilioClient.Init(sid, token);
-
-            try
-            {
-                var message = await MessageResource.CreateAsync(
-                    body: $"[SchoolBook] OTP: {code}. Effective in 3 minutes!",
-                    from: new PhoneNumber(from),
-                    to: new PhoneNumber(user.PhoneNumber)
-                );
-                _logger.LogInformation("SMS send successfully: {Sid}", message.Sid);
-            }
-            catch (ApiException ex) when (ex.Code == 21608) // Số chưa verify
-            {
-                _logger.LogWarning("SMS fail (21608)");
-            }
-        }
-        else if (type == "Email" && !string.IsNullOrWhiteSpace(user.Email))
+        // if (type == "SMS" && !string.IsNullOrWhiteSpace(user.PhoneNumber))
+        // {
+        //     var sid = _config["Twilio:AccountSid"];
+        //     var token = _config["Twilio:AuthToken"];
+        //     var from = _config["Twilio:FromPhoneNumber"];
+        //
+        //     TwilioClient.Init(sid, token);
+        //
+        //     try
+        //     {
+        //         var message = await MessageResource.CreateAsync(
+        //             body: $"[SchoolBook] OTP: {code}. Effective in 3 minutes!",
+        //             from: new PhoneNumber(from),
+        //             to: new PhoneNumber(user.PhoneNumber)
+        //         );
+        //         _logger.LogInformation("SMS send successfully: {Sid}", message.Sid);
+        //     }
+        //     catch (ApiException ex) when (ex.Code == 21608) // Số chưa verify
+        //     {
+        //         _logger.LogWarning("SMS fail (21608)");
+        //     }
+        // }
+        if (type == "Email" && !string.IsNullOrWhiteSpace(user.Email))
         {
             await SendEmailOtpAsync(user, code);
         }

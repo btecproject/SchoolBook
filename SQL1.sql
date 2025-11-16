@@ -85,13 +85,11 @@ VALUES
 DECLARE @highAdminId UNIQUEIDENTIFIER = NEWID();
 INSERT INTO Users (Id, Username, PasswordHash, Email, PhoneNumber, FaceRegistered, MustChangePassword, TokenVersion, IsActive)
 VALUES
-    (@highAdminId, 'hungnp', '$2a$12$1z0WFrouH5JZdDkmpjQPiuyOcYIOeswMPhJMDa7VwJe9uT/d0QoD.', 'hungnp1005@mail.com', NULL, 0, 1, 1, 1);
+    (@highAdminId, 'highadmin', '$2a$12$1z0WFrouH5JZdDkmpjQPiuyOcYIOeswMPhJMDa7VwJe9uT/d0QoD.', 'highadmin@mail.com', NULL, 0, 1, 1, 1);
 
 
 INSERT INTO UserRoles (UserId, RoleId)
 SELECT @highAdminId, Id FROM Roles WHERE Name = 'HighAdmin';
-
-
 
 -- Chat
 USE SchoolBookDB;
@@ -164,13 +162,13 @@ CREATE TABLE ChatAttachments (
                                  SegmentId INT NOT NULL,
                                  MessageIndex INT NOT NULL, 0
                                  FileName NVARCHAR(255) NOT NULL,
-                                 FileType NVARCHAR(50) NOT NULL, 0
+    FileType NVARCHAR(50) NOT NULL, 0
                                  MimeType NVARCHAR(100) NOT NULL,
-                                 FileSize BIGINT NOT NULL,
-                                 FileData VARBINARY(MAX) NOT NULL, 0
+    FileSize BIGINT NOT NULL,
+    FileData VARBINARY(MAX) NOT NULL, 0
                                  UploadedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-                                 CONSTRAINT FK_ChatAttachments_Segments FOREIGN KEY (SegmentId) REFERENCES ChatSegments(Id) ON DELETE CASCADE
-);
+    CONSTRAINT FK_ChatAttachments_Segments FOREIGN KEY (SegmentId) REFERENCES ChatSegments(Id) ON DELETE CASCADE
+    );
 
 CREATE INDEX IX_ChatAttachments_SegmentId ON ChatAttachments(SegmentId);
 

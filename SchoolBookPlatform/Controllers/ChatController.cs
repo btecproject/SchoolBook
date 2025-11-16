@@ -11,33 +11,38 @@ namespace SchoolBookPlatform.Controllers
     public class ChatController : Controller
     {
         private readonly ChatService _chatService;
+        private readonly ILogger<ChatController> _logger;
 
-        public ChatController(ChatService chatService)
+        public ChatController(ChatService chatService, ILogger<ChatController> logger)
         {
             _chatService = chatService;
+            _logger = logger;
         }
 
         [HttpGet("messages")]
-        public IActionResult GetMessages(int segmentId, string pin = null)  // Thêm = null
+        public IActionResult GetMessages(int segmentId, string pin = null)
         {
             try
             {
-                Console.WriteLine($"GetMessages called: segmentId={segmentId}, pin={pin ?? "null"}");
+                _logger.LogInformation($"GetMessages called: segmentId={segmentId}, pin={pin ?? "null"}");
         
                 var messages = _chatService.GetMessagesFromSegment(segmentId, pin);
         
-                Console.WriteLine($"Messages returned: {messages?.Count ?? 0}");
+                _logger.LogInformation($"Messages returned: {messages?.Count ?? 0}");
         
-                return Ok(messages);
+                // CRITICAL: Luôn trả về JSON array, không bao giờ trả về string
+                return Ok(messages ?? new List<ChatMessage>());
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
-                return Unauthorized("Invalid PIN");
+                _logger.LogWarning($"Unauthorized access: {ex.Message}");
+                // Trả về JSON object thay vì string
+                return Unauthorized(new { error = "Invalid PIN", message = ex.Message });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in GetMessages: {ex.Message}");
-                return BadRequest(new { error = ex.Message });
+                _logger.LogError($"Error in GetMessages: {ex.Message}\n{ex.StackTrace}");
+                return BadRequest(new { error = "Failed to load messages", message = ex.Message });
             }
         }
 
@@ -53,7 +58,7 @@ namespace SchoolBookPlatform.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new { error = ex.Message });
             }
         }
 

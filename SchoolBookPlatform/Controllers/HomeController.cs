@@ -15,10 +15,19 @@ public class HomeController : Controller
 
     public IActionResult Index()
     {
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            return RedirectToAction("Home", "Feeds");
+        }
         return View();
     }
 
     public IActionResult Privacy()
+    {
+        return View();
+    }
+
+    public IActionResult Term()
     {
         return View();
     }

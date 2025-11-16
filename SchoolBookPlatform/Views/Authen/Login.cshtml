@@ -1,4 +1,4 @@
-﻿@model SchoolBookPlatform.ViewModels.LoginViewModel
+﻿@model SchoolBookPlatform.ViewModels.Authen.LoginViewModel
 
 @{
     ViewData["Title"] = "Đăng nhập";
@@ -7,13 +7,36 @@
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-5">
-            < επισ
-
             <div class="card shadow-lg border-0">
                 <div class="card-body p-5">
                     <h3 class="text-center mb-4 fw-bold text-primary">SchoolBook</h3>
                     <h5 class="text-center mb-4 text-muted">Đăng nhập hệ thống</h5>
-
+                    
+                    @if (TempData["error"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            @TempData["error"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+                    
+                    @if (TempData["ErrorMessage"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            @TempData["ErrorMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+                    
+                    @* Hiển thị thành công *@
+                    @if (TempData["success"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            @TempData["success"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+                    
                     <form asp-action="Login" asp-route-returnUrl="@returnUrl" method="post">
                         @Html.AntiForgeryToken()
 
@@ -34,15 +57,12 @@
                             <span asp-validation-for="Password" class="text-danger"></span>
                         </div>
 
-                        <!-- Checkbox: Gửi OTP qua Email -->
+                        <!-- Checkbox: Remember Me -->
                         <div class="mb-4">
                             <div class="form-check">
                                 <input class="form-check-input" asp-for="RememberMe" id="rememberMe" checked/>
                                 <label class="form-check-label" for="rememberMe">
-                                    <strong>Gửi mã OTP qua Email</strong>
-                                    <small class="text-muted d-block">
-                                        (Mặc định. Nếu bỏ chọn → gửi qua SMS)
-                                    </small>
+                                    <strong>Remember Me</strong>
                                 </label>
                             </div>
                         </div>
@@ -54,34 +74,74 @@
                         <button type="submit" class="btn btn-primary btn-lg w-100">
                             <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
                         </button>
-                    </form>
+                        
+                        <!-- Dòng chữ "Hoặc" -->
+                        <div class="d-flex align-items-center my-3">
+                            <hr class="flex-grow-1">
+                            <span class="mx-2 text-muted fw-bold">Hoặc</span>
+                            <hr class="flex-grow-1">
+                        </div>
 
-                    <div class="text-center mt-4">
-                        <small class="text-muted">
-                            <a asp-action="Register" class="text-decoration-none">Chưa có tài khoản?</a>
-                        </small>
-                    </div>
+                        <!-- Nút đăng nhập Google -->
+                        <a asp-action="GoogleLogin" asp-controller="Authen" class="btn btn-google btn-lg w-100">
+                            <i class="bi bi-google"></i> Đăng nhập bằng Google
+                        </a>
+                        
+                        <a asp-action="ForgotPassword" asp-controller="Authen" class="btn">
+                            <b>Quên mật khẩu</b>
+                        </a>
+                    </form>
+                    
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+@section Styles {
+    <style>
+        /* Nút Google */
+        .btn-google {
+            background-color: #ffffff;
+            border: 2px solid #47acff !important;
+            color: #47acff !important;
+            font-weight: 500 !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .btn-google:hover {
+            background-color: #1c98ff;
+            color: #ffffff !important;
+            box-shadow: 0 4px 12px #014783;
+            transform: translateY(-1px);
+        }
+
+        .btn-google:active {
+            background-color: #2c8c45;
+            border-color: #2c8c45;
+            box-shadow: none;
+            transform: translateY(1px);
+        }
+
+        .btn-google i {
+            font-size: 1.2rem;
+            vertical-align: middle;
+        }
+    </style>
+}
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial"/>
 
     <script>
-        // Đồng bộ RememberMe → OtpType
         document.getElementById('rememberMe').addEventListener('change', function () {
             const otpTypeInput = document.querySelector('input[name="OtpType"]');
-            otpTypeInput.value = this.checked ? 'Email' : 'SMS';
+            otpTypeInput.value = 'Email';
         });
 
-        // Khởi tạo mặc định
         document.addEventListener('DOMContentLoaded', function () {
-            const rememberMe = document.getElementById('rememberMe');
             const otpTypeInput = document.querySelector('input[name="OtpType"]');
-            otpTypeInput.value = rememberMe.checked ? 'Email' : 'SMS';
+            otpTypeInput.value = 'Email';
         });
     </script>
 }

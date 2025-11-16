@@ -33,22 +33,35 @@ namespace SchoolBookPlatform.Controllers
         {
             try
             {
+                _logger.LogInformation($"Upload request received - File: {file?.FileName}, SegmentId: {segmentId}, MessageIndex: {messageIndex}");
+
                 if (file == null || file.Length == 0)
+                {
+                    _logger.LogWarning("No file uploaded or file is empty");
                     return BadRequest(new { error = "No file uploaded" });
+                }
 
                 var extension = Path.GetExtension(file.FileName).ToLower();
                 var fileType = GetFileType(extension);
 
                 if (fileType == null)
-                    return BadRequest(new { error = "File type not allowed" });
+                {
+                    _logger.LogWarning($"File type not allowed: {extension}");
+                    return BadRequest(new { error = $"File type not allowed: {extension}" });
+                }
 
                 if (!ValidateFileSize(file.Length, fileType))
+                {
+                    _logger.LogWarning($"File too large: {file.Length} bytes for type {fileType}");
                     return BadRequest(new { error = $"File too large. Max: {GetMaxSizeText(fileType)}" });
+                }
 
                 // Convert to byte array
                 using var memoryStream = new MemoryStream();
                 await file.CopyToAsync(memoryStream);
                 var fileBytes = memoryStream.ToArray();
+
+                _logger.LogInformation($"File converted to bytes: {fileBytes.Length} bytes");
 
                 // Lưu vào database
                 var attachment = new ChatAttachment
@@ -68,20 +81,20 @@ namespace SchoolBookPlatform.Controllers
 
                 _logger.LogInformation($"File saved to DB: ID={attachment.Id}, Name={file.FileName}, Size={file.Length}");
 
+                // Response khớp với JavaScript expectations
                 return Ok(new
                 {
                     success = true,
                     attachmentId = attachment.Id,
                     type = fileType,
                     name = file.FileName,
-                    size = file.Length,
-                    mimeType = file.ContentType
+                    size = file.Length
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error uploading file: {ex.Message}");
-                return StatusCode(500, new { error = "Failed to upload file" });
+                _logger.LogError($"Error uploading file: {ex.Message}\n{ex.StackTrace}");
+                return StatusCode(500, new { error = $"Failed to upload file: {ex.Message}" });
             }
         }
 
@@ -91,10 +104,17 @@ namespace SchoolBookPlatform.Controllers
         {
             try
             {
+                _logger.LogInformation($"Retrieving file with ID: {attachmentId}");
+
                 var attachment = _context.ChatAttachments.Find(attachmentId);
                 
                 if (attachment == null)
+                {
+                    _logger.LogWarning($"File not found: {attachmentId}");
                     return NotFound(new { error = "File not found" });
+                }
+
+                _logger.LogInformation($"File retrieved: {attachment.FileName}");
 
                 return File(attachment.FileData, attachment.MimeType, attachment.FileName);
             }

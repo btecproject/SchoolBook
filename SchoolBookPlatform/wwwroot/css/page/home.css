@@ -1,0 +1,66 @@
+﻿.text-center {
+    text-align: center;
+}
+
+.home-container {
+    background: var(--primary-gradient);
+    color: white;
+    padding: 80px 20px;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.home-container h1 {
+    font-size: 2.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.home-container p {
+    font-size: 1.2rem;
+    color: #fff;
+}
+
+.btn-outline-primary {
+    color: white;
+    border: 2px solid #ff7e5f;
+    background: #ff7e5f;
+}
+
+.btn-outline-primary:hover {
+    filter: brightness(1.1);
+    color: #FEB47BFF;
+    border: 2px solid #ff7e5f;
+    background: white;
+}
+
+.btn-outline-success {
+    border: 2px solid #ff7e5f75;
+    color: white;
+    background: #ff7e5f;
+}
+
+.btn-outline-success:hover {
+    
+    border: 2px solid #ff7e5f;
+    background: white;
+    color: #FEB47BFF;
+}
+/* Nút login chính */
+.btn-login {
+    background-color: #f8fff8;       
+    color: black;                  
+    border: 2px solid #FF7E5FFF;       
+    padding: 0.7rem 1.6rem;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.btn-login:hover {
+    background: #FEB47BFF;             
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px #FF7E5FFF;
+}
+
