@@ -3,13 +3,13 @@
     ViewData["Title"] = "Hồ sơ cá nhân";
     Layout = "~/Views/Shared/_Layout.cshtml";
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=edit" />
-    
+    <link rel="stylesheet" href="css/page/profile.css"/>
 }
 
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-7">
-            <div class="card shadow-lg border-0 rounded-4">
+            <div class="p-4">
 
                 <div class="card-body text-center p-4">
 
@@ -20,91 +20,126 @@
                          style="width: 120px; height: 120px; object-fit: cover;">
 
                     <!-- Fullname -->
+                    
                     <h3 class="fw-bold">
                         @(Model.FullName ?? Model.Username)
                     </h3>
 
                     <!-- Username -->
                     <p class="text-muted">@Model.Username</p>
+                    
+                    
+                    <!-- Bio -->
+                    <p id="bio-display">
+                        <strong>Giới thiệu:</strong><br>
+                        <span>@(Model.Bio ?? "Chưa có mô tả")</span>
+                    </p>
+                    <button class="btn btn-sm btn-link bio-edit-btn" onclick="editField('bio')">
+                        Chỉnh sửa tiểu sử
+                    </button>
 
-                    <hr />
-
-                    <div class="text-start px-3">
-
-                        <!-- Email -->
-                        <p id="email-display">
-                            <strong>Email:</strong> <span>@Model.Email</span>
-                        </p>
-
-                        <!-- Phone -->
-                        <p id="phone-display">
-                            <strong>Số điện thoại:</strong> <span>@Model.PhoneNumber</span>
-                            <button class="btn btn-sm btn-link" onclick="editField('phone')">
-                                <span class="material-symbols-outlined">
-                                    edit
-                                </span>
-                            </button>
-                        </p>
-
-                        <div id="phone-edit" style="display:none;">
-                            <input id="phone-input" class="form-control" value="@Model.PhoneNumber" />
-                            <button class="btn btn-success btn-sm" 
-                                    onclick="saveField('PhoneNumber','phone-input','phone-display','phone-edit')">Lưu</button>
-                            <button class="btn btn-secondary btn-sm" 
-                                    onclick="cancelEdit('phone-display','phone-edit')">edit</button>
+                    <div id="bio-edit" style="display:none;">
+                        <textarea id="bio-input" class="form-control">@Model.Bio</textarea>
+                        <div class="edit-actions">
+                            <button class="btn btn-success btn-sm"
+                                    onclick="saveField('Bio','bio-input','bio-display','bio-edit')">Lưu</button>
+                            <button class="btn btn-secondary btn-sm"
+                                    onclick="cancelEdit('bio-display','bio-edit')">Hủy</button>
                         </div>
-
-
-                        <!-- Gender -->
-                        <p>
-                            <strong>Giới tính:</strong> @(Model.Gender ?? "Chưa cập nhật")
-                            <button class="btn btn-sm btn-link" onclick="editField('gender')">edit</button>
-                        </p>
-                        <div id="gender-edit" style="display:none;">
-                            <input id="gender-input" class="form-control" value="@Model.Gender" />
-                            <button class="btn btn-success btn-sm" 
-                                    onclick="saveField('Gender','gender-input','gender-display','gender-edit')">Lưu</button>
-                            <button class="btn btn-secondary btn-sm" 
-                                    onclick="cancelEdit('gender-display','gender-edit')">Hủy</button>
-                        </div>
-
-                        <!-- BirthDate -->
-                        <p>
-                            <strong>Ngày sinh:</strong> @(Model.BirthDate?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật")
-                            <button class="btn btn-sm btn-link" onclick="editField('birth')">
-                                <span class="material-symbols-outlined">
-                                    edit
-                                </span>
-                            </button>
-                        </p>
-                        <div id="birth-edit" style="display:none;">
-                            <input id="birth-input" class="form-control" value="@Model.Gender" />
-                            <button class="btn btn-success btn-sm" 
-                                    onclick="saveField('Birth','birth-input','birth-display','birth-edit')">Lưu</button>
-                            <button class="btn btn-secondary btn-sm" 
-                                    onclick="cancelEdit('birth-display','birth-edit')">Hủy</button>
-                        </div>
-
-                        <!-- Bio -->
-                        <p>
-                            <strong>Giới thiệu:</strong><br /> @(Model.Bio ?? "Chưa có mô tả")
-                            <button class="btn btn-sm btn-link" onclick="editField('birth')">
-                                <span class="material-symbols-outlined">
-                                    edit
-                                </span>
-                            </button>
-                        </p>
-                        <div id="birth-edit" style="display:none;">
-                            <input id="birth-input" class="form-control" value="@Model.Gender" />
-                            <button class="btn btn-success btn-sm" 
-                                    onclick="saveField('Birth','birth-input','birth-display','birth-edit')">Lưu</button>
-                            <button class="btn btn-secondary btn-sm" 
-                                    onclick="cancelEdit('birth-display','birth-edit')">Hủy</button>
-                        </div>
-                        <p>
-                            <strong>Ngày tạo tài khoản:</strong> @Model.CreatedAt.ToString("dd/MM/yyyy")
-                        </p>
                     </div>
+
+
+
+                    <!-- TAB BAR -->
+                    <ul class="nav nav-tabs mb-4" id="profileTabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#posts">Bài viết</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#info">Thông tin</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#likes">Bài đã like</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+
+                        <!-- TAB Bài viết -->
+                        <div class="tab-pane fade show active" id="posts">
+                            <p>Chưa có bài viết nào.</p>
+                        </div>
+
+                        <!-- TAB Thông tin cá nhân -->
+                        <div class="tab-pane fade" id="info">
+
+                            <div class="text-start px-3">
+
+                                <!-- Email (KHÔNG EDIT) -->
+                                <p id="email-display">
+                                    <strong>Email:</strong> <span>@Model.Email</span>
+                                </p>
+
+                                <!-- Phone -->
+                                <p id="phone-display">
+                                    <strong>Số điện thoại:</strong> <span>@Model.PhoneNumber</span>
+                                    <button class="btn btn-sm btn-link" onclick="editField('phone')">
+                                        <span class="material-symbols-outlined">edit</span>
+                                    </button>
+                                </p>
+
+                                <div id="phone-edit" style="display:none;">
+                                    <input id="phone-input" class="form-control" value="@Model.PhoneNumber" />
+                                    <button class="btn btn-success btn-sm"
+                                            onclick="saveField('PhoneNumber','phone-input','phone-display','phone-edit')">Lưu</button>
+                                    <button class="btn btn-secondary btn-sm"
+                                            onclick="cancelEdit('phone-display','phone-edit')">Hủy</button>
+                                </div>
+
+                                <!-- Gender -->
+                                <p id="gender-display">
+                                    <strong>Giới tính:</strong> @(Model.Gender ?? "Chưa cập nhật")
+                                    <button class="btn btn-sm btn-link" onclick="editField('gender')">
+                                        <span class="material-symbols-outlined">edit</span>
+                                    </button>
+                                </p>
+                                <div id="gender-edit" style="display:none;">
+                                    <input id="gender-input" class="form-control" value="@Model.Gender" />
+                                    <button class="btn btn-success btn-sm"
+                                            onclick="saveField('Gender','gender-input','gender-display','gender-edit')">Lưu</button>
+                                    <button class="btn btn-secondary btn-sm"
+                                            onclick="cancelEdit('gender-display','gender-edit')">Hủy</button>
+                                </div>
+
+                                <!-- Birthdate -->
+                                <p id="birth-display">
+                                    <strong>Ngày sinh:</strong> @(Model.BirthDate?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật")
+                                    <button class="btn btn-sm btn-link" onclick="editField('birth')">
+                                        <span class="material-symbols-outlined">edit</span>
+                                    </button>
+                                </p>
+                                <div id="birth-edit" style="display:none;">
+                                    <input id="birth-input" type="date" class="form-control"
+                                           value="@(Model.BirthDate?.ToString("yyyy-MM-dd"))" />
+                                    <button class="btn btn-success btn-sm"
+                                            onclick="saveField('BirthDate','birth-input','birth-display','birth-edit')">Lưu</button>
+                                    <button class="btn btn-secondary btn-sm"
+                                            onclick="cancelEdit('birth-display','birth-edit')">Hủy</button>
+                                </div>
+
+                                <!-- Created date -->
+                                <p>
+                                    <strong>Ngày tạo tài khoản:</strong> @Model.CreatedAt.ToString("dd/MM/yyyy")
+                                </p>
+
+                            </div>
+                        </div>
+
+                        <!-- TAB Bài đã like -->
+                        <div class="tab-pane fade" id="likes">
+                            <p>Chưa có bài viết nào được like.</p>
+                        </div>
+                </div>
+
 
                 </div>
             </div>
