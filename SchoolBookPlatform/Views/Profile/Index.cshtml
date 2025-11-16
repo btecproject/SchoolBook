@@ -1,0 +1,146 @@
+@model SchoolBookPlatform.ViewModels.ProfileViewModel
+@{
+    ViewData["Title"] = "Hồ sơ cá nhân";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=edit" />
+    
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-lg border-0 rounded-4">
+
+                <div class="card-body text-center p-4">
+
+                    <!-- Avatar -->
+                    <img src="@(string.IsNullOrEmpty(Model.AvatarUrl) ? "/images/default-avatar.png" : Model.AvatarUrl)"
+                         class="rounded-circle mb-3"
+                         alt="Avatar"
+                         style="width: 120px; height: 120px; object-fit: cover;">
+
+                    <!-- Fullname -->
+                    <h3 class="fw-bold">
+                        @(Model.FullName ?? Model.Username)
+                    </h3>
+
+                    <!-- Username -->
+                    <p class="text-muted">@Model.Username</p>
+
+                    <hr />
+
+                    <div class="text-start px-3">
+
+                        <!-- Email -->
+                        <p id="email-display">
+                            <strong>Email:</strong> <span>@Model.Email</span>
+                        </p>
+
+                        <!-- Phone -->
+                        <p id="phone-display">
+                            <strong>Số điện thoại:</strong> <span>@Model.PhoneNumber</span>
+                            <button class="btn btn-sm btn-link" onclick="editField('phone')">
+                                <span class="material-symbols-outlined">
+                                    edit
+                                </span>
+                            </button>
+                        </p>
+
+                        <div id="phone-edit" style="display:none;">
+                            <input id="phone-input" class="form-control" value="@Model.PhoneNumber" />
+                            <button class="btn btn-success btn-sm" 
+                                    onclick="saveField('PhoneNumber','phone-input','phone-display','phone-edit')">Lưu</button>
+                            <button class="btn btn-secondary btn-sm" 
+                                    onclick="cancelEdit('phone-display','phone-edit')">edit</button>
+                        </div>
+
+
+                        <!-- Gender -->
+                        <p>
+                            <strong>Giới tính:</strong> @(Model.Gender ?? "Chưa cập nhật")
+                            <button class="btn btn-sm btn-link" onclick="editField('gender')">edit</button>
+                        </p>
+                        <div id="gender-edit" style="display:none;">
+                            <input id="gender-input" class="form-control" value="@Model.Gender" />
+                            <button class="btn btn-success btn-sm" 
+                                    onclick="saveField('Gender','gender-input','gender-display','gender-edit')">Lưu</button>
+                            <button class="btn btn-secondary btn-sm" 
+                                    onclick="cancelEdit('gender-display','gender-edit')">Hủy</button>
+                        </div>
+
+                        <!-- BirthDate -->
+                        <p>
+                            <strong>Ngày sinh:</strong> @(Model.BirthDate?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật")
+                            <button class="btn btn-sm btn-link" onclick="editField('birth')">
+                                <span class="material-symbols-outlined">
+                                    edit
+                                </span>
+                            </button>
+                        </p>
+                        <div id="birth-edit" style="display:none;">
+                            <input id="birth-input" class="form-control" value="@Model.Gender" />
+                            <button class="btn btn-success btn-sm" 
+                                    onclick="saveField('Birth','birth-input','birth-display','birth-edit')">Lưu</button>
+                            <button class="btn btn-secondary btn-sm" 
+                                    onclick="cancelEdit('birth-display','birth-edit')">Hủy</button>
+                        </div>
+
+                        <!-- Bio -->
+                        <p>
+                            <strong>Giới thiệu:</strong><br /> @(Model.Bio ?? "Chưa có mô tả")
+                            <button class="btn btn-sm btn-link" onclick="editField('birth')">
+                                <span class="material-symbols-outlined">
+                                    edit
+                                </span>
+                            </button>
+                        </p>
+                        <div id="birth-edit" style="display:none;">
+                            <input id="birth-input" class="form-control" value="@Model.Gender" />
+                            <button class="btn btn-success btn-sm" 
+                                    onclick="saveField('Birth','birth-input','birth-display','birth-edit')">Lưu</button>
+                            <button class="btn btn-secondary btn-sm" 
+                                    onclick="cancelEdit('birth-display','birth-edit')">Hủy</button>
+                        </div>
+                        <p>
+                            <strong>Ngày tạo tài khoản:</strong> @Model.CreatedAt.ToString("dd/MM/yyyy")
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function editField(name) {
+    document.getElementById(name + "-display").style.display = "none";
+    document.getElementById(name + "-edit").style.display = "block";
+}
+
+function cancelEdit(displayId, editId) {
+    document.getElementById(displayId).style.display = "block";
+    document.getElementById(editId).style.display = "none";
+}
+
+function saveField(fieldName, inputId, displayId, editId) {
+
+    const value = document.getElementById(inputId).value;
+
+    fetch('/Profile/UpdateField', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field: fieldName, value: value })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            // cập nhật text ngay trên UI
+            document.querySelector(`#${displayId} span`).innerText = value;
+            cancelEdit(displayId, editId);
+        } else {
+            alert("Có lỗi xảy ra!");
+        }
+    });
+}
+</script>

@@ -73,6 +73,47 @@ CREATE TABLE TrustedDevices (
 CREATE INDEX IX_TrustedDevices_UserId_IP_Device
     ON TrustedDevices (UserId, IPAddress, DeviceInfo);
 
+
+CREATE TABLE UserProfiles (
+                              UserId UNIQUEIDENTIFIER PRIMARY KEY,
+                              FullName NVARCHAR(100),
+                              AvatarUrl NVARCHAR(300),
+                              Bio NVARCHAR(500),
+                              Gender NVARCHAR(20),
+                              BirthDate DATE,
+                              EmailVisibility BIT DEFAULT 0,
+                              PhoneVisibility BIT DEFAULT 0,
+                              FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+);
+
+CREATE TABLE UserFollowers (
+                               FollowerId UNIQUEIDENTIFIER NOT NULL,
+                               FollowingId UNIQUEIDENTIFIER NOT NULL,
+                               FollowedAt DATETIME DEFAULT GETUTCDATE(),
+                               PRIMARY KEY (FollowerId, FollowingId),
+                               FOREIGN KEY (FollowerId) REFERENCES Users(Id) ON DELETE CASCADE,
+                               FOREIGN KEY (FollowingId) REFERENCES Users(Id) -- bỏ cascade
+);
+
+
+CREATE TABLE Posts (
+                       Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                       UserId UNIQUEIDENTIFIER NOT NULL,        -- FK trỏ tới Users.Id
+                       Content NVARCHAR(MAX),
+                       MediaUrl NVARCHAR(300),
+                       CreatedAt DATETIME DEFAULT GETUTCDATE(),
+                       FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+);
+
+CREATE TABLE PostLikes (
+                           UserId UNIQUEIDENTIFIER NOT NULL,        -- FK tới Users.Id
+                           PostId UNIQUEIDENTIFIER NOT NULL,
+                           LikedAt DATETIME DEFAULT GETUTCDATE(),
+                           PRIMARY KEY (UserId, PostId),
+                           FOREIGN KEY (UserId) REFERENCES Users(Id),
+                           FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE
+);
+
 INSERT INTO Roles (Name, Description)
 VALUES
     ('HighAdmin', 'Super admin with full control'),

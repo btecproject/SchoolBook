@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<OtpCode> OtpCodes { get; set; } = null!;
     public DbSet<FaceProfile> FaceProfiles { get; set; } = null!;
     public DbSet<TrustedDevice> TrustedDevices { get; set; } = null!;
+    public DbSet<UserProfile> UserProfiles { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

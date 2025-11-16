@@ -172,6 +172,14 @@ public class UsersController : Controller
                     RoleId = roleId
                 });
             }
+            _db.UserProfiles.Add(new UserProfile
+            {
+                UserId = user.Id,
+                FullName = user.Username, // tạm dùng username
+                EmailVisibility = false,
+                PhoneVisibility = false
+            });
+
 
             await _db.SaveChangesAsync();
             _logger.LogInformation("User {UserId} created by {CurrentUserId}", user.Id, currentUserId);
