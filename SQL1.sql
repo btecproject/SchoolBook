@@ -90,3 +90,4 @@ VALUES
 
 INSERT INTO UserRoles (UserId, RoleId)
 SELECT @highAdminId, Id FROM Roles WHERE Name = 'HighAdmin';
+

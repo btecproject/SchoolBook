@@ -520,7 +520,7 @@
 
             // Nhận tin nhắn - CẬP NHẬT: Nhận attachmentId thay vì data
             connection.on("ReceiveMessage", (userId, content, timestamp, attachmentId, attachmentType, attachmentName, attachmentSize) => {
-                console.log("Received message:", userId, attachmentId);
+                console.log("✅ Received message:", userId, attachmentId);
                 appendMessage(userId, content, new Date(timestamp), attachmentId, attachmentType, attachmentName, attachmentSize);
             });
 
@@ -533,10 +533,10 @@
 
             connection.start()
                 .then(() => {
-                    console.log("SignalR connected");
+                    console.log("✅ SignalR connected");
                     return connection.invoke("JoinThread", threadId);
                 })
-                .catch(err => console.error("Error:", err));
+                .catch(err => console.error("❌ Error:", err));
         }
 
         // Append message - CẬP NHẬT: Load file từ API
@@ -670,14 +670,14 @@
                 if (!response.ok) throw new Error('Upload failed');
 
                 const result = await response.json();
-                console.log('File uploaded to DB:', result);
+                console.log('✅ File uploaded to DB:', result);
 
                 if (progressDiv) progressDiv.style.display = 'none';
                 cancelFile();
 
                 return result;
             } catch (error) {
-                console.error('Upload error:', error);
+                console.error('❌ Upload error:', error);
                 alert('Failed to upload: ' + error.message);
                 if (progressDiv) progressDiv.style.display = 'none';
                 return null;
@@ -719,10 +719,10 @@
                     await connection.invoke("SendMessage", threadId, currentSegmentId, content);
                 }
 
-                console.log("Message sent");
+                console.log("✅ Message sent");
                 input.value = "";
             } catch (err) {
-                console.error("Error:", err);
+                console.error("❌ Error:", err);
                 alert("Failed: " + err.message);
             }
         }
