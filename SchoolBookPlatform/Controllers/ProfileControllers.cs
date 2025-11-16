@@ -94,6 +94,41 @@ public class ProfileController : Controller
         await _db.SaveChangesAsync();
         return Json(new { success = true });
     }
+    
+    [HttpPost]
+    public async Task<IActionResult> UploadAvatar(IFormFile avatar)
+    {
+        if (avatar == null || avatar.Length == 0)
+            return BadRequest("No file");
+
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        var user = await _db.Users
+            .Include(u => u.Profile)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null)
+            return NotFound();
+
+        // Tạo thư mục nếu chưa có
+        var uploadsFolder = Path.Combine("wwwroot", "uploads", "avatars");
+        if (!Directory.Exists(uploadsFolder))
+            Directory.CreateDirectory(uploadsFolder);
+
+        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(avatar.FileName)}";
+        var filePath = Path.Combine(uploadsFolder, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await avatar.CopyToAsync(stream);
+        }
+
+        user.Profile!.AvatarUrl = $"/uploads/avatars/{fileName}";
+        await _db.SaveChangesAsync();
+
+        return Json(new { success = true, url = user.Profile.AvatarUrl });
+    }
+
 
     public class UpdateFieldRequest
     {

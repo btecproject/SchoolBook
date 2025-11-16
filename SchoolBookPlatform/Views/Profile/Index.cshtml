@@ -13,20 +13,32 @@
 
                 <div class="card-body text-center p-4">
 
-                    <!-- Avatar -->
-                    <img src="@(string.IsNullOrEmpty(Model.AvatarUrl) ? "/images/default-avatar.png" : Model.AvatarUrl)"
-                         class="rounded-circle mb-3"
-                         alt="Avatar"
-                         style="width: 120px; height: 120px; object-fit: cover;">
+                    <div class="d-flex align-items-center mb-3">
+                        <!-- Avatar Container -->
+                        <div class="position-relative me-3">
 
-                    <!-- Fullname -->
-                    
-                    <h3 class="fw-bold">
-                        @(Model.FullName ?? Model.Username)
-                    </h3>
+                            <!-- Avatar -->
+                            <img src="@(string.IsNullOrEmpty(Model.AvatarUrl) ? "/images/default-avatar.png" : Model.AvatarUrl)"
+                                 class="rounded-circle avatar-img"
+                                 alt="Avatar">
 
-                    <!-- Username -->
-                    <p class="text-muted">@Model.Username</p>
+                            <!-- Nút upload -->
+                            <button class="btn btn-sm btn-light avatar-edit-btn"
+                                    onclick="document.getElementById('avatar-input').click()">
+                                <span class="material-symbols-outlined">edit</span>
+                            </button>
+
+                            <!-- Input file ẩn -->
+                            <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="uploadAvatar()" />
+                        </div>
+
+                        <!-- User Info -->
+                        <div class="user-info-left">
+                            <h3 class="fw-bold mb-1">@Model.FullName</h3>
+                            <p class="text-muted mb-0">@Model.Username</p>
+                        </div>
+                    </div>
+
                     
                     
                     <!-- Bio -->
@@ -177,5 +189,30 @@ function saveField(fieldName, inputId, displayId, editId) {
             alert("Có lỗi xảy ra!");
         }
     });
+}
+
+// Upload ảnh
+    function uploadAvatar() {
+    const fileInput = document.getElementById('avatar-input');
+    const file = fileInput.files[0];
+
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    fetch('/Profile/UploadAvatar', {
+    method: 'POST',
+    body: formData
+})
+    .then(res => res.json())
+    .then(data => {
+    if (data.success) {
+    // cập nhật ảnh ngay lập tức
+    document.querySelector("img[alt='Avatar']").src = data.url;
+} else {
+    alert("Tải ảnh thất bại!");
+}
+});
 }
 </script>
