@@ -392,7 +392,7 @@
                    placeholder="Type a message..."
                    onkeypress="if(event.key === 'Enter') sendMessage()"
                    @(!hasSegment ? "disabled" : "") />
-            <button type="button" id="sendBtn" onclick="selectedFile ? uploadAndSend() : sendMessage()" @(!hasSegment ? "disabled" : "")>
+            <button type="button" id="sendBtn" onclick="sendMessage()" @(!hasSegment ? "disabled" : "")>
                 <i class="bi bi-send-fill"></i>
             </button>
         </div>
@@ -482,19 +482,37 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-shield-lock"></i> Enter PIN</h5>
+                <h5 class="modal-title">
+                    <i class="bi bi-shield-lock text-warning"></i> 
+                    Protected Segment
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <div class="alert alert-warning" role="alert">
+                    <i class="bi bi-info-circle"></i>
+                    This segment is password protected. Enter PIN to view messages.
+                </div>
                 <input type="password" 
                        id="pinInput" 
-                       class="form-control" 
+                       class="form-control form-control-lg text-center" 
                        placeholder="Enter 4-6 digit PIN"
+                       maxlength="6"
+                       pattern="[0-9]*"
+                       inputmode="numeric"
                        onkeypress="if(event.key === 'Enter') submitPin()" />
+                <small class="text-muted d-block mt-2">
+                    <i class="bi bi-shield-check"></i> 
+                    Your PIN is encrypted and secure
+                </small>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="submitPin()">Submit</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="submitPin()">
+                    <i class="bi bi-unlock"></i> Unlock
+                </button>
             </div>
         </div>
     </div>
@@ -509,118 +527,161 @@
         let currentSegmentId = parseInt('@(currentSegment?.Id ?? 0)') || 0;
         let connection = null;
         let selectedFile = null;
-        let messageIndex = 0; // Track message index
+        let messageIndex = 0;
 
         // Initialize SignalR
         function initializeSignalR() {
+            console.log("🔄 Initializing SignalR...");
+
             connection = new signalR.HubConnectionBuilder()
                 .withUrl("/chatHub")
                 .withAutomaticReconnect()
+                .configureLogging(signalR.LogLevel.Information)
                 .build();
 
-            // Nhận tin nhắn - CẬP NHẬT: Nhận attachmentId thay vì data
             connection.on("ReceiveMessage", (userId, content, timestamp, attachmentId, attachmentType, attachmentName, attachmentSize) => {
-                console.log("✅ Received message:", userId, attachmentId);
+                console.log("Received message:", userId, content, attachmentId);
                 appendMessage(userId, content, new Date(timestamp), attachmentId, attachmentType, attachmentName, attachmentSize);
             });
 
             connection.on("SegmentStarted", (segmentId, message) => {
+                console.log("New segment started:", segmentId);
                 currentSegmentId = segmentId;
                 messageIndex = 0;
                 alert(message);
                 setTimeout(() => location.reload(), 1000);
             });
 
+            connection.onreconnecting(error => {
+                console.log("SignalR reconnecting...", error);
+            });
+
+            connection.onreconnected(connectionId => {
+                console.log("SignalR reconnected:", connectionId);
+            });
+
+            connection.onclose(error => {
+                console.log("SignalR connection closed:", error);
+            });
+
             connection.start()
                 .then(() => {
-                    console.log("✅ SignalR connected");
+                    console.log("SignalR connected successfully");
+                    console.log(`Joining thread: ${threadId}`);
                     return connection.invoke("JoinThread", threadId);
                 })
-                .catch(err => console.error("❌ Error:", err));
+                .then(() => {
+                    console.log("Joined thread successfully");
+                })
+                .catch(err => {
+                    console.error("SignalR connection error:", err);
+                    alert("Failed to connect to chat. Please refresh the page.");
+                });
         }
 
-        // Append message - CẬP NHẬT: Load file từ API
+        // Append message
         function appendMessage(userId, content, timestamp, attachmentId, attachmentType, attachmentName, attachmentSize) {
             const messagesDiv = document.getElementById("messages");
             const isSent = userId === currentUser;
-            
+
             let attachmentHtml = '';
             if (attachmentId) {
                 const fileUrl = `/api/files/${attachmentId}`;
-                
+
                 if (attachmentType === 'image') {
                     attachmentHtml = `
-                        <div class="attachment-preview">
-                            <img src="${fileUrl}" 
-                                 alt="${attachmentName}" 
-                                 style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer; display: block; margin-top: 5px;"
-                                 onclick="window.open('${fileUrl}', '_blank')">
-                        </div>`;
+                <div class="attachment-preview">
+                    <img src="${fileUrl}" 
+                         alt="${attachmentName}" 
+                         style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer; display: block; margin-top: 5px;"
+                         onclick="window.open('${fileUrl}', '_blank')">
+                </div>`;
                 } else if (attachmentType === 'video') {
                     attachmentHtml = `
-                        <div class="attachment-preview">
-                            <video controls style="max-width: 400px; border-radius: 8px; margin-top: 5px;">
-                                <source src="${fileUrl}">
-                            </video>
-                        </div>`;
+                <div class="attachment-preview">
+                    <video controls style="max-width: 400px; border-radius: 8px; margin-top: 5px;">
+                        <source src="${fileUrl}">
+                    </video>
+                </div>`;
                 } else {
                     attachmentHtml = `
-                        <div class="attachment-file" style="margin-top: 5px;">
-                            <a href="${fileUrl}" download="${attachmentName}" 
-                               style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px;">
-                                <i class="bi bi-file-earmark" style="font-size: 24px;"></i>
-                                <div>
-                                    <div style="font-weight: 600;">${escapeHtml(attachmentName)}</div>
-                                    <small style="color: #666;">${formatFileSize(attachmentSize)}</small>
-                                </div>
-                            </a>
-                        </div>`;
+                <div class="attachment-file" style="margin-top: 5px;">
+                    <a href="${fileUrl}" download="${attachmentName}" 
+                       style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px;">
+                        <i class="bi bi-file-earmark" style="font-size: 24px;"></i>
+                        <div>
+                            <div style="font-weight: 600;">${escapeHtml(attachmentName)}</div>
+                            <small style="color: #666;">${formatFileSize(attachmentSize)}</small>
+                        </div>
+                    </a>
+                </div>`;
                 }
             }
-            
+
             const messageHtml = `
-                <div class="message ${isSent ? 'sent' : 'received'}">
-                    <div class="message-bubble">
-                        ${!isSent ? `<div class="message-sender">${escapeHtml(userId)}</div>` : ''}
-                        ${content ? `<div class="message-content">${escapeHtml(content)}</div>` : ''}
-                        ${attachmentHtml}
-                        <div class="message-time">${formatTime(timestamp)}</div>
-                    </div>
-                </div>
-            `;
-            
+        <div class="message ${isSent ? 'sent' : 'received'}">
+            <div class="message-bubble">
+                ${!isSent ? `<div class="message-sender">${escapeHtml(userId)}</div>` : ''}
+                ${content ? `<div class="message-content">${escapeHtml(content)}</div>` : ''}
+                ${attachmentHtml}
+                <div class="message-time">${formatTime(timestamp)}</div>
+            </div>
+        </div>
+    `;
+
             messagesDiv.insertAdjacentHTML('beforeend', messageHtml);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
         // Load messages
-        function loadMessages(segmentId, pin = null) {
-            let url = `/api/chat/messages?segmentId=${segmentId}`;
-            if (pin) url += `&pin=${encodeURIComponent(pin)}`;
-            
-            fetch(url)
-                .then(response => response.json())
-                .then(messages => {
-                    const messagesDiv = document.getElementById("messages");
-                    messagesDiv.innerHTML = '<div class="date-separator"><span>Today</span></div>';
-                    
-                    if (Array.isArray(messages) && messages.length > 0) {
-                        messages.forEach((m, index) => {
-                            appendMessage(
-                                m.userId, 
-                                m.content, 
-                                new Date(m.timestamp),
-                                m.attachmentId,
-                                m.attachmentType,
-                                m.attachmentName,
-                                m.attachmentSize
-                            );
-                        });
-                        messageIndex = messages.length;
+        async function loadMessages(segmentId, pin = null) {
+            try {
+                let url = `/api/chat/messages?segmentId=${segmentId}`;
+                if (pin) url += `&pin=${encodeURIComponent(pin)}`;
+
+                console.log(`Loading messages from: ${url}`);
+
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    console.error('Failed to load messages:', errorData);
+
+                    if (response.status === 401) {
+                        alert('Invalid PIN. Please try again.');
+                        return;
                     }
-                })
-                .catch(err => console.error("Error:", err));
-        }
+
+                    throw new Error(errorData.error || 'Failed to load messages');
+                }
+
+                const messages = await response.json();
+                console.log(`Loaded ${messages.length} messages`);
+
+                const messagesDiv = document.getElementById("messages");
+                messagesDiv.innerHTML = '<div class="date-separator"><span>Today</span></div>';
+
+                if (Array.isArray(messages) && messages.length > 0) {
+                    messages.forEach((m, index) => {
+                        appendMessage(
+                            m.userId,
+                            m.content,
+                            new Date(m.timestamp),
+                            m.attachmentId,
+                            m.attachmentType,
+                            m.attachmentName,
+                            m.attachmentSize
+                        );
+                    });
+                    messageIndex = messages.length;
+                } else {
+                    messagesDiv.innerHTML += '<div style="text-align: center; color: #999; padding: 20px;">No messages yet</div>';
+                }
+            } catch (err) {
+                console.error("Error loading messages:", err);
+                alert('Failed to load messages: ' + err.message);
+            }
+}
 
         // File handling
         function handleFileSelect(event) {
@@ -641,7 +702,7 @@
             } else {
                 fileIcon.className = 'bi bi-file-earmark';
             }
-        }
+}
 
         function cancelFile() {
             selectedFile = null;
@@ -667,28 +728,30 @@
                     body: formData
                 });
 
-                if (!response.ok) throw new Error('Upload failed');
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Upload failed: ${errorText}`);
+                }
 
                 const result = await response.json();
-                console.log('✅ File uploaded to DB:', result);
+                console.log('File uploaded to DB:', result);
 
                 if (progressDiv) progressDiv.style.display = 'none';
-                cancelFile();
 
                 return result;
             } catch (error) {
-                console.error('❌ Upload error:', error);
+                console.error('Upload error:', error);
                 alert('Failed to upload: ' + error.message);
                 if (progressDiv) progressDiv.style.display = 'none';
                 return null;
             }
-        }
+}
 
-        // Send message
+        // Send message - FIXED: Tích hợp upload file
         async function sendMessage() {
             const input = document.getElementById("messageInput");
             const content = input.value.trim();
-            
+
             if (!content && !selectedFile) return;
             if (!currentSegmentId) {
                 alert("No active segment");
@@ -701,31 +764,35 @@
 
             try {
                 if (selectedFile) {
+                    // Upload file trước
                     const uploadResult = await uploadFile();
-                    if (!uploadResult) return;
+                    if (!uploadResult) return; // Upload failed
 
-                    await connection.invoke("SendMessageWithAttachment", 
-                        threadId, 
-                        currentSegmentId, 
+                    // Gửi message với attachment
+                    await connection.invoke("SendMessageWithAttachment",
+                        threadId,
+                        currentSegmentId,
                         content,
                         uploadResult.attachmentId,
                         uploadResult.type,
                         uploadResult.name,
                         uploadResult.size
                     );
-                    
+
                     messageIndex++;
+                    cancelFile(); // Clear file after sending
                 } else {
+                    // Gửi message thường
                     await connection.invoke("SendMessage", threadId, currentSegmentId, content);
                 }
 
-                console.log("✅ Message sent");
+                console.log("Message sent");
                 input.value = "";
             } catch (err) {
-                console.error("❌ Error:", err);
+                console.error("Error:", err);
                 alert("Failed: " + err.message);
             }
-        }
+}
 
         // Helper functions
         function formatFileSize(bytes) {
@@ -747,32 +814,77 @@
             return div.innerHTML;
         }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeSignalR();
-            if (currentSegmentId > 0) {
-                loadMessages(currentSegmentId);
-            }
-        });
+        // Segment functions
+        let pendingSegmentId = null;
 
-        // Other functions (selectSegment, submitPin, etc.)
         function selectSegment(segmentId, isProtected) {
-            currentSegmentId = segmentId;
-            messageIndex = 0;
+            console.log(`Selecting segment: ${segmentId}, Protected: ${isProtected}`);
+
             if (isProtected) {
-                new bootstrap.Modal(document.getElementById('pinModal')).show();
+                // Lưu lại segmentId để dùng sau khi nhập PIN
+                pendingSegmentId = segmentId;
+
+                // Hiện modal nhập PIN
+                const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
+                pinModal.show();
+
+                // Focus vào input PIN
+                setTimeout(() => {
+                    document.getElementById('pinInput').focus();
+                }, 500);
             } else {
+                // Segment không protected, load trực tiếp
+                currentSegmentId = segmentId;
+                messageIndex = 0;
                 loadMessages(segmentId);
+
+                // Đóng modal segments
+                const segmentsModalEl = document.getElementById('segmentsModal');
+                if (segmentsModalEl) {
+                    const segmentsModal = bootstrap.Modal.getInstance(segmentsModalEl);
+                    if (segmentsModal) segmentsModal.hide();
+                }
             }
-        }
+}
 
         function submitPin() {
-            const pin = document.getElementById("pinInput").value;
-            if (pin) {
-                loadMessages(currentSegmentId, pin);
-                bootstrap.Modal.getInstance(document.getElementById('pinModal')).hide();
-                document.getElementById("pinInput").value = "";
+            const pinInput = document.getElementById("pinInput");
+            const pin = pinInput.value.trim();
+
+            if (!pin) {
+                alert("Please enter a PIN");
+                return;
             }
+
+            if (!/^\d{4,6}$/.test(pin)) {
+                alert("PIN must be 4-6 digits");
+                return;
+            }
+
+            console.log(`Submitting PIN for segment: ${pendingSegmentId}`);
+
+            // Cập nhật segment hiện tại
+            currentSegmentId = pendingSegmentId;
+            messageIndex = 0;
+
+            // Load messages với PIN
+            loadMessages(pendingSegmentId, pin);
+
+            // Đóng modal PIN
+            const pinModalEl = document.getElementById('pinModal');
+            const pinModal = bootstrap.Modal.getInstance(pinModalEl);
+            if (pinModal) pinModal.hide();
+
+            // Đóng modal segments
+            const segmentsModalEl = document.getElementById('segmentsModal');
+            if (segmentsModalEl) {
+                const segmentsModal = bootstrap.Modal.getInstance(segmentsModalEl);
+                if (segmentsModal) segmentsModal.hide();
+            }
+
+            // Clear input
+            pinInput.value = "";
+            pendingSegmentId = null;
         }
 
         function toggleSegments() {
@@ -788,13 +900,13 @@
             if (pin && /^\d{4,6}$/.test(pin)) {
                 connection.invoke("StartProtectedSegment", threadId, pin).catch(err => console.error(err));
             }
-        }
+}
 
         function createFirstSegment() {
             const btn = event.target;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating...';
-            
+
             connection.invoke("StartNewSegment", threadId)
                 .then(() => {
                     alert("Created!");
@@ -806,5 +918,13 @@
                     btn.innerHTML = '<i class="bi bi-plus-circle"></i> Create Segment';
                 });
         }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSignalR();
+            if (currentSegmentId > 0) {
+                loadMessages(currentSegmentId);
+            }
+});
     </script>
 }

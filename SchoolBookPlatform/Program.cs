@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Microsoft.AspNetCore.Http.Features;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Hubs;
 using SchoolBookPlatform.Services;
 
 namespace SchoolBookPlatform;
@@ -25,6 +28,8 @@ public class Program
         builder.Services.AddScoped<TrustedService>();
         builder.Services.AddScoped<UserManagementService>();
         builder.Services.AddScoped<GoogleAuthenService>();
+        builder.Services.AddScoped<ChatService>();
+        builder.Services.AddSingleton<EncryptionService>();
 
         // Authentication
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -50,6 +55,17 @@ public class Program
                 options.CallbackPath = "/signin-google";
             });
         
+        builder.Services.Configure<FormOptions>(options =>
+        {
+            options.MultipartBodyLengthLimit = 100_000_000; // 100MB
+        });
+
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.Limits.MaxRequestBodySize = 100_000_000; // 100MB
+        });
+
+        
         // Logging
         builder.Logging.AddConsole();
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
@@ -63,8 +79,23 @@ public class Program
             options.AddPolicy("AdminOrHigher", policy =>
                 policy.RequireRole("HighAdmin", "Admin"));
         });
+        
+        builder.Services.AddSignalR(options =>
+        {
+            options.EnableDetailedErrors = true;
+            options.MaximumReceiveMessageSize = 102400;
+        });
 
         builder.Services.AddControllersWithViews();
+        
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowAll", policy =>
+                policy.WithOrigins("https://localhost:5001", "http://localhost:5000")
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .AllowCredentials());
+        });
 
         var app = builder.Build();
 
@@ -79,19 +110,27 @@ public class Program
         app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();
-
+        app.UseCors("AllowAll");
         app.MapStaticAssets();
+        
+        // Map SignalR Hub
+                        app.MapHub<ChatHub>("/chatHub");
+                        app.MapControllers();
 
         // Route mặc định: Home/Index → Chào mừng
         app.MapControllerRoute(
             "default",
             "{controller=Home}/{action=Index}");
+        
+        
 
         // Route cho TokenManager
         app.MapControllerRoute(
             "tokenmanager",
             "TokenManager/{action=Index}/{id?}",
             new { controller = "TokenManager" });
+        
+
 
         app.Run();
     }

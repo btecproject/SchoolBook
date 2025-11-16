@@ -66,20 +66,44 @@ namespace SchoolBookPlatform.Services
         public List<ChatMessage> GetMessagesFromSegment(int segmentId, string pin)
         {
             var segment = _context.ChatSegments.Find(segmentId);
-            if (segment == null) throw new Exception("Segment not found");
+            if (segment == null) 
+                throw new Exception("Segment not found");
 
             if (segment.IsProtected)
             {
                 if (string.IsNullOrEmpty(pin))
+                {
                     throw new UnauthorizedAccessException("PIN required for protected segment");
-                    
+                }
+            
                 if (!VerifyPin(pin, segment.PinHash, segment.Salt)) 
+                {
                     throw new UnauthorizedAccessException("Invalid PIN");
-                    
-                return DeserializeMessages(segment.MessagesJson, true, pin);
+                }
+        
+                // Decrypt messages cho protected segment
+                try
+                {
+                    var key = DeriveKeyFromPin(pin, segment.Salt);
+                    var decryptedJson = _encryptionService.Decrypt(segment.MessagesJson, key);
+                    return JsonSerializer.Deserialize<List<ChatMessage>>(decryptedJson) ?? new List<ChatMessage>();
+                }
+                catch (Exception ex)
+                {
+                    throw new UnauthorizedAccessException("Failed to decrypt messages. Invalid PIN or corrupted data.");
+                }
             }
 
-            return DeserializeMessages(segment.MessagesJson, false, null);
+            // Segment không protected
+            try
+            {
+                return JsonSerializer.Deserialize<List<ChatMessage>>(segment.MessagesJson) ?? new List<ChatMessage>();
+            }
+            catch (Exception ex)
+            {
+                // Nếu JSON bị lỗi, trả về empty list thay vì crash
+                return new List<ChatMessage>();
+            }
         }
 
         private string SerializeMessages(List<ChatMessage> messages, bool isProtected, string pin)
