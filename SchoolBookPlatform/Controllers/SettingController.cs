@@ -168,10 +168,28 @@ public class SettingController(
         TempData["success"] = "Đã bật Google Authenticator thành công!";
         return RedirectToAction("Index");
     }
+    
+    [HttpGet]
+    public async Task<IActionResult> DisableGoogleAuthenticator()
+    {
+        var userId = GetCurrentUserId();
+        var user = await db.Users.FindAsync(userId);
+        if (user == null)
+        {
+            return RedirectToAction("Login", "Authen");
+        }
+        if (user.TwoFactorEnabled == false)
+        {
+            TempData["error"] = "2FA đã tắt!";
+            return RedirectToAction("Index");
+        }
+
+        return View(new TwoFactorSetupViewModel());
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DisableGoogleAuthenticator(string verificationCode)
+    public async Task<IActionResult> DisableGoogleAuthenticator(TwoFactorSetupViewModel model)
     {
         var userId = GetCurrentUserId();
         var user = await db.Users.FindAsync(userId);
@@ -182,11 +200,12 @@ public class SettingController(
             return RedirectToAction("Index");
         }
         //xac thuc trc khi tawts
-        var isValid = twoFactorService.VerifyCode(verificationCode, user.TwoFactorSecret);
+        var isValid = twoFactorService.VerifyCode( user.TwoFactorSecret,model.VerificationCode);
         if (!isValid)
         {
             TempData["error"] = "Mã xác thực không đúng";
-            return RedirectToAction("Index");
+            // return RedirectToAction("Index");
+            return View(model);
         }
         user.TwoFactorEnabled = false;
         user.TwoFactorSecret = null;
@@ -195,7 +214,9 @@ public class SettingController(
         await db.SaveChangesAsync();
         
         logger.LogInformation("Google Authenticator disabled for user {UserId}", userId);
-        TempData["success"] = "Đã tắt Google Authenticator";
+        TempData["success"] = "Đã tắt Google Authenticator, sau khi tắt 2FA, " +
+                              "entry \"SchoolBook\" vẫn sẽ hiển thị trong ứng dụng Google Authenticator. " +
+                              "\nĐể bảo mật, vui lòng xóa entry này thủ công.";
 
         return RedirectToAction("Index");
     }
