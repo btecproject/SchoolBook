@@ -231,7 +231,7 @@ public class AuthenController(
         //Verify
         var twoFactorService = HttpContext.RequestServices.GetRequiredService<TwoFactorService>();
         var isValid = twoFactorService.VerifyCode(user.TwoFactorSecret, model.Code);
-    
+        
         if (!isValid)
         {
             ModelState.AddModelError("Code", "Mã xác thực không đúng hoặc đã hết hạn");
@@ -240,9 +240,24 @@ public class AuthenController(
         }
 
         logger.LogInformation("2FA verified for user {UserId}", userId);
+        
+        var returnUrl = TempData.Peek("ReturnUrl")?.ToString();
+        
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        var device = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
+        var isTrusted = await trustedService.IsTrustedAsync(user.Id, ip, device);
 
-        // Tiếp tục flow: Face → OTP → SignIn
-        // ... (giống code cũ)
+        if (!isTrusted)
+        {
+            await otpService.GenerateOtpAsync(user, "Email");
+            TempData["UserId"] = user.Id.ToString();
+            TempData["OtpType"] = "Email";
+            TempData["ReturnUrl"] = returnUrl;
+            return RedirectToAction(nameof(VerifyOtp));
+        }
+        
+        await tokenService.SignInAsync(HttpContext, user, db);
+        return LocalRedirect(returnUrl ?? Url.Action("Home", "Feeds"));
     }
     
     
@@ -308,7 +323,8 @@ public class AuthenController(
             TempData.Keep();
             return View(model);
         }
-
+        
+        var returnUrl = TempData["ReturnUrl"]?.ToString() ?? Url.Action("Home", "Feeds");
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
         var device = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
         await trustedService.AddTrustedDeviceAsync(user.Id, ip, device);
@@ -316,8 +332,6 @@ public class AuthenController(
 
         await tokenService.SignInAsync(HttpContext, user, db);
         logger.LogInformation("User {UserId} signed in successfully", user.Id);
-
-        var returnUrl = TempData["ReturnUrl"]?.ToString() ?? Url.Action("Home", "Feeds");
         return LocalRedirect(returnUrl);
     }
 
@@ -390,11 +404,14 @@ public class AuthenController(
         var user = await db.Users.FindAsync(userGuid);
         if (user == null)
             return RedirectToAction(nameof(Login));
-
+        if (user.TwoFactorEnabled && !string.IsNullOrEmpty(user.TwoFactorSecret))
+        {
+            TempData["ReturnUrl"] = Url.Action("ChangePassword", "Authen");
+            return RedirectToAction(nameof(VerifyTwoFactor));
+        }
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
         user.MustChangePassword = false;
         user.UpdatedAt = DateTime.UtcNow;
-
         try
         {
             await db.SaveChangesAsync();
@@ -409,18 +426,11 @@ public class AuthenController(
         }
 
         var returnUrl = TempData.Peek("ReturnUrl")?.ToString();
-
-        if (user.FaceRegistered)
-        {
-            TempData["UserId"] = user.Id.ToString();
-            TempData["ReturnUrl"] = returnUrl;
-            return RedirectToAction(nameof(FaceVerification));
-        }
-
+        
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
         var device = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
         var isTrusted = await trustedService.IsTrustedAsync(user.Id, ip, device);
-
+        
         if (!isTrusted)
         {
             await otpService.GenerateOtpAsync(user, "Email");
@@ -452,7 +462,7 @@ public class AuthenController(
     public async Task<IActionResult> FaceVerification(FaceVerificationViewModel model)
     {
         // TODO: Implement face verification logic
-        await Task.CompletedTask;
+        // await Task.CompletedTask;
         return RedirectToAction(nameof(Login));
     }
     

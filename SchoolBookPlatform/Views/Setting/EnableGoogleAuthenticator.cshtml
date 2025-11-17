@@ -1,0 +1,35 @@
+﻿@* Views/Setting/EnableGoogleAuthenticator.cshtml *@
+@model SchoolBookPlatform.ViewModels.TwoFactorA.TwoFactorSetupViewModel
+
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4>Bật Google Authenticator</h4>
+        </div>
+        <div class="card-body">
+            <!-- Bước 1: QR Code -->
+            <h5>Bước 1: Quét mã QR</h5>
+            <img src="data:image/png;base64,@Model.QrCodeBase64" alt="QR Code" class="img-fluid" style="max-width: 300px;">
+            
+            <!-- Bước 2: Manual Entry -->
+            <h5 class="mt-4">Bước 2: Hoặc nhập thủ công</h5>
+            <p>Mã: <strong>@Model.ManualEntryKey</strong></p>
+            
+            <!-- Bước 3: Verify -->
+            <h5 class="mt-4">Bước 3: Nhập mã xác thực</h5>
+            <form asp-action="EnableGoogleAuthenticator" method="post">
+                @Html.AntiForgeryToken()
+                <div class="mb-3">
+                    <input asp-for="VerificationCode" 
+                           class="form-control text-center" 
+                           maxlength="6" 
+                           placeholder="000000"
+                           style="font-size: 2rem;">
+                    <span asp-validation-for="VerificationCode" class="text-danger"></span>
+                </div>
+                <button type="submit" class="btn btn-primary">Xác nhận</button>
+                <a asp-action="Index" class="btn btn-secondary">Hủy</a>
+            </form>
+        </div>
+    </div>
+</div>
