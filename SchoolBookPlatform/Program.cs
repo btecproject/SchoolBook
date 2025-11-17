@@ -26,7 +26,8 @@ public class Program
         builder.Services.AddScoped<TrustedService>();
         builder.Services.AddScoped<UserManagementService>();
         builder.Services.AddScoped<GoogleAuthenService>();
-        
+        builder.Services.AddSingleton<CloudinaryService>();
+
         // Logging
         builder.Logging.AddConsole();
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
