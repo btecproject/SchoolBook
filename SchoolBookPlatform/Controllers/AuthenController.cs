@@ -9,6 +9,7 @@ using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels.Authen;
+using SchoolBookPlatform.ViewModels.TwoFactorA;
 
 namespace SchoolBookPlatform.Controllers;
 
@@ -148,7 +149,14 @@ public class AuthenController(
             logger.LogInformation("User {UserId} must change password", user.Id);
             return RedirectToAction(nameof(ChangePassword));
         }
-
+        // Kiểm tra 2FA
+        if (user.TwoFactorEnabled && !string.IsNullOrEmpty(user.TwoFactorSecret))
+        {
+            TempData["UserId"] = user.Id.ToString();
+            TempData["ReturnUrl"] = returnUrl;
+            logger.LogInformation("User {UserId} requires 2FA", user.Id);
+            return RedirectToAction(nameof(VerifyTwoFactor));
+        }
         // Kiểm tra Face verification
         if (user.FaceRegistered)
         {
@@ -190,7 +198,54 @@ public class AuthenController(
 
         return LocalRedirect((returnUrl ?? Url.Action("Home", "Feeds"))!);
     }
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult VerifyTwoFactor()
+    {
+        var userId = TempData.Peek("UserId")?.ToString();
+        if (string.IsNullOrEmpty(userId))
+            return RedirectToAction(nameof(Login));
 
+        return View(new TwoFactorVerifyViewModel());
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> VerifyTwoFactor(TwoFactorVerifyViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            TempData.Keep();
+            return View(model);
+        }
+
+        var userIdStr = TempData.Peek("UserId")?.ToString();
+        if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+            return RedirectToAction(nameof(Login));
+
+        var user = await db.Users.FindAsync(userId);
+        if (user == null || !user.TwoFactorEnabled || string.IsNullOrEmpty(user.TwoFactorSecret))
+            return RedirectToAction(nameof(Login));
+
+        //Verify
+        var twoFactorService = HttpContext.RequestServices.GetRequiredService<TwoFactorService>();
+        var isValid = twoFactorService.VerifyCode(user.TwoFactorSecret, model.Code);
+    
+        if (!isValid)
+        {
+            ModelState.AddModelError("Code", "Mã xác thực không đúng hoặc đã hết hạn");
+            TempData.Keep();
+            return View(model);
+        }
+
+        logger.LogInformation("2FA verified for user {UserId}", userId);
+
+        // Tiếp tục flow: Face → OTP → SignIn
+        // ... (giống code cũ)
+    }
+    
+    
     [HttpGet]
     [AllowAnonymous]
     public IActionResult VerifyOtp()

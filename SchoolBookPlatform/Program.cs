@@ -26,6 +26,7 @@ public class Program
         builder.Services.AddScoped<TrustedService>();
         builder.Services.AddScoped<UserManagementService>();
         builder.Services.AddScoped<GoogleAuthenService>();
+        builder.Services.AddScoped<TwoFactorService>();
         
         // Logging
         builder.Logging.AddConsole();

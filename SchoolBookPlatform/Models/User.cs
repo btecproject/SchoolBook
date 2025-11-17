@@ -19,6 +19,10 @@ public class User
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
+    
+    public bool TwoFactorEnabled { get; set; }
+    
+    public string? TwoFactorSecret { get; set; } 
 
     public ICollection<UserRole>? UserRoles { get; set; }
     public ICollection<UserToken>? Tokens { get; set; }

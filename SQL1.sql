@@ -90,3 +90,7 @@ VALUES
 
 INSERT INTO UserRoles (UserId, RoleId)
 SELECT @highAdminId, Id FROM Roles WHERE Name = 'HighAdmin';
+
+ALTER TABLE Users
+    ADD TwoFactorEnabled BIT DEFAULT 0,
+    TwoFactorSecret NVARCHAR(200) NULL;
