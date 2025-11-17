@@ -19,36 +19,133 @@ public class SettingController(
     FaceService faceService) : Controller
 {
     [HttpGet]
-    public IActionResult SettingChangePassword()
+    public IActionResult VerifyTwoFactorForSetting()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = TempData.Peek("SettingChangePasswordUserId")?.ToString();
         if (string.IsNullOrEmpty(userId))
-            return RedirectToAction("Login", "Authen");
-        return View();
+        {
+            TempData["error"] = "Phiên hết hạn. Vui lòng thử lại.";
+            return RedirectToAction("Index");
+        }
+
+        return View(new TwoFactorVerifyViewModel());
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SettingChangePassword(SettingChangePasswordViewModel model,
-        bool logoutOtherDevices = true)
+    public async Task<IActionResult> VerifyTwoFactorForSetting(TwoFactorVerifyViewModel model)
     {
         if (!ModelState.IsValid)
         {
             TempData.Keep();
-            TempData["error"] = "Error on changing password!";
+            return View(model);
+        }
+
+        var userIdStr = TempData.Peek("SettingChangePasswordUserId")?.ToString();
+        if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+        {
+            TempData["error"] = "Phiên hết hạn. Vui lòng thử lại.";
+            return RedirectToAction("Index");
+        }
+
+        var user = await db.Users.FindAsync(userId);
+        if (user == null || user.TwoFactorEnabled == false || string.IsNullOrEmpty(user.TwoFactorSecret))
+        {
+            TempData["error"] = "2FA chưa được bật";
+            return RedirectToAction("Index");
+        }
+        
+        var isValid = twoFactorService.VerifyCode(user.TwoFactorSecret, model.Code);
+    
+        if (!isValid)
+        {
+            ModelState.AddModelError("Code", "Mã xác thực không đúng hoặc đã hết hạn");
+            TempData.Keep();
+            return View(model);
+        }
+
+        logger.LogInformation("2FA verified for setting change for user {UserId}", userId);
+        
+        TempData["2FAVerifiedForSetting"] = "true";
+        TempData["SettingChangePasswordVerified"] = "true";
+        
+        TempData.Keep();
+        TempData["success"] = "Xác thực 2FA thành công! Bây giờ bạn có thể đổi mật khẩu.";
+        return RedirectToAction("SettingChangePassword");
+    }
+    [HttpGet]
+    public async Task<IActionResult> SettingChangePassword()
+    {
+        var userId = GetCurrentUserId();
+        var user = await db.Users.FindAsync(userId);
+        
+        if (user == null)
+            return RedirectToAction("Login", "Authen");
+        
+        if (user.TwoFactorEnabled == true && !string.IsNullOrEmpty(user.TwoFactorSecret))
+        {
+            var is2FAVerified = TempData["2FAVerifiedForSetting"]?.ToString() == "true" 
+                             || TempData["SettingChangePasswordVerified"]?.ToString() == "true";
+            
+            if (!is2FAVerified)
+            {
+                TempData["ReturnUrl"] = Url.Action(nameof(SettingChangePassword));
+                TempData["SettingChangePasswordUserId"] = userId.ToString();
+                TempData.Keep();
+                
+                return RedirectToAction("VerifyTwoFactorForSetting", "Setting");
+            }
+            else
+            {
+                ViewData["2FAVerified"] = true;
+            }
+        }
+
+        return View(new SettingChangePasswordViewModel());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SettingChangePassword(SettingChangePasswordViewModel model, bool logoutOtherDevices = true)
+    {
+        if (!ModelState.IsValid)
+        {
+            TempData.Keep();
+            TempData["error"] = "Lỗi trong quá trình đổi mật khẩu!";
             logger.LogError("Error on Model");
             return View(model);
         }
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
-            return RedirectToAction("Login", "Authen");
-        if(!string.IsNullOrEmpty(model.RecentPassword)){
-            var user = await db.Users.FindAsync(userGuid);
-            if (user == null)
-            {
-                return RedirectToAction("Login", "Authen");
-            }
 
+        var userId = GetCurrentUserId();
+        var user = await db.Users.FindAsync(userId);
+        
+        if (user == null)
+        {
+            return RedirectToAction("Login", "Authen");
+        }
+
+        if (user.TwoFactorEnabled == true && !string.IsNullOrEmpty(user.TwoFactorSecret))
+        {
+            var is2FAVerified = TempData["2FAVerifiedForSetting"]?.ToString() == "true" 
+                             || TempData["SettingChangePasswordVerified"]?.ToString() == "true";
+            
+            if (!is2FAVerified)
+            {
+                TempData["ReturnUrl"] = Url.Action(nameof(SettingChangePassword));
+                TempData["SettingChangePasswordUserId"] = userId.ToString();
+                
+                TempData["RecentPassword"] = model.RecentPassword;
+                TempData["NewPassword"] = model.NewPassword;
+                TempData["ConfirmPassword"] = model.ConfirmNewPassword;
+                TempData["LogoutOtherDevices"] = logoutOtherDevices.ToString();
+                TempData.Keep();
+                
+                return RedirectToAction("VerifyTwoFactorForSetting", "Setting");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(model.RecentPassword))
+        {
             if (!BCrypt.Net.BCrypt.Verify(model.RecentPassword, user.PasswordHash))
             {
                 TempData["error"] = "Mật khẩu hiện tại không đúng!";
@@ -57,20 +154,25 @@ public class SettingController(
 
             user.UpdatedAt = DateTime.UtcNow;
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
+            
             try
             {
                 await db.SaveChangesAsync();
                 logger.LogInformation("Password changed successfully for user {UserId}", userId);
+                
                 if (logoutOtherDevices)
                 {
-                    await tokenService.RevokeAllTokensAsync(userGuid);
+                    await tokenService.RevokeAllTokensAsync(user.Id);
                     logger.LogInformation("All tokens revoked for user {UserId}", userId);
-                    TempData["success"] =  "Password changed successfully!, All other devices will be logged out!";
+                    TempData["success"] = "Đổi mật khẩu thành công! Tất cả các thiết bị khác sẽ bị đăng xuất.";
                 }
                 else
                 {
-                    TempData["success"] =  "Password changed successfully!";
+                    TempData["success"] = "Đổi mật khẩu thành công!";
                 }
+                
+                TempData.Remove("2FAVerifiedForSetting");
+                TempData.Remove("SettingChangePasswordVerified");
             }
             catch (Exception ex)
             {
@@ -79,8 +181,10 @@ public class SettingController(
                 TempData.Keep();
                 return View(model);
             }
+            
             return RedirectToAction("Index");
         }
+        
         return View(model);
     }
     private Guid GetCurrentUserId()
