@@ -99,7 +99,7 @@ public class SettingController(
         {
             return RedirectToAction("Login", "Authen");
         }
-        if (user.TwoFactorEnabled)
+        if (user.TwoFactorEnabled == true)
         {
             TempData["error"] = "2FA đã được bật!";
             return RedirectToAction("Index");
@@ -176,7 +176,7 @@ public class SettingController(
         var userId = GetCurrentUserId();
         var user = await db.Users.FindAsync(userId);
         
-        if (user == null || !user.TwoFactorEnabled || string.IsNullOrEmpty(user.TwoFactorSecret))
+        if (user == null || user.TwoFactorEnabled == false|| string.IsNullOrEmpty(user.TwoFactorSecret))
         {
             TempData["error"] = "2FA chưa được bật";
             return RedirectToAction("Index");

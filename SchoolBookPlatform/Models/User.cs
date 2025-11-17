@@ -19,8 +19,8 @@ public class User
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
-    
-    public bool TwoFactorEnabled { get; set; }
+
+    public bool? TwoFactorEnabled { get; set; } = false;
     
     public string? TwoFactorSecret { get; set; } 
 

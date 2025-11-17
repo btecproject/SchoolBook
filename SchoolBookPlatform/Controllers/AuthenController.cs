@@ -150,7 +150,7 @@ public class AuthenController(
             return RedirectToAction(nameof(ChangePassword));
         }
         // Kiểm tra 2FA
-        if (user.TwoFactorEnabled && !string.IsNullOrEmpty(user.TwoFactorSecret))
+        if (user.TwoFactorEnabled == true && !string.IsNullOrEmpty(user.TwoFactorSecret))
         {
             TempData["UserId"] = user.Id.ToString();
             TempData["ReturnUrl"] = returnUrl;
@@ -225,7 +225,7 @@ public class AuthenController(
             return RedirectToAction(nameof(Login));
 
         var user = await db.Users.FindAsync(userId);
-        if (user == null || !user.TwoFactorEnabled || string.IsNullOrEmpty(user.TwoFactorSecret))
+        if (user == null || user.TwoFactorEnabled==false || string.IsNullOrEmpty(user.TwoFactorSecret))
             return RedirectToAction(nameof(Login));
 
         //Verify
@@ -402,13 +402,8 @@ public class AuthenController(
             return RedirectToAction(nameof(Login));
 
         var user = await db.Users.FindAsync(userGuid);
-        if (user == null)
+        if (user == null || user.MustChangePassword == false)
             return RedirectToAction(nameof(Login));
-        if (user.TwoFactorEnabled && !string.IsNullOrEmpty(user.TwoFactorSecret))
-        {
-            TempData["ReturnUrl"] = Url.Action("ChangePassword", "Authen");
-            return RedirectToAction(nameof(VerifyTwoFactor));
-        }
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
         user.MustChangePassword = false;
         user.UpdatedAt = DateTime.UtcNow;
@@ -466,46 +461,6 @@ public class AuthenController(
         return RedirectToAction(nameof(Login));
     }
     
-    [HttpGet]
-    [AllowAnonymous]
-    public IActionResult ForgotPassword()
-    {
-        return View();
-    }
-
-    [HttpPost]
-    [AllowAnonymous]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
-    {
-        if (!ModelState.IsValid)
-        {
-            TempData["error"] = "Please enter a valid email address";
-            return View(model);
-        }
-        var user = await db.GetUserByEmailAsync(model.Email);
-        if (user == null)
-        {
-            TempData["error"] = "Email address not found";
-            return View(model);
-        }
-
-        try
-        {
-            await otpService.GenerateOtpAsync(user, "Email");
-            TempData["UserId"] = user.Id.ToString();
-            TempData["OtpType"] = "Email";
-            TempData["ReturnUrl"] = Url.Action("ChangePassword", "Authen");
-            logger.LogInformation("OTP sent to user {UserId} via Email", user.Id);
-            return RedirectToAction(nameof(VerifyOtp));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error resending OTP for user {UserId}", user.Id);
-        }
-        return View(model);
-    }
-
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
