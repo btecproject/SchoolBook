@@ -227,7 +227,10 @@ public class AuthenController(
         var user = await db.Users.FindAsync(userId);
         if (user == null || user.TwoFactorEnabled==false || string.IsNullOrEmpty(user.TwoFactorSecret))
             return RedirectToAction(nameof(Login));
-
+        
+        // DEBUG: Log secret key và code
+        logger.LogInformation("2FA Verification - User: {UserId}, Secret: {Secret}, Code: {Code}", 
+            userId, user.TwoFactorSecret, model.Code);
         //Verify
         var twoFactorService = HttpContext.RequestServices.GetRequiredService<TwoFactorService>();
         var isValid = twoFactorService.VerifyCode(user.TwoFactorSecret, model.Code);

@@ -62,7 +62,7 @@ public class TwoFactorService(
             // Tạo TOTP object
             var totp = new Totp(secretBytes);
             
-            var isValid = totp.VerifyTotp(code, out long timeStepMatched, new VerificationWindow(1, 1));
+            var isValid = totp.VerifyTotp(code, out long timeStepMatched, new VerificationWindow(2, 2));
             
             if (isValid)
             {

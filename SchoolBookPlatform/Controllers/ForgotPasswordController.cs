@@ -17,6 +17,7 @@ namespace SchoolBookPlatform.Controllers;
 
 public class ForgotPasswordController(
     ILogger<ForgotPasswordController> logger,
+    TokenService tokenService,
     AppDbContext db,
     OtpService otpService) : Controller
 {
@@ -211,7 +212,8 @@ public class ForgotPasswordController(
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
             user.MustChangePassword = false;
             user.UpdatedAt = DateTime.UtcNow;
-            user.TokenVersion++;
+            // user.TokenVersion++;
+            await tokenService.RevokeAllTokensAsync(user.Id);
 
             await db.SaveChangesAsync();
 
