@@ -19,6 +19,12 @@ public class FollowRequest
 {
     public Guid UserId { get; set; }
 }
+
+public class UpdatePrivacyRequest
+{
+    public string Field {get; set;} = string.Empty;
+    public bool IsPublic { get; set; }
+}
 [Authorize]
 public class ProfileController(
     AppDbContext db,
@@ -64,6 +70,11 @@ public class ProfileController(
             PhoneNumber = canViewPrivate ? targetUser.PhoneNumber : (targetUser.UserProfile?.IsPhonePublic == true ? targetUser.PhoneNumber : null),
             CreatedAt = targetUser.CreatedAt,
 
+            IsEmailPublic = targetUser.UserProfile?.IsEmailPublic ?? false,
+            IsPhonePublic = targetUser.UserProfile?.IsPhonePublic ?? false,
+            IsBirthDatePublic = targetUser.UserProfile?.IsBirthDatePublic ?? false,
+            IsFollowersPublic = targetUser.UserProfile?.IsFollowersPublic ?? true,
+            
             FollowerCount = followerCount,
             FollowingCount = followingCount,
             IsFollowing = isFollowing,
@@ -73,6 +84,73 @@ public class ProfileController(
         return View(model);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdatePrivacy([FromBody] UpdatePrivacyRequest request)
+    {
+        try
+        {
+            logger.LogInformation("UpdatePrivacy - Field: {Field}, Value: {Value}", 
+                request.Field, request.IsPublic);
+            var user = await HttpContext.GetCurrentUserAsync(db);
+            if (user == null)
+            {
+                logger.LogWarning("UpdatePrivacy - User not authenticated");
+                return Json(new { success = false, message = "Bạn chưa đăng nhập" });
+            }
+            var profile = await db.UserProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+            if (profile == null)
+            {
+                logger.LogInformation("Creating new profile for user {UserId}", user.Id);
+                profile = await db.EnsureProfileAsync(user.Id);
+            }
+            bool updated = false;
+            switch (request.Field)
+            {
+                case "IsEmailPublic":
+                    profile.IsEmailPublic = request.IsPublic;
+                    updated = true;
+                    break;
+                
+                case "IsPhonePublic":
+                    profile.IsPhonePublic = request.IsPublic;
+                    updated = true;
+                    break;
+                
+                case "IsBirthDatePublic":
+                    profile.IsBirthDatePublic = request.IsPublic;
+                    updated = true;
+                    break;
+                
+                case "IsFollowersPublic":
+                    profile.IsFollowersPublic = request.IsPublic;
+                    updated = true;
+                    break;
+                
+                default:
+                    logger.LogWarning("Invalid privacy field: {Field}", request.Field);
+                    return Json(new { success = false, message = "Trường không hợp lệ" });
+            }
+
+            if (updated)
+            {
+                profile.UpdatedAt = DateTime.UtcNow;
+                await db.SaveChangesAsync();
+            
+                logger.LogInformation("Privacy updated: {Field} = {Value} for user {UserId}", 
+                    request.Field, request.IsPublic, user.Id);
+            
+                return Json(new { success = true, isPublic = request.IsPublic });
+            }
+
+            return Json(new { success = false, message = "Không có thay đổi" });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error in UpdatePrivacy");
+            return Json(new { success = false, message = "Đã xảy ra lỗi: " + ex.Message });
+        }
+    }
     [HttpPost]
     public async Task<IActionResult> Follow([FromBody] FollowRequest request)
     {
@@ -335,4 +413,6 @@ public class ProfileController(
 
         return RedirectToAction("Index", new { username = user.Username });
     }
+    
+    
 }
