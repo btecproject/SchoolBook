@@ -178,10 +178,10 @@ public class AdminController : Controller
             {
                 UserId = user.Id,
                 FullName = user.Username, // tạm dùng username
-                IsBirthDatePublic = false,
-                IsEmailPublic = false,
-                IsFollowersPublic = false,
-                IsPhonePublic = false
+                AvatarUrl = null,
+                Bio = null,
+                Gender = null,
+                BirthDate = null
             });
 
 
