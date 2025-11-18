@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
@@ -513,8 +514,11 @@ public class AdminController : Controller
                 _db.FaceProfiles.Remove(user.FaceProfile);
             }
             
-            _db.Users.Remove(user);
-            await _db.SaveChangesAsync();
+            // _db.Users.Remove(user);
+            // await _db.SaveChangesAsync();
+            // DÙNG STORED PROCEDURE ĐÃ VIẾT SẴN – XÓA SẠCH HOÀN TOÀN
+            await _db.Database.ExecuteSqlRawAsync("EXEC usp_DeleteUser @userId", 
+                new SqlParameter("@userId", id));
             _logger.LogInformation("User {UserId} deleted by {CurrentUserId}", id, currentUserId);
             
             TempData["SuccessMessage"] = "Deleted user completed!";

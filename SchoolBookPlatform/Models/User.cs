@@ -28,4 +28,6 @@ public class User
     public ICollection<UserToken>? Tokens { get; set; }
     public ICollection<OtpCode>? OtpCodes { get; set; }
     public FaceProfile? FaceProfile { get; set; }
+    
+    public UserProfile? UserProfile { get; set; }   
 }

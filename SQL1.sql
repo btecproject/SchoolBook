@@ -95,3 +95,85 @@ SELECT @highAdminId, Id FROM Roles WHERE Name = 'HighAdmin';
 ALTER TABLE Users
     ADD TwoFactorEnabled BIT DEFAULT 0,
     TwoFactorSecret NVARCHAR(200) NULL;
+
+----------------------------------------------------------------------------
+-- Bảng UserProfiles
+CREATE TABLE UserProfiles (
+                              UserId UNIQUEIDENTIFIER PRIMARY KEY,
+                              FullName NVARCHAR(100),
+                              Bio NVARCHAR(500),
+                              AvatarUrl NVARCHAR(255),
+                              Gender NVARCHAR(10) CHECK (Gender IN ('Male', 'Female', 'Other')),
+                              BirthDate DATE,
+                              IsEmailPublic BIT DEFAULT 0,
+                              IsPhonePublic BIT DEFAULT 0,
+                              IsBirthDatePublic BIT DEFAULT 0,
+                              IsFollowersPublic BIT DEFAULT 1,
+                              UpdatedAt DATETIME DEFAULT GETUTCDATE(),
+                              FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+);
+
+-- Bảng 1: Danh sách người theo dõi (Followers)
+CREATE TABLE Followers (
+                           UserId      UNIQUEIDENTIFIER NOT NULL,  -- Người được follow
+                           FollowerId  UNIQUEIDENTIFIER NOT NULL,  -- Người theo dõi
+                           FollowedAt  DATETIME2(7)     NOT NULL DEFAULT SYSUTCDATETIME(),
+
+                           CONSTRAINT PK_Followers PRIMARY KEY (UserId, FollowerId),
+
+    -- Khi người nổi tiếng bị xóa → xóa hết lượt follow vào họ
+                           CONSTRAINT FK_Followers_UserId
+                               FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
+
+    -- Khi một fan bị xóa → KHÔNG tự xóa ở đây (tránh multiple cascade)
+                           CONSTRAINT FK_Followers_FollowerId
+                               FOREIGN KEY (FollowerId) REFERENCES Users(Id) ON DELETE NO ACTION
+);
+
+-- Bảng 2: Danh sách người đang follow (Following)
+CREATE TABLE Following (
+                           UserId       UNIQUEIDENTIFIER NOT NULL,  -- Người đang follow
+                           FollowingId  UNIQUEIDENTIFIER NOT NULL,  -- Người được follow
+                           FollowedAt   DATETIME2(7)     NOT NULL DEFAULT SYSUTCDATETIME(),
+
+                           CONSTRAINT PK_Following PRIMARY KEY (UserId, FollowingId),
+
+    -- Khi user bị xóa → tự xóa hết các lượt user đó đang follow người khác
+                           CONSTRAINT FK_Following_UserId
+                               FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
+
+    -- Khi người được follow bị xóa → KHÔNG tự xóa ở đây
+                           CONSTRAINT FK_Following_FollowingId
+                               FOREIGN KEY (FollowingId) REFERENCES Users(Id) ON DELETE NO ACTION
+);
+
+-- Index để query nhanh
+CREATE NONCLUSTERED INDEX IX_Followers_FollowerId   ON Followers(FollowerId);
+CREATE NONCLUSTERED INDEX IX_Following_FollowingId ON Following(FollowingId);
+
+CREATE PROCEDURE usp_DeleteUser @userId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+BEGIN TRAN;
+
+    -- Dọn 2 phần còn sót do NO ACTION
+DELETE FROM Followers WHERE FollowerId = @userId;   -- user này từng follow ai
+DELETE FROM Following WHERE FollowingId = @userId;  -- ai đó follow user này
+
+-- Bây giờ xóa user → 2 cascade kia sẽ tự chạy
+DELETE FROM Users WHERE Id = @userId;
+
+COMMIT TRAN;
+END
+
+
+ALTER TABLE UserRoles DROP CONSTRAINT FK__UserRoles__UserI__693CA210;
+ALTER TABLE UserRoles
+    ADD CONSTRAINT FK_UserRoles_UserId
+        FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE;
+
+ALTER TABLE OtpCodes DROP CONSTRAINT FK__OtpCodes__UserId__778AC167;
+ALTER TABLE OtpCodes
+    ADD CONSTRAINT FK_OtpCodes_UserId
+        FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE;

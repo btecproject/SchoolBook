@@ -73,7 +73,7 @@
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
                                     <li>
-                                        <a class="dropdown-item" asp-controller="Profile" asp-action="Index">
+                                        <a class="dropdown-item" asp-controller="Profile" asp-action="Index" asp-route-username="@User.Identity?.Name">
                                             <i class="bi bi-person"></i> Profile
                                         </a>
                                     </li>
