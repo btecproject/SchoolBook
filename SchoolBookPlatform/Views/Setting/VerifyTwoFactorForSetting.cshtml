@@ -1,0 +1,87 @@
+﻿@model SchoolBookPlatform.ViewModels.TwoFactorA.TwoFactorVerifyViewModel
+
+@{
+    ViewData["Title"] = "Xác thực 2 bước - Đổi mật khẩu";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Xác thực 2 bước</h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-shield-alt fa-3x text-warning mb-3"></i>
+                        <h5>Đổi mật khẩu</h5>
+                        <p class="text-muted">Vui lòng xác thực 2 bước để tiếp tục đổi mật khẩu</p>
+                    </div>
+
+                    @if (TempData["error"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            @TempData["error"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <form asp-action="VerifyTwoFactorForSetting" method="post">
+                        @Html.AntiForgeryToken()
+                        
+                        <div class="mb-3">
+                            <label asp-for="Code" class="form-label">Mã xác thực</label>
+                            <input asp-for="Code" 
+                                   class="form-control text-center" 
+                                   maxlength="6" 
+                                   placeholder="000000"
+                                   style="font-size: 1.5rem; letter-spacing: 0.5em;"
+                                   autocomplete="one-time-code"
+                                   autofocus />
+                            <span asp-validation-for="Code" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning btn-lg">
+                                <i class="fas fa-check-circle me-2"></i>Xác nhận
+                            </button>
+                            <a asp-action="Index" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Quay lại
+                            </a>
+                        </div>
+                    </form>
+
+                    <div class="mt-4">
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle me-2"></i>Hướng dẫn:</h6>
+                            <ul class="mb-0 small">
+                                <li>Mở ứng dụng Google Authenticator trên điện thoại</li>
+                                <li>Nhập mã 6 chữ số hiển thị trong ứng dụng</li>
+                                <li>Mã sẽ thay đổi sau mỗi 30 giây</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeInput = document.getElementById('Code');
+            if (codeInput) {
+                codeInput.focus();
+                
+                codeInput.addEventListener('input', function() {
+                    if (this.value.length === 6) {
+                        this.form.submit();
+                    }
+                });
+            }
+        });
+    </script>
+}

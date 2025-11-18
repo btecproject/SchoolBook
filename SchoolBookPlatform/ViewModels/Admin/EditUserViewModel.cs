@@ -1,19 +1,15 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace SchoolBookPlatform.ViewModels;
+namespace SchoolBookPlatform.ViewModels.Admin;
 
-public class CreateUserViewModel
+public class EditUserViewModel
 {
+    public Guid Id { get; set; }
+
     [Required(ErrorMessage = "Username là bắt buộc")]
     [MaxLength(50, ErrorMessage = "Username tối đa 50 ký tự")]
     [Display(Name = "Tên đăng nhập")]
     public string Username { get; set; } = null!;
-
-    [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
-    [MinLength(6, ErrorMessage = "Mật khẩu tối thiểu 6 ký tự")]
-    [DataType(DataType.Password)]
-    [Display(Name = "Mật khẩu")]
-    public string Password { get; set; } = null!;
 
     [EmailAddress(ErrorMessage = "Email không hợp lệ")]
     [Display(Name = "Email")]
@@ -28,19 +24,18 @@ public class CreateUserViewModel
     public List<Guid> RoleIds { get; set; } = new();
 
     [Display(Name = "Bắt buộc đổi mật khẩu")]
-    public bool MustChangePassword { get; set; } = true;
+    public bool MustChangePassword { get; set; }
 
     [Display(Name = "Tài khoản hoạt động")]
-    public bool IsActive { get; set; } = true;
+    public bool IsActive { get; set; }
+
+    [Display(Name = "Đã đăng ký Face")]
+    public bool FaceRegistered { get; set; }
 
     // Helper để hiển thị danh sách roles
     public List<RoleOption> AvailableRoles { get; set; } = new();
-}
 
-public class RoleOption
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = null!;
-    public string Description { get; set; } = null!;
+    // Thông tin hiện tại của user (để kiểm tra quyền)
+    public List<string> CurrentRoles { get; set; } = new();
 }
 

@@ -1,0 +1,100 @@
+﻿@model SchoolBookPlatform.ViewModels.Authen.OtpViewModel
+
+@{
+    ViewData["Title"] = "Xác thực OTP";
+    var otpType = ViewData["OtpType"] as string ?? "Email";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Xác thực OTP</h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-envelope fa-3x text-warning mb-3"></i>
+                        <h5>Quên mật khẩu</h5>
+                        <p class="text-muted">Vui lòng nhập mã OTP đã được gửi đến @otpType của bạn</p>
+                    </div>
+
+                    @if (TempData["error"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            @TempData["error"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <form asp-action="VerifyOtp" method="post">
+                        @Html.AntiForgeryToken()
+                        
+                        <input type="hidden" asp-for="Type" value="@otpType" />
+                        
+                        <div class="mb-3">
+                            <label asp-for="Code" class="form-label">Mã OTP</label>
+                            <input asp-for="Code" 
+                                   class="form-control text-center" 
+                                   maxlength="6" 
+                                   placeholder="000000"
+                                   style="font-size: 1.5rem; letter-spacing: 0.5em;"
+                                   autocomplete="one-time-code"
+                                   autofocus />
+                            <span asp-validation-for="Code" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning btn-lg">
+                                <i class="fas fa-check-circle me-2"></i>Xác nhận
+                            </button>
+                            <button type="button" id="resendOtpBtn" class="btn btn-outline-secondary">
+                                <i class="fas fa-redo me-2"></i>Gửi lại OTP
+                            </button>
+                            <a asp-action="Index" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Quay lại
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    
+    <script>
+        document.getElementById('resendOtpBtn').addEventListener('click', function() {
+            const btn = this;
+            const originalText = btn.innerHTML;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang gửi...';
+            
+            fetch('@Url.Action("ResendOtp")', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                alert('Có lỗi xảy ra khi gửi lại OTP');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            });
+        });
+    </script>
+}

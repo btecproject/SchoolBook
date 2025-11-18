@@ -1,4 +1,4 @@
-﻿namespace SchoolBookPlatform.ViewModels;
+﻿namespace SchoolBookPlatform.ViewModels.Authen;
 
 public class FaceVerificationViewModel
 {

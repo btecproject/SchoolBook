@@ -1,6 +1,4 @@
-using SchoolBookPlatform.Models;
-
-namespace SchoolBookPlatform.ViewModels;
+namespace SchoolBookPlatform.ViewModels.Admin;
 
 public class UserListViewModel
 {

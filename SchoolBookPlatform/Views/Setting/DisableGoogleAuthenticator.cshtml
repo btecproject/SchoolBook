@@ -1,0 +1,86 @@
+﻿@* Views/Setting/DisableGoogleAuthenticator.cshtml *@
+@model SchoolBookPlatform.ViewModels.TwoFactorA.TwoFactorSetupViewModel
+
+@{
+    ViewData["Title"] = "Tắt Google Authenticator";
+}
+
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-warning text-dark">
+            <h4 class="mb-0">Tắt Google Authenticator</h4>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-warning">
+                <h5><i class="fas fa-exclamation-triangle me-2"></i>Cảnh báo</h5>
+                <p class="mb-0">
+                    Việc tắt Google Authenticator sẽ làm giảm bảo mật tài khoản của bạn. 
+                    Bạn sẽ không còn được yêu cầu mã xác thực khi đăng nhập.
+                </p>
+            </div>
+
+            @if (TempData["error"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @TempData["error"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            <form asp-action="DisableGoogleAuthenticator" method="post">
+                @Html.AntiForgeryToken()
+                
+                <div class="mb-4">
+                    <h5>Xác nhận tắt 2FA</h5>
+                    <p class="text-muted">
+                        Để tắt Google Authenticator, vui lòng mở ứng dụng và nhập mã xác thực 6 chữ số hiện tại.
+                    </p>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="VerificationCode" class="form-label">Mã xác thực</label>
+                    <input asp-for="VerificationCode" 
+                           class="form-control text-center" 
+                           maxlength="6" 
+                           placeholder="000000"
+                           style="font-size: 1.5rem; letter-spacing: 0.5em;"
+                           autocomplete="one-time-code"
+                           autofocus />
+                    <span asp-validation-for="VerificationCode" class="text-danger"></span>
+                    <div class="form-text">
+                        Nhập mã 6 chữ số từ ứng dụng Google Authenticator
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a asp-action="Index" class="btn btn-secondary me-md-2">
+                        <i class="fas fa-arrow-left me-2"></i>Quay lại
+                    </a>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-shield-alt me-2"></i>Tắt Google Authenticator
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeInput = document.getElementById('VerificationCode');
+            if (codeInput) {
+                codeInput.focus();
+                
+                // Auto submit khi nhập đủ 6 số
+                codeInput.addEventListener('input', function() {
+                    if (this.value.length === 6) {
+                        this.form.submit();
+                    }
+                });
+            }
+        });
+    </script>
+}

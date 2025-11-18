@@ -1,0 +1,551 @@
+﻿@model SchoolBookPlatform.ViewModels.Profile.ProfileViewModel
+@{
+    ViewData["Title"] = Model.FullName ?? Model.Username;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+<link rel="stylesheet" href="~/css/page/profile.css" />
+
+<div class="container mt-5 mb-5">
+    @Html.AntiForgeryToken()
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-body text-center p-5">
+
+                    <!-- Avatar + Upload (chỉ owner) -->
+                    @if (Model.IsOwner)
+                    {
+                        <form asp-action="UploadAvatar" asp-controller="Profile" method="post" enctype="multipart/form-data" id="avatarForm">
+                            <label style="cursor: pointer; display: inline-block;">
+                                <img src="@Model.AvatarUrl" class="rounded-circle mb-4 shadow-sm"
+                                     alt="Avatar" style="width: 150px; height: 150px; object-fit: cover; border: 4px solid #fff;">
+                                <input type="file" name="avatar" accept="image/*" onchange="this.form.submit()" style="display: none;"/>
+                            </label>
+                            <small class="d-block text-muted mb-3">Nhấp vào ảnh để thay đổi</small>
+                        </form>
+                    }
+                    else
+                    {
+                        <img src="@Model.AvatarUrl" class="rounded-circle mb-4 shadow-sm"
+                             alt="Avatar" style="width: 150px; height: 150px; object-fit: cover; border: 4px solid #fff;">
+                    }
+
+                    <!-- Tên + Username -->
+                    <p id="fullname-display" class="fs-4 fw-bold mb-1">
+                        <span>@(string.IsNullOrEmpty(Model.FullName) ? Model.Username : Model.FullName)</span>
+                        @if (Model.CanEdit)
+                        {
+                            <button class="btn btn-sm btn-link" onclick="editField('fullname')">
+                                <span class="material-symbols-outlined" style="font-size:18px;">edit</span>
+                            </button>
+                        }
+                    </p>
+                    <div id="fullname-edit" style="display:none; max-width: 400px; margin: 0 auto;">
+                        <input type="text" id="fullname-input" class="form-control" value="@Model.FullName" placeholder="Nhập tên hiển thị"/>
+                        <div class="mt-2 text-end">
+                            <button class="btn btn-success btn-sm" onclick="saveField('FullName','fullname-input','fullname-display','fullname-edit')">Lưu</button>
+                            <button class="btn btn-secondary btn-sm" onclick="cancelEdit('fullname-display','fullname-edit')">Hủy</button>
+                        </div>
+                    </div>
+                    <p class="text-muted mb-3">@Model.Username</p>
+
+                    <!-- Nút Follow/Unfollow (không phải owner) -->
+                    @if (!Model.IsOwner)
+                    {
+                        <button id="followBtn" class="btn @(Model.IsFollowing ? "btn-outline-primary" : "btn-primary") btn-lg px-5"
+                                onclick="toggleFollow('@Model.UserId', @Model.IsFollowing.ToString().ToLower())">
+                            @(Model.IsFollowing ? "Đang theo dõi" : "Theo dõi")
+                        </button>
+                    }
+
+                    <!-- Số lượng follow -->
+                    <div class="d-flex justify-content-center gap-5 mt-4 mb-4 text-muted">
+                        <div>
+                            <strong class="text-dark fs-4">@Model.FollowerCount</strong><br>
+                            <span>Người theo dõi</span>
+                        </div>
+                        <div>
+                            <strong class="text-dark fs-4">@Model.FollowingCount</strong><br>
+                            <span>Đang theo dõi</span>
+                        </div>
+                    </div>
+
+                    <!-- Bio -->
+                    <div class="text-center mb-4">
+                        <p id="bio-display">
+                            <strong>Giới thiệu:</strong><br>
+                            <span>@(string.IsNullOrEmpty(Model.Bio) ? "Chưa có mô tả" : Model.Bio)</span>
+                        </p>
+                        @if (Model.CanEdit)
+                        {
+                            <button class="btn btn-sm btn-link text-primary bio-edit-btn" onclick="editField('bio')">
+                                <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;">edit</span> Chỉnh sửa
+                            </button>
+                        }
+
+                        <div id="bio-edit" style="display:none; max-width: 500px; margin: 0 auto;">
+                            <textarea id="bio-input" class="form-control" rows="3">@Model.Bio</textarea>
+                            <div class="mt-2 text-end">
+                                <button class="btn btn-success btn-sm" onclick="saveField('Bio', 'bio-input', 'bio-display', 'bio-edit')">Lưu</button>
+                                <button class="btn btn-secondary btn-sm" onclick="cancelEdit('bio-display', 'bio-edit')">Hủy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab bar -->
+                    <ul class="nav nav-tabs justify-content-center mb-4" id="profileTabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#posts">
+                                <p style="color: #1c98ff">Bài viết</p></a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#info">
+                                <p style="color: #1c98ff">Thông tin</p></a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#privacy">
+                                <p style="color: #1c98ff">Riêng tư</p></a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <!-- Tab Bài viết -->
+                        <div class="tab-pane fade show active" id="posts">
+                            <p class="text-center text-muted py-5">Chưa có bài viết nào.</p>
+                        </div>
+
+                        <!-- Tab Thông tin -->
+                        <div class="tab-pane fade" id="info">
+                            <div class="row g-4">
+                                <!-- Email -->
+                                @if (Model.Email != null)
+                                {
+                                    <div class="col-md-6">
+                                        <p><strong>Email:</strong> <span>@Model.Email</span></p>
+                                    </div>
+                                }
+
+                                <!-- Số điện thoại -->
+                                @if (Model.PhoneNumber != null)
+                                {
+                                    <div class="col-md-6">
+                                        <p><strong>Số điện thoại:</strong> <span>@Model.PhoneNumber</span></p>
+                                    </div>
+                                }
+
+                                <!-- Giới tính -->
+                                <div class="col-md-6">
+                                    <p id="gender-display">
+                                        <strong>Giới tính:</strong> @(string.IsNullOrEmpty(Model.Gender) ? "Chưa cập nhật" : Model.Gender)
+                                        @if (Model.CanEdit)
+                                        {
+                                            <button class="btn btn-sm btn-link" onclick="editField('gender')">
+                                                <span class="material-symbols-outlined" style="font-size:16px;">edit</span>
+                                            </button>
+                                        }
+                                    </p>
+                                    <div id="gender-edit" style="display:none;">
+                                        <select id="gender-input" class="form-select">
+                                            <option value="">Chọn giới tính</option>
+                                            <option value="Male" selected="@(Model.Gender == "Male")">Nam</option>
+                                            <option value="Female" selected="@(Model.Gender == "Female")">Nữ</option>
+                                            <option value="Other" selected="@(Model.Gender == "Other")">Khác</option>
+                                        </select>
+                                        <div class="mt-2 text-end">
+                                            <button class="btn btn-success btn-sm" onclick="saveField('Gender','gender-input','gender-display','gender-edit')">Lưu</button>
+                                            <button class="btn btn-secondary btn-sm" onclick="cancelEdit('gender-display','gender-edit')">Hủy</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Ngày sinh -->
+                                <div class="col-md-6">
+                                    <p id="birth-display">
+                                        <strong>Ngày sinh:</strong> @(Model.BirthDate?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật")
+                                        @if (Model.CanEdit)
+                                        {
+                                            <button class="btn btn-sm btn-link" onclick="editField('birth')">
+                                                <span class="material-symbols-outlined" style="font-size:16px;">edit</span>
+                                            </button>
+                                        }
+                                    </p>
+                                    <div id="birth-edit" style="display:none;">
+                                        <input type="date" id="birth-input" class="form-control" value="@(Model.BirthDate?.ToString("yyyy-MM-dd"))"/>
+                                        <div class="mt-2 text-end">
+                                            <button class="btn btn-success btn-sm" onclick="saveBirthDate()">Lưu</button>
+                                            <button class="btn btn-secondary btn-sm" onclick="cancelEdit('birth-display','birth-edit')">Hủy</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Ngày tạo tài khoản -->
+                                <div class="col-12">
+                                    <p class="text-muted">
+                                        <strong>Tham gia:</strong> @Model.CreatedAt.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("vi-VN"))
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="privacy">
+                            @if (Model.CanEdit)
+                            {
+                                <div class="privacy-settings">
+                                    <h5 class="mb-4">Cài đặt quyền riêng tư</h5>
+                                    <p class="text-muted small mb-4">Kiểm soát ai có thể xem thông tin của bạn</p>
+
+                                    <div class="privacy-item">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <strong>Email</strong>
+                                                <p class="text-muted small mb-0">Cho phép người khác xem email của bạn</p>
+                                            </div>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="emailPublicSwitch"
+                                                       @(Model.IsEmailPublic ? "checked" : "")
+                                                       onchange="togglePrivacy('IsEmailPublic', this.checked)">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <hr>
+
+                                    <div class="privacy-item">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <strong>Số điện thoại</strong>
+                                                <p class="text-muted small mb-0">Cho phép người khác xem số điện thoại của bạn</p>
+                                            </div>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="phonePublicSwitch"
+                                                       @(Model.IsPhonePublic ? "checked" : "")
+                                                       onchange="togglePrivacy('IsPhonePublic', this.checked)">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <hr>
+
+                                    <div class="privacy-item">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <strong>Ngày sinh</strong>
+                                                <p class="text-muted small mb-0">Cho phép người khác xem ngày sinh của bạn</p>
+                                            </div>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="birthDatePublicSwitch"
+                                                       @(Model.IsBirthDatePublic ? "checked" : "")
+                                                       onchange="togglePrivacy('IsBirthDatePublic', this.checked)">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <hr>
+
+                                    <div class="privacy-item">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <strong>Danh sách theo dõi</strong>
+                                                <p class="text-muted small mb-0">Cho phép người khác xem ai bạn đang theo dõi</p>
+                                            </div>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="followersPublicSwitch"
+                                                       @(Model.IsFollowersPublic ? "checked" : "")
+                                                       onchange="togglePrivacy('IsFollowersPublic', this.checked)">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-center text-muted py-5">Bạn không có quyền xem cài đặt này.</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function editField(name) {
+            document.getElementById(name + "-display").style.display = "none";
+            document.getElementById(name + "-edit").style.display = "block";
+        }
+
+        function cancelEdit(displayId, editId) {
+            document.getElementById(displayId).style.display = "block";
+            document.getElementById(editId).style.display = "none";
+        }
+
+        function saveField(fieldName, inputId, displayId, editId) {
+            const inputElement = document.getElementById(inputId);
+            if (!inputElement) {
+                console.error('Input element not found:', inputId);
+                return;
+            }
+
+            let value = null;
+
+            // Lấy giá trị khác nhau tùy loại input
+            if (inputElement.tagName === 'SELECT') {
+                value = inputElement.value; // Gender
+            } else if (inputElement.tagName === 'TEXTAREA') {
+                value = inputElement.value.trim(); // Bio
+            } else {
+                value = inputElement.value.trim(); // FullName
+            }
+
+            // Validate các field bắt buộc
+            if (!['Bio', 'FullName', 'Gender', 'BirthDate'].includes(fieldName)) {
+                alert("Không được phép chỉnh sửa trường này!");
+                return;
+            }
+
+            console.log('Saving field:', fieldName, 'Value:', value); // Debug
+
+            fetch('/Profile/UpdateField', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    field: fieldName,
+                    value: value,
+                    dateValue: null
+                })
+            })
+                .then(res => {
+                    console.log('Response status:', res.status); // Debug
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data); // Debug
+
+                    if (data.success) {
+                        // Cập nhật UI sau khi lưu thành công
+                        updateDisplayAfterSave(fieldName, value, displayId);
+                        cancelEdit(displayId, editId);
+                    } else {
+                        alert(data.message || "Lưu thất bại!");
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    alert("Đã xảy ra lỗi khi lưu: " + error.message);
+                });
+        }
+
+        // Hàm riêng để update UI sau khi lưu
+        function updateDisplayAfterSave(fieldName, value, displayId) {
+            const displayElement = document.getElementById(displayId);
+
+            if (fieldName === 'FullName') {
+                const span = displayElement.querySelector('span');
+                if (span) {
+                    span.innerText = value || '@Model.Username';
+                }
+            }
+            else if (fieldName === 'Bio') {
+                const span = displayElement.querySelector('span');
+                if (span) {
+                    span.innerText = value || "Chưa có mô tả";
+                }
+            }
+            else if (fieldName === 'Gender') {
+                const genderText = value === 'Male' ? 'Nam' :
+                    value === 'Female' ? 'Nữ' :
+                        value === 'Other' ? 'Khác' : 'Chưa cập nhật';
+
+                displayElement.innerHTML = `<strong>Giới tính:</strong> ${genderText} ` +
+                    `<button class="btn btn-sm btn-link" onclick="editField('gender')">` +
+                    `<span class="material-symbols-outlined" style="font-size:16px;">edit</span></button>`;
+            }
+}
+
+        function saveBirthDate() {
+            const inputElement = document.getElementById("birth-input");
+            if (!inputElement) {
+                console.error('Birth input not found');
+                return;
+            }
+
+            const value = inputElement.value;
+            console.log('Saving birth date:', value); // Debug
+
+            fetch('/Profile/UpdateField', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    field: "BirthDate",
+                    value: null,
+                    dateValue: value
+                })
+            })
+                .then(res => {
+                    console.log('Response status:', res.status);
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+
+                    if (data.success) {
+                        const formatted = value ? new Date(value).toLocaleDateString('vi-VN') : "Chưa cập nhật";
+                        document.querySelector("#birth-display").innerHTML =
+                            `<strong>Ngày sinh:</strong> ${formatted} ` +
+                            `<button class="btn btn-sm btn-link" onclick="editField('birth')">` +
+                            `<span class="material-symbols-outlined" style="font-size:16px;">edit</span></button>`;
+
+                        cancelEdit('birth-display', 'birth-edit');
+                    } else {
+                        alert(data.message || "Lưu thất bại!");
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    alert("Đã xảy ra lỗi khi lưu: " + error.message);
+                });
+        }
+
+        function toggleFollow(userId, isFollowing) {
+            console.log('toggleFollow called:', userId, isFollowing);
+
+            const url = isFollowing ? '/Profile/Unfollow' : '/Profile/Follow';
+            const btn = document.getElementById('followBtn');
+
+            // Disable button để tránh spam click
+            if (btn) btn.disabled = true;
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userId: userId }) 
+            })
+                .then(res => {
+                    console.log('Response status:', res.status);
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+
+                    if (data.success) {
+                        // Cập nhật UI mà không reload page
+                        if (btn) {
+                            if (data.isFollowing) {
+                                btn.textContent = 'Đang theo dõi';
+                                btn.className = 'btn btn-outline-primary btn-lg px-5';
+                                btn.onclick = () => toggleFollow(userId, true);
+                            } else {
+                                btn.textContent = 'Theo dõi';
+                                btn.className = 'btn btn-primary btn-lg px-5';
+                                btn.onclick = () => toggleFollow(userId, false);
+                            }
+                            btn.disabled = false;
+                        }
+
+                        // Cập nhật số followers nếu có
+                        if (data.followerCount !== undefined) {
+                            const followerCountElem = document.querySelector('.d-flex.justify-content-center.gap-5 .text-dark.fs-4');
+                            if (followerCountElem) {
+                                followerCountElem.textContent = data.followerCount;
+                            }
+                        }
+                    } else {
+                        alert(data.message || 'Đã xảy ra lỗi');
+                        if (btn) btn.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    alert('Đã xảy ra lỗi khi thực hiện thao tác: ' + error.message);
+                    if (btn) btn.disabled = false;
+                });
+        }
+        function togglePrivacy(field, isPublic) {
+            console.log('togglePrivacy:', field, isPublic);
+
+            // Lấy token antiforgry
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            fetch('/Profile/UpdatePrivacy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify({
+                    field: field,
+                    isPublic: isPublic
+                })
+            })
+                .then(res => {
+                    console.log('Response status:', res.status);
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+
+                    if (data.success) {
+                        // Hiển thị thông báo thành công
+                        showToast('Đã cập nhật cài đặt riêng tư', 'success');
+                    } else {
+                        alert(data.message || 'Cập nhật thất bại');
+                        // Revert switch về trạng thái cũ
+                        const switchId = field.replace('Is', '').replace('Public', '').toLowerCase() + 'PublicSwitch';
+                        const switchElem = document.getElementById(switchId);
+                        if (switchElem) {
+                            switchElem.checked = !isPublic;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    alert('Đã xảy ra lỗi: ' + error.message);
+                    // Revert switch
+                    const switchId = field.replace('Is', '').replace('Public', '').toLowerCase() + 'PublicSwitch';
+                    const switchElem = document.getElementById(switchId);
+                    if (switchElem) {
+                        switchElem.checked = !isPublic;
+                    }
+                });
+        }
+
+        // Hàm hiển thị toast notification (optional - cải thiện UX)
+        function showToast(message, type = 'info') {
+            // Tạo toast element
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+            toast.style.zIndex = '9999';
+            toast.style.minWidth = '300px';
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            // Tự động ẩn sau 3 giây
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.5s';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
+        }
+    </script>
+}

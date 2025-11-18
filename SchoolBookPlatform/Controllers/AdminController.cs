@@ -1,32 +1,38 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels;
+using SchoolBookPlatform.ViewModels.Admin;
+using SendGrid;
+using SendGrid.Helpers.Mail;
 
 namespace SchoolBookPlatform.Controllers;
 
 [Authorize(Policy = "AdminOrHigher")]
-public class UsersController : Controller
+public class AdminController : Controller
 {
     private readonly AppDbContext _db;
+    private readonly IConfiguration _config;
     private readonly UserManagementService _userManagementService;
-    private readonly ILogger<UsersController> _logger;
+    private readonly ILogger<AdminController> _logger;
 
-    public UsersController(
+    public AdminController(
         AppDbContext db,
         UserManagementService userManagementService,
-        ILogger<UsersController> logger)
+        IConfiguration config,
+        ILogger<AdminController> logger)
     {
         _db = db;
         _userManagementService = userManagementService;
         _logger = logger;
+        _config =  config;
     }
-
     // GET: Users
     public async Task<IActionResult> Index()
     {
@@ -91,6 +97,26 @@ public class UsersController : Controller
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
             return View(model);
         }
+        //it nhất 1 role
+        if (model.RoleIds == null || !model.RoleIds.Any())
+        {
+            ModelState.AddModelError("RoleIds", "Phải chọn ít nhất một vai trò.");
+            model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
+            return View(model);
+        }
+        
+        //HighAdmin chỉ 1 role
+        var highAdminRole = await _db.Roles.FirstOrDefaultAsync(r => r.Name == "HighAdmin");
+        if (highAdminRole != null && model.RoleIds.Contains(highAdminRole.Id))
+        {
+            if (model.RoleIds.Count > 1)
+            {
+                ModelState.AddModelError("RoleIds",
+                    "HighAdmin chỉ được có duy nhất role HighAdmin, không được có thêm role khác.");
+                model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync(); 
+                return View(model);
+            }
+        }
 
         // Kiểm tra username đã tồn tại
         if (await _db.Users.AnyAsync(u => u.Username == model.Username))
@@ -99,8 +125,25 @@ public class UsersController : Controller
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
             return View(model);
         }
-
-        if (!ModelState.IsValid)
+        
+        //Kiểm tra trùng emial
+        if (!string.IsNullOrWhiteSpace(model.Email) && await _db.Users.AnyAsync(u => u.Email == model.Email))
+        {
+            ModelState.AddModelError("Email", "Email is existed");
+            model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
+            return View(model);
+        }
+        
+        //Kiển tra trùng sdt
+        if (!string.IsNullOrWhiteSpace(model.PhoneNumber) &&
+            await _db.Users.AnyAsync(u => u.PhoneNumber == model.PhoneNumber))
+        {
+            ModelState.AddModelError("PhoneNumber", "Phone number is existed");
+            model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
+            return View(model);
+        }
+        
+        if (!ModelState.IsValid) 
         {
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
             return View(model);
@@ -134,6 +177,11 @@ public class UsersController : Controller
 
             await _db.SaveChangesAsync();
             _logger.LogInformation("User {UserId} created by {CurrentUserId}", user.Id, currentUserId);
+
+            if (model.SendEmail && !string.IsNullOrEmpty(model.Email))
+            {
+                await SendLoginInfoToEmail(model.Email, model.Username,  model.Password);
+            }
             
             TempData["SuccessMessage"] = "Tạo user thành công!";
             return RedirectToAction(nameof(Index));
@@ -147,7 +195,52 @@ public class UsersController : Controller
         }
     }
 
-    // GET: Users/Edit/5
+    public async Task SendLoginInfoToEmail(string email, string username, string password)
+    {
+        var apiKey = _config["SendGrid:ApiKey"];
+        var fromEmail = _config["SendGrid:FromEmail"];
+        var fromName = _config["SendGrid:FromName"];
+
+        if (string.IsNullOrEmpty(apiKey))
+            throw new InvalidOperationException("SendGrid API Key chưa cấu hình.");
+
+        var client = new SendGridClient(apiKey);
+        var from = new EmailAddress(fromEmail, fromName);
+        var to = new EmailAddress(email);
+        var subject = "Thông tin đăng Nhập - SchoolBook";
+
+        var htmlContent = $@"
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;'>
+            <h2 style='text-align: center; color: #007bff;'>SchoolBook Platform</h2>
+            <p>Xin chào <strong>{email}</strong>,</p>
+            <p>Thông tin đăng nhập của bạn:</p>
+            <div style='text-align: center; margin: 20px 0;'>
+                <span style='font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #007bff;'>
+                    Username: {username}<br>
+                    Password: {password}<br>
+                </span>
+            </div>
+            <hr>
+            <small style='color: #666;'>
+                Vui lòng bảo quản kỹ thông tin đăng nhập của mình ! <br>
+                Email được gửi tự động, không trả lời.
+            </small>
+        </div>";
+
+        var msg = MailHelper.CreateSingleEmail(from, to, subject, null, htmlContent);
+        var response = await client.SendEmailAsync(msg);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Body.ReadAsStringAsync();
+            _logger.LogError("SendGrid lỗi {Status}: {Body}", response.StatusCode, errorBody);
+            throw new InvalidOperationException($"SendGrid lỗi: {response.StatusCode}");
+        }
+
+        _logger.LogInformation("Email OTP gửi thành công đến {Email}",email);
+    }
+    
+    // GET: Users/Edit
     public async Task<IActionResult> Edit(Guid? id)
     {
         if (id == null)
@@ -180,7 +273,7 @@ public class UsersController : Controller
                 .Where(r => r.Name != "HighAdmin" && r.Name != "Admin")
                 .ToList();
         }
-
+        
         var viewModel = new EditUserViewModel
         {
             Id = user.Id,
@@ -219,7 +312,29 @@ public class UsersController : Controller
             TempData["ErrorMessage"] = "Bạn không có quyền chỉnh sửa user này.";
             return RedirectToAction(nameof(Index));
         }
-
+        
+        //it nhất 1 role
+        if (model.RoleIds == null || !model.RoleIds.Any())
+        {
+            ModelState.AddModelError("RoleIds", "Phải chọn ít nhất một vai trò.");
+            model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
+            model.CurrentRoles = await _db.GetUserRolesAsync(id);
+            return View(model);
+        }
+        
+        //HighAdmin chỉ 1 role
+        var highAdminRole = await _db.Roles.FirstOrDefaultAsync(r => r.Name == "HighAdmin");
+        if (highAdminRole != null && model.RoleIds.Contains(highAdminRole.Id))
+        {
+            if (model.RoleIds.Count > 1)
+            {
+                ModelState.AddModelError("RoleIds", "HighAdmin chỉ được có duy nhất role HighAdmin, không được có thêm role khác.");
+                model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
+                model.CurrentRoles = await _db.GetUserRolesAsync(id);
+                return View(model);
+            }
+        }
+        
         // Kiểm tra quyền tạo user với các roles này
         if (!await _userManagementService.CanCreateUserWithRolesAsync(currentUserId, model.RoleIds))
         {
@@ -237,7 +352,23 @@ public class UsersController : Controller
             model.CurrentRoles = await _db.GetUserRolesAsync(id);
             return View(model);
         }
-
+        //Kiểm tra email
+        if (!string.IsNullOrEmpty(model.Email) && await _db.Users.AnyAsync(u => u.Email == model.Email && u.Id != id))
+        {
+            ModelState.AddModelError("Email", "Email is existed");
+            model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
+            model.CurrentRoles = await _db.GetUserRolesAsync(id);
+            return View(model);
+        }
+        //kiểm tra sdt
+        if (!string.IsNullOrEmpty(model.PhoneNumber) && await _db.Users.AnyAsync(u => u.PhoneNumber == model.PhoneNumber && u.Id != id))
+        {
+            ModelState.AddModelError("PhoneNumber", "Phone Number is existed");
+            model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
+            model.CurrentRoles = await _db.GetUserRolesAsync(id);
+            return View(model);
+        }
+        
         if (!ModelState.IsValid)
         {
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
@@ -278,7 +409,6 @@ public class UsersController : Controller
             var rolesToAdd = model.RoleIds
                 .Where(rid => !currentRoleIds.Contains(rid))
                 .ToList();
-
             foreach (var roleId in rolesToAdd)
             {
                 _db.UserRoles.Add(new UserRole
@@ -304,7 +434,7 @@ public class UsersController : Controller
         }
     }
 
-    // GET: Users/Delete/5
+    // GET: Users/Delete
     public async Task<IActionResult> Delete(Guid? id)
     {
         if (id == null)
@@ -342,7 +472,7 @@ public class UsersController : Controller
         return View(viewModel);
     }
 
-    // POST: Users/Delete/5
+    // POST: Users/Delete
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(Guid id)
@@ -355,37 +485,135 @@ public class UsersController : Controller
             TempData["ErrorMessage"] = "Bạn không có quyền xóa user này.";
             return RedirectToAction(nameof(Index));
         }
-
-        var user = await _db.Users.FindAsync(id);
-        if (user == null)
-        {
-            TempData["ErrorMessage"] = "Không tìm thấy user.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        try
-        {
-            // Soft delete: Set IsActive = false thay vì xóa hoàn toàn
-            user.IsActive = false;
-            user.UpdatedAt = DateTime.UtcNow;
-            
+        try{
             // Revoke all tokens
             await _userManagementService.RevokeAllTokensAsync(id);
+            var user = await _db.Users
+                .Include(u => u.UserRoles)
+                .Include(u => u.OtpCodes)
+                .Include(u => u.FaceProfile)
+                // Nếu có bài đăng, bình luận, ..., cần xử lý tùy theo (ví dụ: soft delete hoặc cascade)
+                .FirstOrDefaultAsync(u => u.Id == id);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "Không tìm thấy user.";
+                return RedirectToAction(nameof(Index));
+            }
 
-            await _db.SaveChangesAsync();
-            _logger.LogInformation("User {UserId} deactivated by {CurrentUserId}", id, currentUserId);
+            if (user.UserRoles != null && user.UserRoles.Any())
+            {
+                _db.UserRoles.RemoveRange(user.UserRoles);
+            }
+            if (user.OtpCodes != null && user.OtpCodes.Any())
+            {
+                _db.OtpCodes.RemoveRange(user.OtpCodes);
+            }
+
+            if (user.FaceProfile != null)
+            {
+                _db.FaceProfiles.Remove(user.FaceProfile);
+            }
             
-            TempData["SuccessMessage"] = "Vô hiệu hóa user thành công!";
+            // _db.Users.Remove(user);
+            // await _db.SaveChangesAsync();
+            // DÙNG STORED PROCEDURE ĐÃ VIẾT SẴN – XÓA SẠCH HOÀN TOÀN
+            await _db.Database.ExecuteSqlRawAsync("EXEC usp_DeleteUser @userId", 
+                new SqlParameter("@userId", id));
+            _logger.LogInformation("User {UserId} deleted by {CurrentUserId}", id, currentUserId);
+            
+            TempData["SuccessMessage"] = "Deleted user completed!";
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deactivating user {UserId}", id);
-            TempData["ErrorMessage"] = "Có lỗi xảy ra khi vô hiệu hóa user. Vui lòng thử lại.";
+            _logger.LogError(ex, "Error Deleting user {UserId}", id);
+            TempData["ErrorMessage"] = "Có lỗi xảy ra khi xóa user. Vui lòng thử lại.";
         }
 
         return RedirectToAction(nameof(Index));
     }
 
+    // POST: Users/DisableUser
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> DisableUser([FromBody] RevokeTokensRequest request)
+    {
+        if (request == null || request.Id == Guid.Empty)
+        {
+            return Json(new { success = false, message = "Yêu cầu không hợp lệ." });
+        }
+
+        var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        if (!await _userManagementService.CanManageUserAsync(currentUserId, request.Id))
+        {
+            return Json(new { success = false, message = "Bạn không có quyền vô hiệu hóa user này." });
+        }
+
+        try
+        {
+            var user = await _db.Users.FindAsync(request.Id);
+            if (user == null)
+                return Json(new { success = false, message = "Không tìm thấy user." });
+
+            if (!user.IsActive)
+                return Json(new { success = false, message = "User đã bị vô hiệu hóa." });
+
+            user.IsActive = false;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            // Revoke all tokens
+            await _userManagementService.RevokeAllTokensAsync(request.Id);
+
+            await _db.SaveChangesAsync();
+            _logger.LogInformation("User {UserId} disabled by {CurrentUserId}", request.Id, currentUserId);
+            return Json(new { success = true, message = "Vô hiệu hóa user thành công! User sẽ không thể đăng nhập." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error disabling user {UserId}", request.Id);
+            return Json(new { success = false, message = "Có lỗi xảy ra khi vô hiệu hóa user." });
+        }
+    }
+
+    // POST: Users/EnableUser
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> EnableUser([FromBody] RevokeTokensRequest request)
+    {
+        if (request == null || request.Id == Guid.Empty)
+        {
+            return Json(new { success = false, message = "Yêu cầu không hợp lệ." });
+        }
+
+        var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        if (!await _userManagementService.CanManageUserAsync(currentUserId, request.Id))
+        {
+            return Json(new { success = false, message = "Bạn không có quyền kích hoạt user này." });
+        }
+
+        try
+        {
+            var user = await _db.Users.FindAsync(request.Id);
+            if (user == null)
+                return Json(new { success = false, message = "Không tìm thấy user." });
+
+            if (user.IsActive)
+                return Json(new { success = false, message = "User đã hoạt động." });
+
+            user.IsActive = true;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+            _logger.LogInformation("User {UserId} enabled by {CurrentUserId}", request.Id, currentUserId);
+            return Json(new { success = true, message = "Kích hoạt user thành công!" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error enabling user {UserId}", request.Id);
+            return Json(new { success = false, message = "Có lỗi xảy ra khi kích hoạt user." });
+        }
+    }
     // POST: Users/ResetPassword
     [HttpPost]
     [IgnoreAntiforgeryToken]
@@ -404,13 +632,20 @@ public class UsersController : Controller
             return Json(new { success = false, message = "Bạn không có quyền reset mật khẩu cho user này." });
         }
 
-        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+        if (string.IsNullOrWhiteSpace(request.NewPassword))
         {
-            return Json(new { success = false, message = "Mật khẩu phải có ít nhất 6 ký tự." });
+            return Json(new { success = false, message = "Mật khẩu mới không được để trống." });
+        }
+
+        // Kiểm tra tiêu chí mật khẩu
+        var passwordRegex = new System.Text.RegularExpressions.Regex(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$");
+        if (!passwordRegex.IsMatch(request.NewPassword))
+        {
+            return Json(new { success = false, message = "Mật khẩu phải ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ít nhất một ký tự đặc biệt." });
         }
 
         var success = await _userManagementService.ResetPasswordAsync(request.Id, request.NewPassword);
-        
+    
         if (success)
         {
             _logger.LogInformation("Password reset for user {UserId} by {CurrentUserId}", request.Id, currentUserId);
@@ -437,7 +672,11 @@ public class UsersController : Controller
         {
             return Json(new { success = false, message = "Bạn không có quyền revoke tokens cho user này." });
         }
-
+        var targetUserRoles = await _db.GetUserRolesAsync(request.Id);
+        if (targetUserRoles.Contains("HighAdmin"))
+        {
+            return Json(new { success = false, message = "Không thể hủy tokens của HighAdmin." });
+        }
         var success = await _userManagementService.RevokeAllTokensAsync(request.Id);
         
         if (success)
