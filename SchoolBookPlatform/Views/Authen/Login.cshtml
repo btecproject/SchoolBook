@@ -7,8 +7,6 @@
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-5">
-            < επισ
-
             <div class="card shadow-lg border-0">
                 <div class="card-body p-5">
                     <h3 class="text-center mb-4 fw-bold text-primary">SchoolBook</h3>
@@ -39,10 +37,7 @@
                             <div class="form-check">
                                 <input class="form-check-input" asp-for="RememberMe" id="rememberMe" checked/>
                                 <label class="form-check-label" for="rememberMe">
-                                    <strong>Gửi mã OTP qua Email</strong>
-                                    <small class="text-muted d-block">
-                                        (Mặc định. Nếu bỏ chọn → gửi qua SMS)
-                                    </small>
+                                    <strong>Remember Me</strong>
                                 </label>
                             </div>
                         </div>
@@ -55,12 +50,7 @@
                             <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
                         </button>
                     </form>
-
-                    <div class="text-center mt-4">
-                        <small class="text-muted">
-                            <a asp-action="Register" class="text-decoration-none">Chưa có tài khoản?</a>
-                        </small>
-                    </div>
+                    
                 </div>
             </div>
         </div>
@@ -74,14 +64,14 @@
         // Đồng bộ RememberMe → OtpType
         document.getElementById('rememberMe').addEventListener('change', function () {
             const otpTypeInput = document.querySelector('input[name="OtpType"]');
-            otpTypeInput.value = this.checked ? 'Email' : 'SMS';
+            otpTypeInput.value = 'Email';
         });
 
         // Khởi tạo mặc định
         document.addEventListener('DOMContentLoaded', function () {
             const rememberMe = document.getElementById('rememberMe');
             const otpTypeInput = document.querySelector('input[name="OtpType"]');
-            otpTypeInput.value = rememberMe.checked ? 'Email' : 'SMS';
+            otpTypeInput.value = 'Email';
         });
     </script>
 }
