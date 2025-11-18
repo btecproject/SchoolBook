@@ -3,6 +3,7 @@
     ViewData["Title"] = "Hồ sơ cá nhân";
     Layout = "~/Views/Shared/_Layout.cshtml";
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=edit" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=image_arrow_up" />
     <link rel="stylesheet" href="css/page/profile.css"/>
 }
 
@@ -173,7 +174,6 @@ function cancelEdit(displayId, editId) {
 }
 
 function saveField(fieldName, inputId, displayId, editId) {
-
     const value = document.getElementById(inputId).value;
 
     fetch('/Profile/UpdateField', {
@@ -184,37 +184,79 @@ function saveField(fieldName, inputId, displayId, editId) {
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            // cập nhật text ngay trên UI
             document.querySelector(`#${displayId} span`).innerText = value;
             cancelEdit(displayId, editId);
         } else {
-            alert("Có lỗi xảy ra!");
+            showToast('error', "Có lỗi xảy ra!");
         }
     });
 }
 
-// Upload ảnh
-    function uploadAvatar() {
-    const fileInput = document.getElementById('avatar-input');
-    const file = fileInput.files[0];
+// Hàm hiển thị toast (thành công hoặc lỗi)
+function showToast(type, message) {
+    const toastContainer = document.getElementById('toast-container');
+    
+    // Tạo HTML cho toast
+    const toastHtml = `
+        <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+    
+    // Thêm toast vào container
+    toastContainer.innerHTML += toastHtml;
+    
+    // Khởi tạo và hiển thị toast (sử dụng Bootstrap Toast)
+    const newToast = toastContainer.lastElementChild;
+    const toastInstance = new bootstrap.Toast(newToast, { autohide: true, delay: 5000 }); // Tự ẩn sau 5 giây
+    toastInstance.show();
+    
+    // Xóa toast sau khi ẩn
+    newToast.addEventListener('hidden.bs.toast', () => {
+        newToast.remove();
+    });
+}
 
-    if (!file) return;
-
+// Hàm upload avatar
+async function uploadAvatar(file) {
     const formData = new FormData();
-    formData.append("avatar", file);
+    formData.append('avatar', file);
 
-    fetch('/Profile/UploadAvatar', {
-    method: 'POST',
-    body: formData
-})
-    .then(res => res.json())
-    .then(data => {
-    if (data.success) {
-    // cập nhật ảnh ngay lập tức
-    document.querySelector("img[alt='Avatar']").src = data.url;
-} else {
-    alert("Tải ảnh thất bại!");
+    try {
+        const response = await fetch('/Profile/UploadAvatar', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Lỗi không xác định từ server');
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Cập nhật ảnh trên UI
+            document.querySelector(".avatar-img").src = result.url;
+            showToast('success', 'Tải lên thành công!');
+        } else {
+            showToast('error', result.message || 'Tải ảnh thất bại!');
+        }
+    } catch (error) {
+        showToast('error', 'Lỗi: ' + error.message);
+    }
 }
+
+// Gắn sự kiện cho input file
+document.getElementById('avatar-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        uploadAvatar(file);
+    }
 });
-}
 </script>
