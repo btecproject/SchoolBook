@@ -1,20 +1,24 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace SchoolBookPlatform.Models;
 
 public class UserProfile
 {
-    [Key]                           
-    [ForeignKey("User")]
+    [Key]
     public Guid UserId { get; set; }
-    public string FullName { get; set; } = null!;
-    public string? AvatarUrl { get; set; }
+
+    public string? FullName { get; set; }
     public string? Bio { get; set; }
-    public string? Gender { get; set; }
+    public string? AvatarUrl { get; set; } 
+    public string? Gender { get; set; } // "Male", "Female", "Other"
     public DateTime? BirthDate { get; set; }
-    public bool EmailVisibility { get; set; }
-    public bool PhoneVisibility { get; set; }
+
+    public bool IsEmailPublic { get; set; } = false;
+    public bool IsPhonePublic { get; set; } = false;
+    public bool IsBirthDatePublic { get; set; } = false;
+    public bool IsFollowersPublic { get; set; } = true;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public User User { get; set; } = null!;
 }

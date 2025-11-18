@@ -20,10 +20,14 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
+    public bool? TwoFactorEnabled { get; set; } = false;
+    
+    public string? TwoFactorSecret { get; set; } 
+
     public ICollection<UserRole>? UserRoles { get; set; }
     public ICollection<UserToken>? Tokens { get; set; }
     public ICollection<OtpCode>? OtpCodes { get; set; }
     public FaceProfile? FaceProfile { get; set; }
     
-    public UserProfile? Profile { get; set; }
+    public UserProfile? UserProfile { get; set; }   
 }

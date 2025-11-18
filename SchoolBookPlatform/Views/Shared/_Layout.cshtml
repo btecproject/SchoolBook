@@ -36,7 +36,7 @@
                         @if (User.IsInRole("HighAdmin") || User.IsInRole("Admin"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Users" asp-action="Index">
+                                <a class="nav-link text-dark" asp-controller="Admin" asp-action="Index">
                                     <i class="bi bi-people"></i> User Management
                                 </a>
                             </li>
@@ -73,7 +73,7 @@
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
                                     <li>
-                                        <a class="dropdown-item" asp-controller="Profile" asp-action="Index">
+                                        <a class="dropdown-item" asp-controller="Profile" asp-action="Index" asp-route-username="@User.Identity?.Name">
                                             <i class="bi bi-person"></i> Profile
                                         </a>
                                     </li>

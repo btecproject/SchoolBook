@@ -1,9 +1,14 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace SchoolBookPlatform.ViewModels;
+namespace SchoolBookPlatform.ViewModels.Setting;
 
-public class ChangePasswordViewModel
+public class SettingChangePasswordViewModel
 {
+    [DataType(DataType.Password)]
+    [Required(ErrorMessage = "Please enter your Password")]
+
+    public string RecentPassword { get; set; }
+    
     [Required(ErrorMessage = "Please enter your new Password")]
     [DataType(DataType.Password)]
     [MinLength(8, ErrorMessage = "Mật khẩu tối thiểu 8 ký tự")]
@@ -14,5 +19,8 @@ public class ChangePasswordViewModel
     [Required(ErrorMessage = "Please re-enter your new Password")]
     [DataType(DataType.Password)]
     [Compare("NewPassword", ErrorMessage = "Passwords do not match")]
-    public string ConfirmPassword { get; set; }
+    public string ConfirmNewPassword { get; set; }
+    
+    [Display(Name = "Logout other Device")]
+    public bool LogoutOtherDevices { get; set; }
 }

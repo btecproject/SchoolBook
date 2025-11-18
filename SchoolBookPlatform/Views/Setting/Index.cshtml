@@ -1,0 +1,32 @@
+﻿<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Setting Page</title>
+    @if (TempData["success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+</head>
+<body>
+<div>
+    <a class="accordion-button" asp-action="SettingChangePassword" asp-controller="Setting">Change Password</a>
+</div>
+<div>
+    <a class="accordion-button" asp-action="EnableGoogleAuthenticator" asp-controller="Setting">Enable Google 2FA</a>
+</div>
+<div>
+    <a class="accordion-button" asp-action="DisableGoogleAuthenticator" asp-controller="Setting">Disable Google 2FA</a>
+</div>
+</body>
+</html>

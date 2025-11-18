@@ -1,4 +1,4 @@
-﻿@model SchoolBookPlatform.ViewModels.LoginViewModel
+﻿@model SchoolBookPlatform.ViewModels.Authen.LoginViewModel
 
 @{
     ViewData["Title"] = "Đăng nhập";
@@ -87,6 +87,9 @@
                             <i class="bi bi-google"></i> Đăng nhập bằng Google
                         </a>
                         
+                        <a asp-action="Index" asp-controller="ForgotPassword" class="btn">
+                            <b>Quên mật khẩu</b>
+                        </a>
                     </form>
                     
                 </div>

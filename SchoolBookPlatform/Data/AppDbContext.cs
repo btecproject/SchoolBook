@@ -16,12 +16,14 @@ public class AppDbContext : DbContext
     public DbSet<OtpCode> OtpCodes { get; set; } = null!;
     public DbSet<FaceProfile> FaceProfiles { get; set; } = null!;
     public DbSet<TrustedDevice> TrustedDevices { get; set; } = null!;
-    public DbSet<UserProfile> UserProfiles { get; set; } = null!;
+    public DbSet<UserProfile> UserProfiles { get; set; }
+    public DbSet<Follower> Followers { get; set; }
+    public DbSet<Following> Following { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
+        
         // UserRole
         modelBuilder.Entity<UserRole>()
             .HasKey(ur => new { ur.UserId, ur.RoleId });
@@ -74,5 +76,29 @@ public class AppDbContext : DbContext
             entity.Property(t => t.ExpiredAt).IsRequired();
             entity.HasIndex(t => t.UserId);
         });
+        
+        modelBuilder.Entity<Follower>()
+            .HasOne(f => f.User)
+            .WithMany()
+            .HasForeignKey(f => f.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Follower>()
+            .HasOne(f => f.FollowerUser)
+            .WithMany()
+            .HasForeignKey(f => f.FollowerId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<Following>()
+            .HasOne(f => f.User)
+            .WithMany()
+            .HasForeignKey(f => f.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Following>()
+            .HasOne(f => f.FollowingUser)
+            .WithMany()
+            .HasForeignKey(f => f.FollowingId)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 }

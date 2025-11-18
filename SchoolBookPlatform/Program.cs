@@ -1,7 +1,10 @@
+using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
 
 namespace SchoolBookPlatform;
@@ -11,7 +14,7 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        // builder.WebHost.UseUrls("https://192.168.1.4:7093");
+        // builder.WebHost.UseUrls("https://10.24.37.235:7093");
         var config = builder.Configuration;
         var google = config.GetSection("Authentication:Google");
         // DB
@@ -26,8 +29,18 @@ public class Program
         builder.Services.AddScoped<TrustedService>();
         builder.Services.AddScoped<UserManagementService>();
         builder.Services.AddScoped<GoogleAuthenService>();
-        builder.Services.AddSingleton<CloudinaryService>();
-
+        builder.Services.AddScoped<TwoFactorService>();
+        builder.Services.AddSingleton<Cloudinary>(sp =>
+        {
+            var config = builder.Configuration.GetSection("Cloudinary");
+            var account = new CloudinaryDotNet.Account(
+                config["CloudName"],
+                config["ApiKey"],
+                config["ApiSecret"]
+            );
+            return new Cloudinary(account);
+        });
+        
         // Logging
         builder.Logging.AddConsole();
         builder.Logging.SetMinimumLevel(LogLevel.Debug);

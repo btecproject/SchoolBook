@@ -1,30 +1,32 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels;
+using SchoolBookPlatform.ViewModels.Admin;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 
 namespace SchoolBookPlatform.Controllers;
 
 [Authorize(Policy = "AdminOrHigher")]
-public class UsersController : Controller
+public class AdminController : Controller
 {
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
     private readonly UserManagementService _userManagementService;
-    private readonly ILogger<UsersController> _logger;
+    private readonly ILogger<AdminController> _logger;
 
-    public UsersController(
+    public AdminController(
         AppDbContext db,
         UserManagementService userManagementService,
         IConfiguration config,
-        ILogger<UsersController> logger)
+        ILogger<AdminController> logger)
     {
         _db = db;
         _userManagementService = userManagementService;
@@ -520,8 +522,11 @@ public class UsersController : Controller
                 _db.FaceProfiles.Remove(user.FaceProfile);
             }
             
-            _db.Users.Remove(user);
-            await _db.SaveChangesAsync();
+            // _db.Users.Remove(user);
+            // await _db.SaveChangesAsync();
+            // DÙNG STORED PROCEDURE ĐÃ VIẾT SẴN – XÓA SẠCH HOÀN TOÀN
+            await _db.Database.ExecuteSqlRawAsync("EXEC usp_DeleteUser @userId", 
+                new SqlParameter("@userId", id));
             _logger.LogInformation("User {UserId} deleted by {CurrentUserId}", id, currentUserId);
             
             TempData["SuccessMessage"] = "Deleted user completed!";
