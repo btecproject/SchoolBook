@@ -73,7 +73,6 @@ CREATE TABLE TrustedDevices (
 CREATE INDEX IX_TrustedDevices_UserId_IP_Device
     ON TrustedDevices (UserId, IPAddress, DeviceInfo);
 
-
 CREATE TABLE UserProfiles (
                               UserId UNIQUEIDENTIFIER PRIMARY KEY,
                               FullName NVARCHAR(100),
@@ -81,11 +80,13 @@ CREATE TABLE UserProfiles (
                               Bio NVARCHAR(500),
                               Gender NVARCHAR(20),
                               BirthDate DATE,
-                              EmailVisibility BIT DEFAULT 0,
-                              PhoneVisibility BIT DEFAULT 0,
+                              IsBirthDatePublic BIT NOT NULL DEFAULT 1,
+                              IsEmailPublic BIT NOT NULL DEFAULT 1,
+                              IsFollowersPublic BIT NOT NULL DEFAULT 1,
+                              IsPhonePublic BIT NOT NULL DEFAULT 1,
+                              UpdatedAt DATETIME NULL,
                               FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
-
 CREATE TABLE UserFollowers (
                                FollowerId UNIQUEIDENTIFIER NOT NULL,
                                FollowingId UNIQUEIDENTIFIER NOT NULL,
