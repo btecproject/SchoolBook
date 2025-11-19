@@ -164,7 +164,7 @@ public class AdminController(
                     RoleId = roleId
                 });
             }
-            _db.UserProfiles.Add(new UserProfile
+            db.UserProfiles.Add(new UserProfile
             {
                 UserId = user.Id,
                 FullName = user.Username, // tạm dùng username
