@@ -113,30 +113,42 @@ public class AuthenController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel model, string returnUrl = null)
     {
-        if (!ModelState.IsValid)
+        try
         {
-            ViewData["ReturnUrl"] = returnUrl;
-            return View(model);
+            if (!ModelState.IsValid)
+            {
+                ViewData["ReturnUrl"] = returnUrl;
+                return View(model);
+            }
+
+            var user = await db.Users
+                .FirstOrDefaultAsync(u => u.Username == model.Username);
+            if (user != null)
+            {
+                logger.LogInformation("User loaded - TwoFactorEnabled: {0}, RecoveryCodesGenerated: {1}", 
+                    user.TwoFactorEnabled, user.RecoveryCodesGenerated);
+            }
+            if (user == null || !BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash))
+            {
+                ModelState.AddModelError(string.Empty, "Tên đăng nhập hoặc mật khẩu không đúng");
+                ViewData["ReturnUrl"] = returnUrl;
+                return View(model);
+            }
+
+            if (!user.IsActive)
+            {
+                ModelState.AddModelError(string.Empty, "Tài khoản đã bị vô hiệu hóa");
+                ViewData["ReturnUrl"] = returnUrl;
+                return View(model);
+            }
+
+            return await ProcessUserLoginAsync(user, returnUrl);
         }
-
-        var user = await db.Users
-            .FirstOrDefaultAsync(u => u.Username == model.Username);
-
-        if (user == null || !BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash))
+        catch (Exception ex)
         {
-            ModelState.AddModelError(string.Empty, "Tên đăng nhập hoặc mật khẩu không đúng");
-            ViewData["ReturnUrl"] = returnUrl;
-            return View(model);
+            logger.LogError("Login failed: "+ex.Message);
         }
-
-        if (!user.IsActive)
-        {
-            ModelState.AddModelError(string.Empty, "Tài khoản đã bị vô hiệu hóa");
-            ViewData["ReturnUrl"] = returnUrl;
-            return View(model);
-        }
-
-        return await ProcessUserLoginAsync(user, returnUrl);
+        return RedirectToAction(nameof(Login));
     }
 
     private async Task<IActionResult> ProcessUserLoginAsync(Models.User user, string? returnUrl)
