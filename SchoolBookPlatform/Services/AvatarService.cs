@@ -21,7 +21,7 @@ public class AvatarService(
             Overwrite = true,
             Transformation = new Transformation()
                 .Width(400).Height(400).Crop("thumb").Gravity("face") // Tự động crop theo khuôn mặt
-                .Quality("auto").FetchFormat("auto"),
+                .Quality("auto").FetchFormat("jpg"),
             Folder = "schoolbook"
         };
         try
