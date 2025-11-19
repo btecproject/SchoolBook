@@ -30,6 +30,7 @@ public class Program
         builder.Services.AddScoped<UserManagementService>();
         builder.Services.AddScoped<GoogleAuthenService>();
         builder.Services.AddScoped<TwoFactorService>();
+        builder.Services.AddScoped<AvatarService>();
         builder.Services.AddSingleton<Cloudinary>(sp =>
         {
             var config = builder.Configuration.GetSection("Cloudinary");
