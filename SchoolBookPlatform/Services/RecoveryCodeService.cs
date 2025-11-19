@@ -45,16 +45,21 @@ public class RecoveryCodeService(
 
     public async Task<bool> VerifyCodeAsync(Guid userId, string inputCode)
     {
-        var cleanCode = inputCode.Replace("-","").Replace(" ", "").ToUpper();
-        var code = await db.RecoveryCodes.FirstOrDefaultAsync(rc => rc.UserId == userId && !rc.IsUsed);
-        if(code == null) return false;
+        var cleanCode = inputCode.Replace("-", "").Replace(" ", "").ToUpperInvariant();
 
-        if (BCrypt.Net.BCrypt.Verify(cleanCode, code.HashedCode))
+        var unusedCodes = await db.RecoveryCodes
+            .Where(rc => rc.UserId == userId && !rc.IsUsed)
+            .ToListAsync();
+
+        foreach (var rc in unusedCodes)
         {
-            code.IsUsed = true;
-            code.UsedAt = DateTime.Now;
-            await db.SaveChangesAsync();
-            return true;
+            if (BCrypt.Net.BCrypt.Verify(cleanCode, rc.HashedCode))
+            {
+                rc.IsUsed = true;
+                rc.UsedAt = DateTime.UtcNow;
+                await db.SaveChangesAsync();
+                return true;
+            }
         }
         return false;
     }
