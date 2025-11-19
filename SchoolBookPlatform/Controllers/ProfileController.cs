@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Models;
+using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels.Profile;
 
 namespace SchoolBookPlatform.Controllers;
@@ -28,6 +29,7 @@ public class UpdatePrivacyRequest
 [Authorize]
 public class ProfileController(
     AppDbContext db,
+    AvatarService  avatarService,
     ILogger<ProfileController> logger,
     Cloudinary  cloudinary) : Controller
 {
@@ -372,38 +374,21 @@ public class ProfileController(
     }
     
     [HttpPost]
-    public async Task<IActionResult> UploadAvatar(IFormFile avatar)
+    public async Task<IActionResult> UploadAvatar(IFormFile? avatar)
     {
         if (avatar == null || avatar.Length == 0)
             return BadRequest("Không có file");
 
         var user = await HttpContext.GetCurrentUserAsync(db);
+        if(user == null) return RedirectToAction("Login", "Authen");
         var profile = await db.UserProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id)
-                      ?? new UserProfile { UserId = user.Id };
-
-        var publicId = $"avatars/{user.Id}";
-
-        var uploadParams = new ImageUploadParams
+                      ?? new UserProfile { UserId = user.Id }; 
+        var uploadResult = await avatarService.UploadAvatar(avatar, user, profile);
+        if (!uploadResult)
         {
-            File = new FileDescription(avatar.FileName, avatar.OpenReadStream()),
-            PublicId = publicId,
-            Overwrite = true,
-            Transformation = new Transformation()
-                .Width(400).Height(400).Crop("thumb").Gravity("face") // Tự động crop theo khuôn mặt
-                .Quality("auto").FetchFormat("auto"),
-            Folder = "schoolbook/avatars"
-        };
-
-        var uploadResult = await cloudinary.UploadAsync(uploadParams);
-
-        if (uploadResult.Error != null)
-        {
-            return BadRequest(uploadResult.Error.Message);
+            return BadRequest("Error in UploadAvatar");
         }
-
-        profile.AvatarUrl = uploadResult.SecureUrl.ToString();
-        profile.UpdatedAt = DateTime.UtcNow;
-
+        
         if (profile.UserId == Guid.Empty)
             db.UserProfiles.Add(profile);
         else
@@ -413,6 +398,20 @@ public class ProfileController(
 
         return RedirectToAction("Index", new { username = user.Username });
     }
-    
+
+    [HttpPost]
+    public async Task<IActionResult> DeleteAvatar()
+    {
+        var user = await HttpContext.GetCurrentUserAsync(db);
+        if(user == null) return RedirectToAction("Login", "Authen");
+        var profile = await db.UserProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id)
+                      ?? new UserProfile { UserId = user.Id };
+        var deleteResult = await avatarService.DeleteAvatar(user, profile, true);
+        if (!deleteResult)
+        {
+            return BadRequest("Error in DeleteAvatar");
+        }
+        return RedirectToAction("Index", new { username = user.Username });
+    }
     
 }

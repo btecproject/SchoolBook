@@ -15,29 +15,19 @@ using SendGrid.Helpers.Mail;
 namespace SchoolBookPlatform.Controllers;
 
 [Authorize(Policy = "AdminOrHigher")]
-public class AdminController : Controller
+public class AdminController(
+    AppDbContext db,
+    UserManagementService userManagementService,
+    IConfiguration config,
+    AvatarService  avatarService,
+    ILogger<AdminController> logger)
+    : Controller
 {
-    private readonly AppDbContext _db;
-    private readonly IConfiguration _config;
-    private readonly UserManagementService _userManagementService;
-    private readonly ILogger<AdminController> _logger;
-
-    public AdminController(
-        AppDbContext db,
-        UserManagementService userManagementService,
-        IConfiguration config,
-        ILogger<AdminController> logger)
-    {
-        _db = db;
-        _userManagementService = userManagementService;
-        _logger = logger;
-        _config =  config;
-    }
     // GET: Users
     public async Task<IActionResult> Index()
     {
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var users = await _userManagementService.GetManageableUsersAsync(currentUserId);
+        var users = await userManagementService.GetManageableUsersAsync(currentUserId);
 
         var viewModels = users.Select(u => new UserListViewModel
         {
@@ -58,9 +48,9 @@ public class AdminController : Controller
     public async Task<IActionResult> Create()
     {
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var currentUserRoles = await _db.GetUserRolesAsync(currentUserId);
+        var currentUserRoles = await db.GetUserRolesAsync(currentUserId);
 
-        var availableRoles = await _db.Roles.ToListAsync();
+        var availableRoles = await db.Roles.ToListAsync();
         
         // Nếu là Admin, chỉ cho phép chọn Moderator, Teacher, Student
         if (currentUserRoles.Contains("Admin") && !currentUserRoles.Contains("HighAdmin"))
@@ -91,7 +81,7 @@ public class AdminController : Controller
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         // Kiểm tra quyền tạo user với các roles này
-        if (!await _userManagementService.CanCreateUserWithRolesAsync(currentUserId, model.RoleIds))
+        if (!await userManagementService.CanCreateUserWithRolesAsync(currentUserId, model.RoleIds))
         {
             ModelState.AddModelError("", "Bạn không có quyền tạo user với các vai trò đã chọn.");
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
@@ -106,7 +96,7 @@ public class AdminController : Controller
         }
         
         //HighAdmin chỉ 1 role
-        var highAdminRole = await _db.Roles.FirstOrDefaultAsync(r => r.Name == "HighAdmin");
+        var highAdminRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == "HighAdmin");
         if (highAdminRole != null && model.RoleIds.Contains(highAdminRole.Id))
         {
             if (model.RoleIds.Count > 1)
@@ -119,7 +109,7 @@ public class AdminController : Controller
         }
 
         // Kiểm tra username đã tồn tại
-        if (await _db.Users.AnyAsync(u => u.Username == model.Username))
+        if (await db.Users.AnyAsync(u => u.Username == model.Username))
         {
             ModelState.AddModelError("Username", "Username đã tồn tại.");
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
@@ -127,7 +117,7 @@ public class AdminController : Controller
         }
         
         //Kiểm tra trùng emial
-        if (!string.IsNullOrWhiteSpace(model.Email) && await _db.Users.AnyAsync(u => u.Email == model.Email))
+        if (!string.IsNullOrWhiteSpace(model.Email) && await db.Users.AnyAsync(u => u.Email == model.Email))
         {
             ModelState.AddModelError("Email", "Email is existed");
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
@@ -136,7 +126,7 @@ public class AdminController : Controller
         
         //Kiển tra trùng sdt
         if (!string.IsNullOrWhiteSpace(model.PhoneNumber) &&
-            await _db.Users.AnyAsync(u => u.PhoneNumber == model.PhoneNumber))
+            await db.Users.AnyAsync(u => u.PhoneNumber == model.PhoneNumber))
         {
             ModelState.AddModelError("PhoneNumber", "Phone number is existed");
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
@@ -163,12 +153,12 @@ public class AdminController : Controller
                 CreatedAt = DateTime.UtcNow
             };
 
-            _db.Users.Add(user);
+            db.Users.Add(user);
 
             // Thêm roles
             foreach (var roleId in model.RoleIds)
             {
-                _db.UserRoles.Add(new UserRole
+                db.UserRoles.Add(new UserRole
                 {
                     UserId = user.Id,
                     RoleId = roleId
@@ -185,8 +175,8 @@ public class AdminController : Controller
             });
 
 
-            await _db.SaveChangesAsync();
-            _logger.LogInformation("User {UserId} created by {CurrentUserId}", user.Id, currentUserId);
+            await db.SaveChangesAsync();
+            logger.LogInformation("User {UserId} created by {CurrentUserId}", user.Id, currentUserId);
 
             if (model.SendEmail && !string.IsNullOrEmpty(model.Email))
             {
@@ -198,7 +188,7 @@ public class AdminController : Controller
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating user");
+            logger.LogError(ex, "Error creating user");
             ModelState.AddModelError("", "Có lỗi xảy ra khi tạo user. Vui lòng thử lại.");
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
             return View(model);
@@ -207,9 +197,9 @@ public class AdminController : Controller
 
     public async Task SendLoginInfoToEmail(string email, string username, string password)
     {
-        var apiKey = _config["SendGrid:ApiKey"];
-        var fromEmail = _config["SendGrid:FromEmail"];
-        var fromName = _config["SendGrid:FromName"];
+        var apiKey = config["SendGrid:ApiKey"];
+        var fromEmail = config["SendGrid:FromEmail"];
+        var fromName = config["SendGrid:FromName"];
 
         if (string.IsNullOrEmpty(apiKey))
             throw new InvalidOperationException("SendGrid API Key chưa cấu hình.");
@@ -243,11 +233,11 @@ public class AdminController : Controller
         if (!response.IsSuccessStatusCode)
         {
             var errorBody = await response.Body.ReadAsStringAsync();
-            _logger.LogError("SendGrid lỗi {Status}: {Body}", response.StatusCode, errorBody);
+            logger.LogError("SendGrid lỗi {Status}: {Body}", response.StatusCode, errorBody);
             throw new InvalidOperationException($"SendGrid lỗi: {response.StatusCode}");
         }
 
-        _logger.LogInformation("Email OTP gửi thành công đến {Email}",email);
+        logger.LogInformation("Email OTP gửi thành công đến {Email}",email);
     }
     
     // GET: Users/Edit
@@ -259,13 +249,13 @@ public class AdminController : Controller
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         // Kiểm tra quyền quản lý user này
-        if (!await _userManagementService.CanManageUserAsync(currentUserId, id.Value))
+        if (!await userManagementService.CanManageUserAsync(currentUserId, id.Value))
         {
             TempData["ErrorMessage"] = "Bạn không có quyền chỉnh sửa user này.";
             return RedirectToAction(nameof(Index));
         }
 
-        var user = await _db.Users
+        var user = await db.Users
             .Include(u => u.UserRoles!)
             .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u => u.Id == id);
@@ -273,8 +263,8 @@ public class AdminController : Controller
         if (user == null)
             return NotFound();
 
-        var currentUserRoles = await _db.GetUserRolesAsync(currentUserId);
-        var availableRoles = await _db.Roles.ToListAsync();
+        var currentUserRoles = await db.GetUserRolesAsync(currentUserId);
+        var availableRoles = await db.Roles.ToListAsync();
         
         // Nếu là Admin, chỉ cho phép chọn Moderator, Teacher, Student
         if (currentUserRoles.Contains("Admin") && !currentUserRoles.Contains("HighAdmin"))
@@ -317,7 +307,7 @@ public class AdminController : Controller
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         // Kiểm tra quyền quản lý user này
-        if (!await _userManagementService.CanManageUserAsync(currentUserId, id))
+        if (!await userManagementService.CanManageUserAsync(currentUserId, id))
         {
             TempData["ErrorMessage"] = "Bạn không có quyền chỉnh sửa user này.";
             return RedirectToAction(nameof(Index));
@@ -328,67 +318,67 @@ public class AdminController : Controller
         {
             ModelState.AddModelError("RoleIds", "Phải chọn ít nhất một vai trò.");
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
-            model.CurrentRoles = await _db.GetUserRolesAsync(id);
+            model.CurrentRoles = await db.GetUserRolesAsync(id);
             return View(model);
         }
         
         //HighAdmin chỉ 1 role
-        var highAdminRole = await _db.Roles.FirstOrDefaultAsync(r => r.Name == "HighAdmin");
+        var highAdminRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == "HighAdmin");
         if (highAdminRole != null && model.RoleIds.Contains(highAdminRole.Id))
         {
             if (model.RoleIds.Count > 1)
             {
                 ModelState.AddModelError("RoleIds", "HighAdmin chỉ được có duy nhất role HighAdmin, không được có thêm role khác.");
                 model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
-                model.CurrentRoles = await _db.GetUserRolesAsync(id);
+                model.CurrentRoles = await db.GetUserRolesAsync(id);
                 return View(model);
             }
         }
         
         // Kiểm tra quyền tạo user với các roles này
-        if (!await _userManagementService.CanCreateUserWithRolesAsync(currentUserId, model.RoleIds))
+        if (!await userManagementService.CanCreateUserWithRolesAsync(currentUserId, model.RoleIds))
         {
             ModelState.AddModelError("", "Bạn không có quyền gán các vai trò đã chọn.");
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
-            model.CurrentRoles = await _db.GetUserRolesAsync(id);
+            model.CurrentRoles = await db.GetUserRolesAsync(id);
             return View(model);
         }
 
         // Kiểm tra username đã tồn tại (trừ user hiện tại)
-        if (await _db.Users.AnyAsync(u => u.Username == model.Username && u.Id != id))
+        if (await db.Users.AnyAsync(u => u.Username == model.Username && u.Id != id))
         {
             ModelState.AddModelError("Username", "Username đã tồn tại.");
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
-            model.CurrentRoles = await _db.GetUserRolesAsync(id);
+            model.CurrentRoles = await db.GetUserRolesAsync(id);
             return View(model);
         }
         //Kiểm tra email
-        if (!string.IsNullOrEmpty(model.Email) && await _db.Users.AnyAsync(u => u.Email == model.Email && u.Id != id))
+        if (!string.IsNullOrEmpty(model.Email) && await db.Users.AnyAsync(u => u.Email == model.Email && u.Id != id))
         {
             ModelState.AddModelError("Email", "Email is existed");
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
-            model.CurrentRoles = await _db.GetUserRolesAsync(id);
+            model.CurrentRoles = await db.GetUserRolesAsync(id);
             return View(model);
         }
         //kiểm tra sdt
-        if (!string.IsNullOrEmpty(model.PhoneNumber) && await _db.Users.AnyAsync(u => u.PhoneNumber == model.PhoneNumber && u.Id != id))
+        if (!string.IsNullOrEmpty(model.PhoneNumber) && await db.Users.AnyAsync(u => u.PhoneNumber == model.PhoneNumber && u.Id != id))
         {
             ModelState.AddModelError("PhoneNumber", "Phone Number is existed");
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
-            model.CurrentRoles = await _db.GetUserRolesAsync(id);
+            model.CurrentRoles = await db.GetUserRolesAsync(id);
             return View(model);
         }
         
         if (!ModelState.IsValid)
         {
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
-            model.CurrentRoles = await _db.GetUserRolesAsync(id);
+            model.CurrentRoles = await db.GetUserRolesAsync(id);
             return View(model);
         }
 
         try
         {
-            var user = await _db.Users
+            var user = await db.Users
                 .Include(u => u.UserRoles!)
                 .FirstOrDefaultAsync(u => u.Id == id);
 
@@ -412,7 +402,7 @@ public class AdminController : Controller
             
             foreach (var roleToRemove in rolesToRemove)
             {
-                _db.UserRoles.Remove(roleToRemove);
+                db.UserRoles.Remove(roleToRemove);
             }
 
             // Thêm roles mới
@@ -421,25 +411,25 @@ public class AdminController : Controller
                 .ToList();
             foreach (var roleId in rolesToAdd)
             {
-                _db.UserRoles.Add(new UserRole
+                db.UserRoles.Add(new UserRole
                 {
                     UserId = user.Id,
                     RoleId = roleId
                 });
             }
 
-            await _db.SaveChangesAsync();
-            _logger.LogInformation("User {UserId} updated by {CurrentUserId}", id, currentUserId);
+            await db.SaveChangesAsync();
+            logger.LogInformation("User {UserId} updated by {CurrentUserId}", id, currentUserId);
             
             TempData["SuccessMessage"] = "Cập nhật user thành công!";
             return RedirectToAction(nameof(Index));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating user {UserId}", id);
+            logger.LogError(ex, "Error updating user {UserId}", id);
             ModelState.AddModelError("", "Có lỗi xảy ra khi cập nhật user. Vui lòng thử lại.");
             model.AvailableRoles = await GetAvailableRolesForCurrentUserAsync();
-            model.CurrentRoles = await _db.GetUserRolesAsync(id);
+            model.CurrentRoles = await db.GetUserRolesAsync(id);
             return View(model);
         }
     }
@@ -453,13 +443,13 @@ public class AdminController : Controller
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         // Kiểm tra quyền quản lý user này
-        if (!await _userManagementService.CanManageUserAsync(currentUserId, id.Value))
+        if (!await userManagementService.CanManageUserAsync(currentUserId, id.Value))
         {
             TempData["ErrorMessage"] = "Bạn không có quyền xóa user này.";
             return RedirectToAction(nameof(Index));
         }
 
-        var user = await _db.Users
+        var user = await db.Users
             .Include(u => u.UserRoles!)
             .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u => u.Id == id);
@@ -490,15 +480,15 @@ public class AdminController : Controller
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         // Kiểm tra quyền quản lý user này
-        if (!await _userManagementService.CanManageUserAsync(currentUserId, id))
+        if (!await userManagementService.CanManageUserAsync(currentUserId, id))
         {
             TempData["ErrorMessage"] = "Bạn không có quyền xóa user này.";
             return RedirectToAction(nameof(Index));
         }
         try{
             // Revoke all tokens
-            await _userManagementService.RevokeAllTokensAsync(id);
-            var user = await _db.Users
+            await userManagementService.RevokeAllTokensAsync(id);
+            var user = await db.Users
                 .Include(u => u.UserRoles)
                 .Include(u => u.OtpCodes)
                 .Include(u => u.FaceProfile)
@@ -512,30 +502,38 @@ public class AdminController : Controller
 
             if (user.UserRoles != null && user.UserRoles.Any())
             {
-                _db.UserRoles.RemoveRange(user.UserRoles);
+                db.UserRoles.RemoveRange(user.UserRoles);
             }
             if (user.OtpCodes != null && user.OtpCodes.Any())
             {
-                _db.OtpCodes.RemoveRange(user.OtpCodes);
+                db.OtpCodes.RemoveRange(user.OtpCodes);
             }
 
             if (user.FaceProfile != null)
             {
-                _db.FaceProfiles.Remove(user.FaceProfile);
+                db.FaceProfiles.Remove(user.FaceProfile);
             }
             
             // _db.Users.Remove(user);
             // await _db.SaveChangesAsync();
-            // DÙNG STORED PROCEDURE ĐÃ VIẾT SẴN – XÓA SẠCH HOÀN TOÀN
-            await _db.Database.ExecuteSqlRawAsync("EXEC usp_DeleteUser @userId", 
+            // Xóa Avatar trên cloud
+            var profile = await db.UserProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id)
+                          ?? new UserProfile { UserId = user.Id };    
+            var deleteResult = await avatarService.DeleteAvatar(user, profile, false);
+            if (!deleteResult)
+            {
+                TempData["ErrorMessage"] = "Lỗi khi xóa Avatar";
+            }
+            //DÙNG STORED PROCEDURE
+            await db.Database.ExecuteSqlRawAsync("EXEC usp_DeleteUser @userId", 
                 new SqlParameter("@userId", id));
-            _logger.LogInformation("User {UserId} deleted by {CurrentUserId}", id, currentUserId);
+            logger.LogInformation("User {UserId} deleted by {CurrentUserId}", id, currentUserId);
             
             TempData["SuccessMessage"] = "Deleted user completed!";
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error Deleting user {UserId}", id);
+            logger.LogError(ex, "Error Deleting user {UserId}", id);
             TempData["ErrorMessage"] = "Có lỗi xảy ra khi xóa user. Vui lòng thử lại.";
         }
 
@@ -554,14 +552,14 @@ public class AdminController : Controller
 
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        if (!await _userManagementService.CanManageUserAsync(currentUserId, request.Id))
+        if (!await userManagementService.CanManageUserAsync(currentUserId, request.Id))
         {
             return Json(new { success = false, message = "Bạn không có quyền vô hiệu hóa user này." });
         }
 
         try
         {
-            var user = await _db.Users.FindAsync(request.Id);
+            var user = await db.Users.FindAsync(request.Id);
             if (user == null)
                 return Json(new { success = false, message = "Không tìm thấy user." });
 
@@ -572,15 +570,15 @@ public class AdminController : Controller
             user.UpdatedAt = DateTime.UtcNow;
 
             // Revoke all tokens
-            await _userManagementService.RevokeAllTokensAsync(request.Id);
+            await userManagementService.RevokeAllTokensAsync(request.Id);
 
-            await _db.SaveChangesAsync();
-            _logger.LogInformation("User {UserId} disabled by {CurrentUserId}", request.Id, currentUserId);
+            await db.SaveChangesAsync();
+            logger.LogInformation("User {UserId} disabled by {CurrentUserId}", request.Id, currentUserId);
             return Json(new { success = true, message = "Vô hiệu hóa user thành công! User sẽ không thể đăng nhập." });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error disabling user {UserId}", request.Id);
+            logger.LogError(ex, "Error disabling user {UserId}", request.Id);
             return Json(new { success = false, message = "Có lỗi xảy ra khi vô hiệu hóa user." });
         }
     }
@@ -597,14 +595,14 @@ public class AdminController : Controller
 
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        if (!await _userManagementService.CanManageUserAsync(currentUserId, request.Id))
+        if (!await userManagementService.CanManageUserAsync(currentUserId, request.Id))
         {
             return Json(new { success = false, message = "Bạn không có quyền kích hoạt user này." });
         }
 
         try
         {
-            var user = await _db.Users.FindAsync(request.Id);
+            var user = await db.Users.FindAsync(request.Id);
             if (user == null)
                 return Json(new { success = false, message = "Không tìm thấy user." });
 
@@ -614,13 +612,13 @@ public class AdminController : Controller
             user.IsActive = true;
             user.UpdatedAt = DateTime.UtcNow;
 
-            await _db.SaveChangesAsync();
-            _logger.LogInformation("User {UserId} enabled by {CurrentUserId}", request.Id, currentUserId);
+            await db.SaveChangesAsync();
+            logger.LogInformation("User {UserId} enabled by {CurrentUserId}", request.Id, currentUserId);
             return Json(new { success = true, message = "Kích hoạt user thành công!" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error enabling user {UserId}", request.Id);
+            logger.LogError(ex, "Error enabling user {UserId}", request.Id);
             return Json(new { success = false, message = "Có lỗi xảy ra khi kích hoạt user." });
         }
     }
@@ -637,7 +635,7 @@ public class AdminController : Controller
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         // Kiểm tra quyền quản lý user này
-        if (!await _userManagementService.CanManageUserAsync(currentUserId, request.Id))
+        if (!await userManagementService.CanManageUserAsync(currentUserId, request.Id))
         {
             return Json(new { success = false, message = "Bạn không có quyền reset mật khẩu cho user này." });
         }
@@ -654,11 +652,11 @@ public class AdminController : Controller
             return Json(new { success = false, message = "Mật khẩu phải ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ít nhất một ký tự đặc biệt." });
         }
 
-        var success = await _userManagementService.ResetPasswordAsync(request.Id, request.NewPassword);
+        var success = await userManagementService.ResetPasswordAsync(request.Id, request.NewPassword);
     
         if (success)
         {
-            _logger.LogInformation("Password reset for user {UserId} by {CurrentUserId}", request.Id, currentUserId);
+            logger.LogInformation("Password reset for user {UserId} by {CurrentUserId}", request.Id, currentUserId);
             return Json(new { success = true, message = "Reset mật khẩu thành công!" });
         }
 
@@ -678,20 +676,20 @@ public class AdminController : Controller
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         // Kiểm tra quyền quản lý user này
-        if (!await _userManagementService.CanManageUserAsync(currentUserId, request.Id))
+        if (!await userManagementService.CanManageUserAsync(currentUserId, request.Id))
         {
             return Json(new { success = false, message = "Bạn không có quyền revoke tokens cho user này." });
         }
-        var targetUserRoles = await _db.GetUserRolesAsync(request.Id);
+        var targetUserRoles = await db.GetUserRolesAsync(request.Id);
         if (targetUserRoles.Contains("HighAdmin"))
         {
             return Json(new { success = false, message = "Không thể hủy tokens của HighAdmin." });
         }
-        var success = await _userManagementService.RevokeAllTokensAsync(request.Id);
+        var success = await userManagementService.RevokeAllTokensAsync(request.Id);
         
         if (success)
         {
-            _logger.LogInformation("Tokens revoked for user {UserId} by {CurrentUserId}", request.Id, currentUserId);
+            logger.LogInformation("Tokens revoked for user {UserId} by {CurrentUserId}", request.Id, currentUserId);
             return Json(new { success = true, message = "Đã hủy tất cả tokens! User sẽ bị đăng xuất." });
         }
 
@@ -702,9 +700,9 @@ public class AdminController : Controller
     private async Task<List<RoleOption>> GetAvailableRolesForCurrentUserAsync()
     {
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var currentUserRoles = await _db.GetUserRolesAsync(currentUserId);
+        var currentUserRoles = await db.GetUserRolesAsync(currentUserId);
 
-        var availableRoles = await _db.Roles.ToListAsync();
+        var availableRoles = await db.Roles.ToListAsync();
         
         // Nếu là Admin, chỉ cho phép chọn Moderator, Teacher, Student
         if (currentUserRoles.Contains("Admin") && !currentUserRoles.Contains("HighAdmin"))

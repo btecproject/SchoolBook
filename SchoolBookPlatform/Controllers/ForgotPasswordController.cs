@@ -1,18 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels.Authen;
 using SchoolBookPlatform.ViewModels.ForgotPassword;
 
-/*       if (user.TwoFactorEnabled == true && !string.IsNullOrEmpty(user.TwoFactorSecret))
-{
-    TempData["ReturnUrl"] = Url.Action("ChangePassword", "Authen");
-    return RedirectToAction(nameof(VerifyTwoFactor));
-}
-*/
 namespace SchoolBookPlatform.Controllers;
 
 public class ForgotPasswordController(
@@ -28,40 +21,6 @@ public class ForgotPasswordController(
         return View();
     }
     
-    
-    // [HttpPost]
-    // [AllowAnonymous]
-    // [ValidateAntiForgeryToken]
-    // public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
-    // {
-    //     if (!ModelState.IsValid)
-    //     {
-    //         TempData["error"] = "Please enter a valid email address";
-    //         return View(model);
-    //     }
-    //     var user = await db.GetUserByEmailAsync(model.Email);
-    //     if (user == null)
-    //     {
-    //         TempData["error"] = "Email address not found";
-    //         return View(model);
-    //     }
-    //
-    //     try
-    //     {
-    //         await otpService.GenerateOtpAsync(user, "Email");
-    //         TempData["UserId"] = user.Id.ToString();
-    //         TempData["OtpType"] = "Email";
-    //         TempData["ReturnUrl"] = Url.Action("ChangePassword", "Authen");
-    //         logger.LogInformation("OTP sent to user {UserId} via Email", user.Id);
-    //         return RedirectToAction(nameof(VerifyOtp));
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         logger.LogError(ex, "Error resending OTP for user {UserId}", user.Id);
-    //     }
-    //     return View(model);
-    // }
-
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
