@@ -96,16 +96,6 @@ CREATE TABLE UserFollowers (
                                FOREIGN KEY (FollowingId) REFERENCES Users(Id) -- bỏ cascade
 );
 
-
-CREATE TABLE Posts (
-                       Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-                       UserId UNIQUEIDENTIFIER NOT NULL,        -- FK trỏ tới Users.Id
-                       Content NVARCHAR(MAX),
-                       MediaUrl NVARCHAR(300),
-                       CreatedAt DATETIME DEFAULT GETUTCDATE(),
-                       FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
-);
-
 CREATE TABLE PostLikes (
                            UserId UNIQUEIDENTIFIER NOT NULL,        -- FK tới Users.Id
                            PostId UNIQUEIDENTIFIER NOT NULL,
@@ -188,6 +178,70 @@ CREATE TABLE Following (
                            CONSTRAINT FK_Following_FollowingId
                                FOREIGN KEY (FollowingId) REFERENCES Users(Id) ON DELETE NO ACTION
 );
+
+-- Bảng Post
+CREATE TABLE Posts (
+                       Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                       UserId UNIQUEIDENTIFIER NOT NULL,
+                       Title NVARCHAR(300) NOT NULL,
+                       Content NVARCHAR(MAX) NULL,
+                       CreatedAt DATETIME DEFAULT GETUTCDATE(),
+                       UpdatedAt DATETIME NULL,
+                       IsDeleted BIT NOT NULL DEFAULT 0,
+                       IsVisible BIT NOT NULL DEFAULT 1,
+                       VisibleToRoles NVARCHAR(50)
+                        CHECK (VisibleToRoles IN ('Student', 'Teacher', 'Admin', 'All')),
+                       FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+);
+
+-- Bảng Post Comment
+CREATE TABLE PostComments (
+                              Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                              PostId UNIQUEIDENTIFIER NOT NULL,
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              Content NVARCHAR(MAX) NOT NULL,
+                              CreatedAt DATETIME DEFAULT GETUTCDATE(),
+                              ParentCommentId UNIQUEIDENTIFIER NULL,
+
+                              FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                              FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE NO ACTION,
+                              FOREIGN KEY (ParentCommentId) REFERENCES PostComments(Id) ON DELETE NO ACTION
+);
+
+
+CREATE INDEX IX_PostComments_PostId ON PostComments(PostId);
+CREATE INDEX IX_PostComments_ParentId ON PostComments(ParentCommentId);
+
+-- Bảng Post Attachments
+CREATE TABLE PostAttachments (
+                                 Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                                 PostId UNIQUEIDENTIFIER NOT NULL,
+                                 FileName NVARCHAR(255) NOT NULL,
+                                 FilePath NVARCHAR(500) NOT NULL,
+                                 FileSize INT NOT NULL,
+                                 UploadedAt DATETIME DEFAULT GETUTCDATE(),
+
+                                 FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE
+);
+
+CREATE INDEX IX_PostAttachments_PostId ON PostAttachments(PostId);
+
+-- Bảng Post Vote
+CREATE TABLE PostVotes (
+                           PostId UNIQUEIDENTIFIER NOT NULL,
+                           UserId UNIQUEIDENTIFIER NOT NULL,
+                           VoteType BIT NOT NULL CHECK (VoteType IN (0,1)),
+                           VotedAt DATETIME DEFAULT GETUTCDATE(),
+
+                           PRIMARY KEY (PostId, UserId),
+
+                           FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                           FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE NO ACTIOn
+);
+
+
+CREATE INDEX IX_Posts_UserId ON Posts(UserId);
+
 
 -- Index để query nhanh
 CREATE NONCLUSTERED INDEX IX_Followers_FollowerId   ON Followers(FollowerId);

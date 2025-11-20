@@ -42,7 +42,7 @@
                                 @if (Model.CanEdit)
                                 {
                                     <button class="btn btn-sm btn-link ms-2 p-0" onclick="editField('fullname')">
-                                        <span class="material-symbols-outlined" style="font-size:18px;">edit</span>
+                                        <span class="material-symbols-outlined" style="font-size:18px; color: #cf8c64">edit</span>
                                     </button>
                                 }
                             </p>
@@ -53,13 +53,21 @@
                             @if (Model.CanEdit)
                             {
                                 <div id="fullname-edit" style="display:none;">
-                                    <input type="text" id="fullname-input" class="form-control" value="@Model.FullName" placeholder="Nhập họ và tên" 
-                                           oninput="checkChanges('fullname', '@Model.FullName')" />
+                                    <input type="text" id="fullname-input" class="form-control"
+                                           value="" 
+                                           placeholder="@Model.FullName"
+                                           oninput="checkChanges('fullname', '')" />
+
                                     <div class="mt-2 text-end">
-                                        <button class="btn btn-success btn-sm" id="fullname-save-btn" onclick="saveField('FullName', 'fullname-input', 'fullname-display', 'fullname-edit')" disabled>Lưu</button>
-                                        <button class="btn btn-secondary btn-sm" onclick="cancelEdit('fullname-display', 'fullname-edit')">Hủy</button>
+                                        <button class="btn btn-success btn-sm" id="fullname-save-btn"
+                                                onclick="saveField('FullName', 'fullname-input', 'fullname-display', 'fullname-edit')" 
+                                                disabled>Lưu</button>
+
+                                        <button class="btn btn-secondary btn-sm"
+                                                onclick="cancelEdit('fullname-display', 'fullname-edit')">Hủy</button>
                                     </div>
                                 </div>
+
                             }
                         </div>
                     </div>
@@ -111,14 +119,16 @@
                     <ul class="nav nav-tabs justify-content-center mb-4" id="profileTabs">
                         <li class="nav-item">
                             <a class="nav-link active" data-bs-toggle="tab" href="#posts">
-                                <p style="color: #1c98ff">Bài viết</p></a>
+                                <p>Bài viết</p> <!-- Đã bỏ style inline -->
+                            </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" data-bs-toggle="tab" href="#info">
-                                <p style="color: #1c98ff">Thông tin</p></a>
+                                <p>Thông tin</p> <!-- Đã bỏ style inline -->
+                            </a>
                         </li>
                     </ul>
-
+                    
                     <div class="tab-content">
                         <!-- Tab Bài viết -->
                         <div class="tab-pane fade show active" id="posts">
@@ -324,6 +334,12 @@
             if (saveBtn) {
                 saveBtn.disabled = true;
             }
+
+            // Với fullname, reset value về rỗng để placeholder hoạt động đúng
+            if (name === "fullname" && inputElement) {
+                inputElement.value = "";
+            }
+
         }
 
         function cancelEdit(displayId, editId) {
