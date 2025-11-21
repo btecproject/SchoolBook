@@ -293,12 +293,35 @@ public class SettingController(
         {
             return RedirectToAction("Login", "Authen");
         }
+
+        var canDisableMfa = TempData["CanDisableMFA"] as bool? == true;
+        logger.LogInformation("Can disable MFA: "+ canDisableMfa);
+        if (canDisableMfa)
+        {
+            if (user.TwoFactorEnabled == false|| string.IsNullOrEmpty(user.TwoFactorSecret))
+            {
+                TempData["error"] = "2FA chưa được bật";
+                return RedirectToAction("Index");
+            }
+            //x
+            user.TwoFactorEnabled = false;
+            user.TwoFactorSecret = null;
+            user.UpdatedAt = DateTime.UtcNow;
+        
+            user.RecoveryCodesGenerated = false;
+            user.RecoveryCodesLeft = 0;
+        
+            var oldCodes = await db.RecoveryCodes
+                .Where(rc => rc.UserId == user.Id)
+                .ToListAsync();
+            db.RemoveRange(oldCodes);
+            await db.SaveChangesAsync();
+        }
         if (user.TwoFactorEnabled == false)
         {
             TempData["error"] = "2FA đã tắt!";
             return RedirectToAction("Index");
         }
-
         return View(new TwoFactorSetupViewModel());
     }
 

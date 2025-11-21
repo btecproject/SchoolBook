@@ -507,7 +507,8 @@ public class AuthenController(
         logger.LogWarning("User {UserId} logged in using Recovery Code", user.Id);
 
         await tokenService.SignInAsync(HttpContext,user,db);
-        TempData["success"] = "Đăng nhập bằng mã khôi phục thành công! Mã vừa dùng đã bị xóa.";
+        TempData["success"] = "Đăng nhập bằng mã khôi phục thành công! Mã vừa dùng đã bị xóa. Hãy tắt MFA và bật lại!";
+        TempData["CanDisableMFA"] = true;
         return RedirectToAction("Home", "Feeds");
     }
     
