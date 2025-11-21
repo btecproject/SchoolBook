@@ -180,8 +180,8 @@ public class AuthenController(
         }
 
         // Kiểm tra trusted device
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        var deviceInfo = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
+        var ipAddress = trustedService.GetDeviceIpAsync(HttpContext);
+        var deviceInfo = trustedService.GetDeviceInfoAsync(HttpContext);
         var isTrustedDevice = await trustedService.IsTrustedAsync(user.Id, ipAddress, deviceInfo);
 
         if (!isTrustedDevice)
@@ -341,8 +341,9 @@ public class AuthenController(
         }
         
         var returnUrl = TempData["ReturnUrl"]?.ToString() ?? Url.Action("Home", "Feeds");
-        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        var device = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
+        var ip = trustedService.GetDeviceIpAsync(HttpContext);
+        var device = trustedService.GetDeviceInfoAsync(HttpContext);
+        
         await trustedService.AddTrustedDeviceAsync(user.Id, ip, device);
         logger.LogInformation("Trusted device added for user {UserId}", user.Id);
 
