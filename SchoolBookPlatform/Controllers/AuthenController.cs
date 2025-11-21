@@ -259,18 +259,22 @@ public class AuthenController(
         
         var returnUrl = TempData.Peek("ReturnUrl")?.ToString();
         
-        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        var device = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
-        var isTrusted = await trustedService.IsTrustedAsync(user.Id, ip, device);
-
-        if (!isTrusted)
-        {
-            await otpService.GenerateOtpAsync(user, "Email");
-            TempData["UserId"] = user.Id.ToString();
-            TempData["OtpType"] = "Email";
-            TempData["ReturnUrl"] = returnUrl;
-            return RedirectToAction(nameof(VerifyOtp));
-        }
+        var ip = trustedService.GetDeviceIpAsync(HttpContext);
+        var device = trustedService.GetDeviceInfoAsync(HttpContext);
+        
+        //Đăng nhập 2FA ko cần otp
+        await trustedService.AddTrustedDeviceAsync(user.Id, ip, device);
+        
+        // var isTrusted = await trustedService.IsTrustedAsync(user.Id, ip, device);
+        //
+        // if (!isTrusted)
+        // {
+        //     await otpService.GenerateOtpAsync(user, "Email");
+        //     TempData["UserId"] = user.Id.ToString();
+        //     TempData["OtpType"] = "Email";
+        //     TempData["ReturnUrl"] = returnUrl;
+        //     return RedirectToAction(nameof(VerifyOtp));
+        // }
         
         await tokenService.SignInAsync(HttpContext, user, db);
         return LocalRedirect(returnUrl ?? Url.Action("Home", "Feeds"));

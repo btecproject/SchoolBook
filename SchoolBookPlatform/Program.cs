@@ -14,7 +14,7 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        builder.WebHost.UseUrls("https://10.24.19.178:7093");
+        // builder.WebHost.UseUrls("https://10.24.19.178:7093");
         var config = builder.Configuration;
         var google = config.GetSection("Authentication:Google");
         // DB
