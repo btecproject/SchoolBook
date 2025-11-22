@@ -73,38 +73,6 @@ CREATE TABLE TrustedDevices (
 CREATE INDEX IX_TrustedDevices_UserId_IP_Device
     ON TrustedDevices (UserId, IPAddress, DeviceInfo);
 
-CREATE TABLE UserProfiles (
-                              UserId UNIQUEIDENTIFIER PRIMARY KEY,
-                              FullName NVARCHAR(100),
-                              AvatarUrl NVARCHAR(300),
-                              Bio NVARCHAR(500),
-                              Gender NVARCHAR(20),
-                              BirthDate DATE,
-                              IsBirthDatePublic BIT NOT NULL DEFAULT 1,
-                              IsEmailPublic BIT NOT NULL DEFAULT 1,
-                              IsFollowersPublic BIT NOT NULL DEFAULT 1,
-                              IsPhonePublic BIT NOT NULL DEFAULT 1,
-                              UpdatedAt DATETIME NULL,
-                              FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
-);
-CREATE TABLE UserFollowers (
-                               FollowerId UNIQUEIDENTIFIER NOT NULL,
-                               FollowingId UNIQUEIDENTIFIER NOT NULL,
-                               FollowedAt DATETIME DEFAULT GETUTCDATE(),
-                               PRIMARY KEY (FollowerId, FollowingId),
-                               FOREIGN KEY (FollowerId) REFERENCES Users(Id) ON DELETE CASCADE,
-                               FOREIGN KEY (FollowingId) REFERENCES Users(Id) -- bỏ cascade
-);
-
-CREATE TABLE PostLikes (
-                           UserId UNIQUEIDENTIFIER NOT NULL,        -- FK tới Users.Id
-                           PostId UNIQUEIDENTIFIER NOT NULL,
-                           LikedAt DATETIME DEFAULT GETUTCDATE(),
-                           PRIMARY KEY (UserId, PostId),
-                           FOREIGN KEY (UserId) REFERENCES Users(Id),
-                           FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE
-);
-
 INSERT INTO Roles (Name, Description)
 VALUES
     ('HighAdmin', 'Super admin with full control'),
@@ -123,12 +91,12 @@ VALUES
 INSERT INTO UserRoles (UserId, RoleId)
 SELECT @highAdminId, Id FROM Roles WHERE Name = 'HighAdmin';
 
-----------------------------------------------------------------------------
+-----------------------------Thêm gg/ms authenticator----------------------------------
 ALTER TABLE Users
     ADD TwoFactorEnabled BIT DEFAULT 0,
     TwoFactorSecret NVARCHAR(200) NULL;
 
-----------------------------------------------------------------------------
+-----------------------------Thêm User profile--------------------------------
 -- Bảng UserProfiles
 CREATE TABLE UserProfiles (
                               UserId UNIQUEIDENTIFIER PRIMARY KEY,
@@ -178,6 +146,7 @@ CREATE TABLE Following (
                            CONSTRAINT FK_Following_FollowingId
                                FOREIGN KEY (FollowingId) REFERENCES Users(Id) ON DELETE NO ACTION
 );
+
 
 -- Bảng Post
 CREATE TABLE Posts (
@@ -242,6 +211,25 @@ CREATE TABLE PostVotes (
 
 CREATE INDEX IX_Posts_UserId ON Posts(UserId);
 
+-- Bảng Post Report
+CREATE TABLE PostReports (
+                             Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                             PostId UNIQUEIDENTIFIER NOT NULL,
+                             ReportedBy UNIQUEIDENTIFIER NOT NULL,
+                             Reason NVARCHAR(500) NOT NULL,
+                             Status NVARCHAR(20) NOT NULL DEFAULT 'Pending'
+        CHECK (Status IN ('Pending', 'Approved', 'Rejected')),
+                             ReviewedBy UNIQUEIDENTIFIER NULL,
+                             ReviewedAt DATETIME NULL,
+                             CreatedAt DATETIME DEFAULT GETUTCDATE(),
+
+                             FOREIGN KEY (PostId) REFERENCES Posts2(Id) ON DELETE CASCADE,
+                             FOREIGN KEY (ReportedBy) REFERENCES Users(Id) ON DELETE NO ACTION,
+                             FOREIGN KEY (ReviewedBy) REFERENCES Users(Id) ON DELETE NO ACTION
+);
+
+CREATE INDEX IX_PostReports_PostId ON PostReports(PostId);
+
 
 -- Index để query nhanh
 CREATE NONCLUSTERED INDEX IX_Followers_FollowerId   ON Followers(FollowerId);
@@ -273,3 +261,27 @@ ALTER TABLE OtpCodes DROP CONSTRAINT FK__OtpCodes__UserId__778AC167;
 ALTER TABLE OtpCodes
     ADD CONSTRAINT FK_OtpCodes_UserId
         FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE;
+
+
+-----------------------------------Thêm Recovery Code-----------------------------------
+ALTER TABLE Users
+    ADD
+        RecoveryCodesGenerated BIT DEFAULT 0,        -- Đã từng tạo code chưa
+    RecoveryCodesLeft       INT  DEFAULT 0;       -- Còn bao nhiêu code chưa dùng
+
+CREATE TABLE RecoveryCodes (
+                               Id         UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                               UserId     UNIQUEIDENTIFIER NOT NULL,
+                               HashedCode NVARCHAR(255) NOT NULL,
+                               IsUsed     BIT NOT NULL DEFAULT 0,
+                               CreatedAt  DATETIME2(7) NOT NULL DEFAULT SYSUTCDATETIME(),
+                               UsedAt     DATETIME2(7) NULL,
+
+                               CONSTRAINT FK_RecoveryCodes_UserId
+                                   FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+);
+
+CREATE NONCLUSTERED INDEX IX_RecoveryCodes_UserId_IsUsed 
+ON RecoveryCodes (UserId, IsUsed) 
+INCLUDE (HashedCode);
+    

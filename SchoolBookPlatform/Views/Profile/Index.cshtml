@@ -36,39 +36,39 @@
 
                         <!-- Tên + Username -->
                         <div class="flex-grow-1">
-                            <p id="fullname-display" class="fs-4 fw-bold mb-1 d-flex align-items-center">
-                                <span>@(string.IsNullOrEmpty(Model.FullName) ? Model.Username : Model.FullName)</span>
+                            <p id="fullname-wrapper" class="fs-4 fw-bold mb-1 d-flex align-items-center gap-2">
+
+                                <!-- Text hiển thị -->
+                                <span id="fullname-display">
+                                    @(string.IsNullOrEmpty(Model.FullName) ? Model.Username : Model.FullName)
+                                </span>
+
+                                <!-- Input edit -->
+                                <input id="fullname-input" class="form-control form-control-sm"
+                                       style="max-width: 250px; display:none;" />
 
                                 @if (Model.CanEdit)
                                 {
-                                    <button class="btn btn-sm btn-link ms-2 p-0" onclick="editField('fullname')">
-                                        <span class="material-symbols-outlined" style="font-size:18px; color: #cf8c64">edit</span>
+                                    <!-- Nút Edit -->
+                                    <button id="fullname-edit-btn" class="btn btn-sm btn-link p-0 d-flex align-items-center btn-edit" onclick="editFullName()">
+                                        <span class="material-symbols-outlined" style="font-size:18px; color:#cf8c64">edit</span>
                                     </button>
+
+                                    <!-- Nút Save / Cancel -->
+                                    <div id="fullname-actions" style="display:none;">
+                                        <button id="fullname-save-btn"
+                                                class="btn btn-success btn-sm"
+                                                onclick="saveFullName()"
+                                                disabled>Lưu</button>
+
+                                        <button id="fullname-cancel-btn"
+                                                class="btn btn-secondary btn-sm"
+                                                onclick="cancelFullName()">Hủy</button>
+                                    </div>
                                 }
                             </p>
 
                             <p class="text-muted mb-2">@Model.Username</p>
-                            
-                            <!-- Form chỉnh sửa FullName -->
-                            @if (Model.CanEdit)
-                            {
-                                <div id="fullname-edit" style="display:none;">
-                                    <input type="text" id="fullname-input" class="form-control"
-                                           value="" 
-                                           placeholder="@Model.FullName"
-                                           oninput="checkChanges('fullname', '')" />
-
-                                    <div class="mt-2 text-end">
-                                        <button class="btn btn-success btn-sm" id="fullname-save-btn"
-                                                onclick="saveField('FullName', 'fullname-input', 'fullname-display', 'fullname-edit')" 
-                                                disabled>Lưu</button>
-
-                                        <button class="btn btn-secondary btn-sm"
-                                                onclick="cancelEdit('fullname-display', 'fullname-edit')">Hủy</button>
-                                    </div>
-                                </div>
-
-                            }
                         </div>
                     </div>
 
@@ -101,16 +101,18 @@
                         </p>
                         @if (Model.CanEdit)
                         {
-                            <button class="btn btn-sm btn-link text-primary bio-edit-btn" onclick="editField('bio')">
-                                <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;">edit</span> Chỉnh sửa
-                            </button>
+                            <div id="bio-actions">
+                                <button class="btn btn-sm btn-link text-primary bio-edit-btn btn-edit" onclick="editField('bio')">
+                                    <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;">edit</span> Chỉnh sửa
+                                </button>
+                            </div>
                         }
 
                         <div id="bio-edit" style="display:none; max-width: 500px; margin: 0 auto;">
                             <textarea id="bio-input" class="form-control" rows="3" oninput="checkChanges('bio', '@Model.Bio')">@Model.Bio</textarea>
                             <div class="mt-2 text-end">
                                 <button class="btn btn-success btn-sm" id="bio-save-btn" onclick="saveField('Bio', 'bio-input', 'bio-display', 'bio-edit')" disabled>Lưu</button>
-                                <button class="btn btn-secondary btn-sm" onclick="cancelEdit('bio-display', 'bio-edit')">Hủy</button>
+                                <button class="btn btn-secondary btn-sm" onclick="cancelEdit('bio-display', 'bio-edit', 'bio-actions')">Hủy</button>
                             </div>
                         </div>
                     </div>
@@ -119,16 +121,16 @@
                     <ul class="nav nav-tabs justify-content-center mb-4" id="profileTabs">
                         <li class="nav-item">
                             <a class="nav-link active" data-bs-toggle="tab" href="#posts">
-                                <p>Bài viết</p> <!-- Đã bỏ style inline -->
+                                <p>Bài viết</p>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" data-bs-toggle="tab" href="#info">
-                                <p>Thông tin</p> <!-- Đã bỏ style inline -->
+                                <p>Thông tin</p>
                             </a>
                         </li>
                     </ul>
-                    
+
                     <div class="tab-content">
                         <!-- Tab Bài viết -->
                         <div class="tab-pane fade show active" id="posts">
@@ -145,14 +147,14 @@
                                         <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                                             <div class="flex-grow-1">
                                                 <p id="email-display" class="mb-0"><strong>Email:</strong> <span>@Model.Email</span></p>
-                                                
+
                                                 <!-- Form chỉnh sửa Email -->
                                                 <div id="email-edit" style="display:none;">
-                                                    <input type="email" id="email-input" class="form-control mt-2" value="@Model.Email" placeholder="Nhập email" 
+                                                    <input type="email" id="email-input" class="form-control mt-2" value="@Model.Email" placeholder="Nhập email"
                                                            oninput="checkChanges('email', '@Model.Email')" />
                                                     <div class="mt-2 text-end">
                                                         <button class="btn btn-success btn-sm" id="email-save-btn" onclick="saveField('Email', 'email-input', 'email-display', 'email-edit')" disabled>Lưu</button>
-                                                        <button class="btn btn-secondary btn-sm" onclick="cancelEdit('email-display', 'email-edit')">Hủy</button>
+                                                        <button class="btn btn-secondary btn-sm" onclick="cancelEdit('email-display', 'email-edit', 'email-actions')">Hủy</button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -164,7 +166,7 @@
                                                                @(Model.IsEmailPublic ? "checked" : "")
                                                                onchange="togglePrivacy('IsEmailPublic', this.checked)">
                                                     </div>
-                                                    <button class="btn btn-sm btn-outline-secondary" onclick="editField('email')">
+                                                    <button class="btn btn-sm btn-outline-secondary btn-edit" onclick="editField('email')">
                                                         <span class="material-symbols-outlined" style="font-size:16px;">edit</span>
                                                     </button>
                                                 </div>
@@ -178,14 +180,14 @@
                                         <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                                             <div class="flex-grow-1">
                                                 <p id="phone-display" class="mb-0"><strong>Số điện thoại:</strong> <span>@Model.PhoneNumber</span></p>
-                                                
+
                                                 <!-- Form chỉnh sửa Phone -->
                                                 <div id="phone-edit" style="display:none;">
-                                                    <input type="tel" id="phone-input" class="form-control mt-2" value="@Model.PhoneNumber" placeholder="Nhập số điện thoại" 
+                                                    <input type="tel" id="phone-input" class="form-control mt-2" value="@Model.PhoneNumber" placeholder="Nhập số điện thoại"
                                                            oninput="checkChanges('phone', '@Model.PhoneNumber')" />
                                                     <div class="mt-2 text-end">
                                                         <button class="btn btn-success btn-sm" id="phone-save-btn" onclick="saveField('PhoneNumber', 'phone-input', 'phone-display', 'phone-edit')" disabled>Lưu</button>
-                                                        <button class="btn btn-secondary btn-sm" onclick="cancelEdit('phone-display', 'phone-edit')">Hủy</button>
+                                                        <button class="btn btn-secondary btn-sm" onclick="cancelEdit('phone-display', 'phone-edit', 'phone-actions')">Hủy</button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -197,7 +199,7 @@
                                                                @(Model.IsPhonePublic ? "checked" : "")
                                                                onchange="togglePrivacy('IsPhonePublic', this.checked)">
                                                     </div>
-                                                    <button class="btn btn-sm btn-outline-secondary" onclick="editField('phone')">
+                                                    <button class="btn btn-sm btn-outline-secondary btn-edit" onclick="editField('phone')">
                                                         <span class="material-symbols-outlined" style="font-size:16px;">edit</span>
                                                     </button>
                                                 </div>
@@ -209,13 +211,13 @@
                                     <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                                         <div class="flex-grow-1">
                                             <p id="gender-display" class="mb-0">
-                                                <strong>Giới tính:</strong> 
-                                                @(string.IsNullOrEmpty(Model.Gender) ? "Chưa có thông tin để hiển thị" : 
-                                                  Model.Gender == "Male" ? "Nam" : 
-                                                  Model.Gender == "Female" ? "Nữ" : 
-                                                  Model.Gender == "Other" ? "Khác" : Model.Gender)
+                                                <strong>Giới tính:</strong>
+                                                @(string.IsNullOrEmpty(Model.Gender) ? "Chưa có thông tin để hiển thị" :
+                                                Model.Gender == "Male" ? "Nam" :
+                                                Model.Gender == "Female" ? "Nữ" :
+                                                Model.Gender == "Other" ? "Khác" : Model.Gender)
                                             </p>
-                                            
+
                                             <!-- Form chỉnh sửa Gender -->
                                             <div id="gender-edit" style="display:none;">
                                                 <select id="gender-input" class="form-select mt-2" onchange="checkChanges('gender', '@Model.Gender')">
@@ -226,14 +228,14 @@
                                                 </select>
                                                 <div class="mt-2 text-end">
                                                     <button class="btn btn-success btn-sm" id="gender-save-btn" onclick="saveField('Gender', 'gender-input', 'gender-display', 'gender-edit')" disabled>Lưu</button>
-                                                    <button class="btn btn-secondary btn-sm" onclick="cancelEdit('gender-display', 'gender-edit')">Hủy</button>
+                                                    <button class="btn btn-secondary btn-sm" onclick="cancelEdit('gender-display', 'gender-edit', 'gender-actions')">Hủy</button>
                                                 </div>
                                             </div>
                                         </div>
                                         @if (Model.CanEdit)
                                         {
                                             <div class="d-flex align-items-center gap-2" id="gender-actions">
-                                                <button class="btn btn-sm btn-outline-secondary" onclick="editField('gender')">
+                                                <button class="btn btn-sm btn-outline-secondary btn-edit" onclick="editField('gender')">
                                                     <span class="material-symbols-outlined" style="font-size:16px;">edit</span>
                                                 </button>
                                             </div>
@@ -244,17 +246,17 @@
                                     <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                                         <div class="flex-grow-1">
                                             <p id="birth-display" class="mb-0">
-                                                <strong>Ngày sinh:</strong> 
+                                                <strong>Ngày sinh:</strong>
                                                 @(Model.BirthDate?.ToString("dd/MM/yyyy") ?? "Chưa có thông tin để hiển thị")
                                             </p>
-                                            
+
                                             <!-- Form chỉnh sửa BirthDate -->
                                             <div id="birth-edit" style="display:none;">
-                                                <input type="date" id="birth-input" class="form-control mt-2" value="@(Model.BirthDate?.ToString("yyyy-MM-dd"))" 
+                                                <input type="date" id="birth-input" class="form-control mt-2" value="@(Model.BirthDate?.ToString("yyyy-MM-dd"))"
                                                        onchange="checkBirthDateChanges()" />
                                                 <div class="mt-2 text-end">
                                                     <button class="btn btn-success btn-sm" id="birth-save-btn" onclick="saveBirthDate()" disabled>Lưu</button>
-                                                    <button class="btn btn-secondary btn-sm" onclick="cancelEdit('birth-display', 'birth-edit')">Hủy</button>
+                                                    <button class="btn btn-secondary btn-sm" onclick="cancelEdit('birth-display', 'birth-edit', 'birth-actions')">Hủy</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -266,7 +268,7 @@
                                                            @(Model.IsBirthDatePublic ? "checked" : "")
                                                            onchange="togglePrivacy('IsBirthDatePublic', this.checked)">
                                                 </div>
-                                                <button class="btn btn-sm btn-outline-secondary" onclick="editField('birth')">
+                                                <button class="btn btn-sm btn-outline-secondary btn-edit" onclick="editField('birth')">
                                                     <span class="material-symbols-outlined" style="font-size:16px;">edit</span>
                                                 </button>
                                             </div>
@@ -277,7 +279,7 @@
                                     <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                                         <div class="flex-grow-1">
                                             <p class="text-muted mb-0">
-                                                <strong>Tham gia:</strong> 
+                                                <strong>Tham gia:</strong>
                                                 @Model.CreatedAt.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("vi-VN"))
                                             </p>
                                         </div>
@@ -293,388 +295,495 @@
 </div>
 
 @section Scripts {
-    <script>
-        // Lưu trữ giá trị ban đầu để so sánh
-        let originalValues = {};
+<script>
+    // Lưu trữ giá trị ban đầu để so sánh
+    let originalValues = {};
+    function editField(name) {
+        console.log('Editing field:', name);
 
-        function editField(name) {
-            // Ẩn tất cả các form chỉnh sửa đang mở
-            const allEditForms = document.querySelectorAll('[id$="-edit"]');
-            allEditForms.forEach(form => {
-                form.style.display = 'none';
-            });
+        // Ẩn tất cả các form chỉnh sửa đang mở
+        const allEditForms = document.querySelectorAll('[id$="-edit"]');
+        allEditForms.forEach(form => {
+            form.style.setProperty('display', 'none', 'important');
+        });
 
-            // Hiển thị tất cả các display và actions
-            const allDisplays = document.querySelectorAll('[id$="-display"]');
-            allDisplays.forEach(display => {
-                display.style.display = 'block';
-            });
+        // Hiển thị tất cả các display và actions
+        const allDisplays = document.querySelectorAll('[id$="-display"]');
+        allDisplays.forEach(display => {
+            display.style.setProperty('display', 'block', 'important');
+        });
 
-            const allActions = document.querySelectorAll('[id$="-actions"]');
-            allActions.forEach(action => {
-                if (action) action.style.display = 'flex';
-            });
-
-            // Lưu giá trị ban đầu
-            const inputElement = document.getElementById(name + "-input");
-            if (inputElement) {
-                originalValues[name] = inputElement.value;
+        const allActions = document.querySelectorAll('[id$="-actions"]');
+        allActions.forEach(action => {
+            if (action) {
+                // Bio hiển thị inline-block, các field khác hiển thị flex
+                if (action.id === 'bio-actions') {
+                    action.style.setProperty('display', 'inline-block', 'important');
+                } else {
+                    action.style.setProperty('display', 'flex', 'important');
+                }
             }
+        });
 
-            // Ẩn display và actions, hiển thị form chỉnh sửa
-            document.getElementById(name + "-display").style.display = "none";
-            const actionsElement = document.getElementById(name + "-actions");
-            if (actionsElement) {
-                actionsElement.style.display = "none";
-            }
-            document.getElementById(name + "-edit").style.display = "block";
-
-            // Reset nút lưu về disabled
-            const saveBtn = document.getElementById(name + "-save-btn");
-            if (saveBtn) {
-                saveBtn.disabled = true;
-            }
-
-            // Với fullname, reset value về rỗng để placeholder hoạt động đúng
-            if (name === "fullname" && inputElement) {
-                inputElement.value = "";
-            }
-
+        // Lưu giá trị ban đầu
+        const inputElement = document.getElementById(name + "-input");
+        if (inputElement) {
+            originalValues[name] = inputElement.value;
         }
 
-        function cancelEdit(displayId, editId) {
-            const fieldName = displayId.replace('-display', '');
-            
-            document.getElementById(displayId).style.display = "block";
-            document.getElementById(editId).style.display = "none";
-            
-            // Hiển thị lại actions
-            const actionsElement = document.getElementById(fieldName + "-actions");
-            if (actionsElement) {
-                actionsElement.style.display = "flex";
-            }
+        // Ẩn display và actions CỦA FIELD HIỆN TẠI, hiển thị form chỉnh sửa
+        const displayElement = document.getElementById(name + "-display");
+        const actionsElement = document.getElementById(name + "-actions");
+        const editElement = document.getElementById(name + "-edit");
 
-            // Khôi phục giá trị ban đầu
-            const inputElement = document.getElementById(fieldName + "-input");
-            if (inputElement && originalValues[fieldName] !== undefined) {
-                inputElement.value = originalValues[fieldName];
-            }
+        if (displayElement) {
+            displayElement.style.setProperty('display', 'none', 'important');
+            console.log('Hidden display:', name + "-display");
         }
 
-        function checkChanges(fieldName, originalValue) {
-            const inputElement = document.getElementById(fieldName + "-input");
-            const saveBtn = document.getElementById(fieldName + "-save-btn");
-            
-            if (!inputElement || !saveBtn) return;
+        if (actionsElement) {
+            actionsElement.style.setProperty('display', 'none', 'important');
+            console.log('Hidden actions:', name + "-actions");
+        }
 
-            const currentValue = inputElement.value.trim();
-            
-            // So sánh giá trị hiện tại với giá trị ban đầu
-            if (currentValue !== originalValue && currentValue !== '') {
-                saveBtn.disabled = false;
+        if (editElement) {
+            editElement.style.setProperty('display', 'block', 'important');
+            console.log('Shown edit form:', name + "-edit");
+        }
+
+        // Reset nút lưu về disabled
+        const saveBtn = document.getElementById(name + "-save-btn");
+        if (saveBtn) {
+            saveBtn.disabled = true;
+        }
+}
+
+    function cancelEdit(displayId, editId, actionsId) {
+        console.log('Canceling edit:', displayId, editId, actionsId);
+
+        const displayElement = document.getElementById(displayId);
+        const editElement = document.getElementById(editId);
+        const actionsElement = document.getElementById(actionsId);
+
+        if (displayElement) {
+            displayElement.style.setProperty('display', 'block', 'important');
+        }
+
+        if (editElement) {
+            editElement.style.setProperty('display', 'none', 'important');
+        }
+
+        if (actionsElement) {
+            // Bio hiển thị inline-block, các field khác hiển thị flex
+            if (actionsId === 'bio-actions') {
+                actionsElement.style.setProperty('display', 'inline-block', 'important');
             } else {
-                saveBtn.disabled = true;
+                actionsElement.style.setProperty('display', 'flex', 'important');
             }
         }
 
-        function checkBirthDateChanges() {
-            const inputElement = document.getElementById("birth-input");
-            const saveBtn = document.getElementById("birth-save-btn");
-            const originalValue = "@(Model.BirthDate?.ToString("yyyy-MM-dd"))";
-            
-            if (!inputElement || !saveBtn) return;
+        // Khôi phục giá trị ban đầu
+        const fieldName = displayId.replace('-display', '');
+        const inputElement = document.getElementById(fieldName + "-input");
+        if (inputElement && originalValues[fieldName] !== undefined) {
+            inputElement.value = originalValues[fieldName];
+        }
+}
 
-            const currentValue = inputElement.value;
-            
-            // So sánh giá trị hiện tại với giá trị ban đầu
-            if (currentValue !== originalValue && currentValue !== '') {
-                saveBtn.disabled = false;
-            } else {
-                saveBtn.disabled = true;
-            }
+    // Hàm riêng cho fullname - SỬA LẠI VỚI !important
+    function editFullName() {
+        console.log('Editing fullname');
+
+        const display = document.getElementById("fullname-display");
+        const input = document.getElementById("fullname-input");
+        const editBtn = document.getElementById("fullname-edit-btn");
+        const actions = document.getElementById("fullname-actions");
+
+        // Ẩn display và nút edit
+        if (display) {
+            display.style.setProperty('display', 'none', 'important');
+            console.log('Hidden fullname display');
         }
 
-        function saveField(fieldName, inputId, displayId, editId) {
-            const inputElement = document.getElementById(inputId);
-            if (!inputElement) {
-                console.error('Input element not found:', inputId);
-                return;
-            }
+        if (editBtn) {
+            editBtn.style.setProperty('display', 'none', 'important');
+            console.log('Hidden fullname edit button');
+        }
 
-            let value = null;
+        // Hiện input và actions (save/cancel)
+        if (input) {
+            input.style.setProperty('display', 'block', 'important');
+            console.log('Shown fullname input');
+        }
 
-            // Lấy giá trị khác nhau tùy loại input
-            if (inputElement.tagName === 'SELECT') {
-                value = inputElement.value; // Gender
-            } else if (inputElement.tagName === 'TEXTAREA') {
-                value = inputElement.value.trim(); // Bio
-            } else {
-                value = inputElement.value.trim(); // FullName, Email, Phone
-            }
+        if (actions) {
+            actions.style.setProperty('display', 'inline-block', 'important');
+            console.log('Shown fullname actions');
+        }
 
-            // Validate các field bắt buộc
-            const allowedFields = ['Bio', 'FullName', 'Gender', 'BirthDate', 'Email', 'PhoneNumber'];
-            if (!allowedFields.includes(fieldName)) {
-                alert("Không được phép chỉnh sửa trường này!");
-                return;
-            }
+        // Đổ dữ liệu vào input
+        if (input && display) {
+            input.value = display.innerText.trim();
+            console.log('Set input value to:', input.value);
+        }
+}
 
-            console.log('Saving field:', fieldName, 'Value:', value);
+    function saveFullName() {
+        console.log('Saving fullname');
 
-            fetch('/Profile/UpdateField', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                },
-                body: JSON.stringify({
-                    field: fieldName,
-                    value: value,
-                    dateValue: null
-                })
+        const newName = document.getElementById("fullname-input").value.trim();
+        if (!newName) {
+            console.log('Empty name, not saving');
+            return;
+        }
+
+        document.getElementById("fullname-display").innerText = newName;
+
+        // Khôi phục giao diện
+        const display = document.getElementById("fullname-display");
+        const input = document.getElementById("fullname-input");
+        const editBtn = document.getElementById("fullname-edit-btn");
+        const actions = document.getElementById("fullname-actions");
+
+        if (display) display.style.setProperty('display', 'inline-block', 'important');
+        if (input) input.style.setProperty('display', 'none', 'important');
+        if (editBtn) editBtn.style.setProperty('display', 'inline-block', 'important');
+        if (actions) actions.style.setProperty('display', 'none', 'important');
+
+        console.log('Restored fullname UI');
+    }
+
+    function cancelFullName() {
+        console.log('Canceling fullname edit');
+
+        // Khôi phục giao diện
+        const display = document.getElementById("fullname-display");
+        const input = document.getElementById("fullname-input");
+        const editBtn = document.getElementById("fullname-edit-btn");
+        const actions = document.getElementById("fullname-actions");
+
+        if (display) display.style.setProperty('display', 'inline-block', 'important');
+        if (input) input.style.setProperty('display', 'none', 'important');
+        if (editBtn) editBtn.style.setProperty('display', 'inline-block', 'important');
+        if (actions) actions.style.setProperty('display', 'none', 'important');
+
+        console.log('Restored fullname UI');
+    }
+    
+    function checkChanges(fieldName, originalValue) {
+        const inputElement = document.getElementById(fieldName + "-input");
+        const saveBtn = document.getElementById(fieldName + "-save-btn");
+
+        if (!inputElement || !saveBtn) return;
+
+        const currentValue = inputElement.value.trim();
+
+        if (currentValue !== originalValue && currentValue !== '') {
+            saveBtn.disabled = false;
+        } else {
+            saveBtn.disabled = true;
+        }
+}
+
+    function checkBirthDateChanges() {
+        const inputElement = document.getElementById("birth-input");
+        const saveBtn = document.getElementById("birth-save-btn");
+        const originalValue = "@(Model.BirthDate?.ToString("yyyy-MM-dd"))";
+
+        if (!inputElement || !saveBtn) return;
+
+        const currentValue = inputElement.value;
+
+        if (currentValue !== originalValue && currentValue !== '') {
+            saveBtn.disabled = false;
+        } else {
+            saveBtn.disabled = true;
+        }
+}
+
+    function saveField(fieldName, inputId, displayId, editId) {
+        const inputElement = document.getElementById(inputId);
+        if (!inputElement) {
+            console.error('Input element not found:', inputId);
+            return;
+        }
+
+        let value = null;
+
+        if (inputElement.tagName === 'SELECT') {
+            value = inputElement.value;
+        } else if (inputElement.tagName === 'TEXTAREA') {
+            value = inputElement.value.trim();
+        } else {
+            value = inputElement.value.trim();
+        }
+
+        const allowedFields = ['Bio', 'FullName', 'Gender', 'BirthDate', 'Email', 'PhoneNumber'];
+        if (!allowedFields.includes(fieldName)) {
+            alert("Không được phép chỉnh sửa trường này!");
+            return;
+        }
+
+        console.log('Saving field:', fieldName, 'Value:', value);
+
+        fetch('/Profile/UpdateField', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            },
+            body: JSON.stringify({
+                field: fieldName,
+                value: value,
+                dateValue: null
             })
-                .then(res => {
-                    console.log('Response status:', res.status);
-                    if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                    }
-                    return res.json();
-                })
-                .then(data => {
-                    console.log('Response data:', data);
-
-                    if (data.success) {
-                        // Cập nhật UI sau khi lưu thành công
-                        updateDisplayAfterSave(fieldName, value, displayId);
-                        
-                        // Hiển thị lại actions
-                        const fieldNameShort = displayId.replace('-display', '');
-                        const actionsElement = document.getElementById(fieldNameShort + "-actions");
-                        if (actionsElement) {
-                            actionsElement.style.display = "flex";
-                        }
-                        
-                        cancelEdit(displayId, editId);
-                        showToast('Đã cập nhật thông tin thành công', 'success');
-                    } else {
-                        alert(data.message || "Lưu thất bại!");
-                    }
-                })
-                .catch(error => {
-                    console.error('Fetch error:', error);
-                    alert("Đã xảy ra lỗi khi lưu: " + error.message);
-                });
-        }
-
-        // Hàm riêng để update UI sau khi lưu
-        function updateDisplayAfterSave(fieldName, value, displayId) {
-            const displayElement = document.getElementById(displayId);
-
-            if (fieldName === 'FullName') {
-                const span = displayElement.querySelector('span');
-                if (span) {
-                    span.innerText = value || '@Model.Username';
+        })
+            .then(res => {
+                console.log('Response status:', res.status);
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
                 }
-            }
-            else if (fieldName === 'Bio') {
-                const span = displayElement.querySelector('span');
-                if (span) {
-                    span.innerText = value || "Chưa có mô tả";
-                }
-            }
-            else if (fieldName === 'Gender') {
-                const genderText = value === 'Male' ? 'Nam' :
-                    value === 'Female' ? 'Nữ' :
-                        value === 'Other' ? 'Khác' : 'Chưa có thông tin để hiển thị';
-
-                displayElement.innerHTML = `<strong>Giới tính:</strong> ${genderText}`;
-            }
-            else if (fieldName === 'Email') {
-                const span = displayElement.querySelector('span');
-                if (span) {
-                    span.innerText = value || '';
-                }
-            }
-            else if (fieldName === 'PhoneNumber') {
-                const span = displayElement.querySelector('span');
-                if (span) {
-                    span.innerText = value || '';
-                }
-            }
-        }
-
-        function saveBirthDate() {
-            const inputElement = document.getElementById("birth-input");
-            if (!inputElement) {
-                console.error('Birth input not found');
-                return;
-            }
-
-            const value = inputElement.value;
-            console.log('Saving birth date:', value);
-
-            fetch('/Profile/UpdateField', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                },
-                body: JSON.stringify({
-                    field: "BirthDate",
-                    value: null,
-                    dateValue: value
-                })
+                return res.json();
             })
-                .then(res => {
-                    console.log('Response status:', res.status);
-                    if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                    }
-                    return res.json();
-                })
-                .then(data => {
-                    console.log('Response data:', data);
+            .then(data => {
+                console.log('Response data:', data);
 
-                    if (data.success) {
-                        const formatted = value ? new Date(value).toLocaleDateString('vi-VN') : "Chưa có thông tin để hiển thị";
-                        document.getElementById("birth-display").innerHTML = `<strong>Ngày sinh:</strong> ${formatted}`;
-                        
-                        // Hiển thị lại actions
-                        const actionsElement = document.getElementById("birth-actions");
-                        if (actionsElement) {
-                            actionsElement.style.display = "flex";
+                if (data.success) {
+                    updateDisplayAfterSave(fieldName, value, displayId);
+
+                    const fieldNameShort = displayId.replace('-display', '');
+                    const actionsElement = document.getElementById(fieldNameShort + "-actions");
+                    if (actionsElement) {
+                        // Bio hiển thị inline-block, các field khác hiển thị flex
+                        if (fieldNameShort === 'bio') {
+                            actionsElement.style.setProperty('display', 'inline-block', 'important');
+                        } else {
+                            actionsElement.style.setProperty('display', 'flex', 'important');
                         }
-                        
-                        cancelEdit('birth-display', 'birth-edit');
-                        showToast('Đã cập nhật ngày sinh thành công', 'success');
-                    } else {
-                        alert(data.message || "Lưu thất bại!");
                     }
-                })
-                .catch(error => {
-                    console.error('Fetch error:', error);
-                    alert("Đã xảy ra lỗi khi lưu: " + error.message);
-                });
+
+                    document.getElementById(displayId).style.setProperty('display', 'block', 'important');
+                    document.getElementById(editId).style.setProperty('display', 'none', 'important');
+                    showToast('Đã cập nhật thông tin thành công', 'success');
+                } else {
+                    alert(data.message || "Lưu thất bại!");
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                alert("Đã xảy ra lỗi khi lưu: " + error.message);
+            });
+    }
+    
+    function updateDisplayAfterSave(fieldName, value, displayId) {
+        const displayElement = document.getElementById(displayId);
+
+        if (fieldName === 'FullName') {
+            const span = displayElement.querySelector('span');
+            if (span) {
+                span.innerText = value || '@Model.Username';
+            }
+        }
+        else if (fieldName === 'Bio') {
+            const span = displayElement.querySelector('span');
+            if (span) {
+                span.innerText = value || "Chưa có mô tả";
+            }
+        }
+        else if (fieldName === 'Gender') {
+            const genderText = value === 'Male' ? 'Nam' :
+                value === 'Female' ? 'Nữ' :
+                    value === 'Other' ? 'Khác' : 'Chưa có thông tin để hiển thị';
+
+            displayElement.innerHTML = `<strong>Giới tính:</strong> ${genderText}`;
+        }
+        else if (fieldName === 'Email') {
+            const span = displayElement.querySelector('span');
+            if (span) {
+                span.innerText = value || '';
+            }
+        }
+        else if (fieldName === 'PhoneNumber') {
+            const span = displayElement.querySelector('span');
+            if (span) {
+                span.innerText = value || '';
+            }
+        }
+}
+
+    function saveBirthDate() {
+        const inputElement = document.getElementById("birth-input");
+        if (!inputElement) {
+            console.error('Birth input not found');
+            return;
         }
 
-        // Các hàm toggleFollow và togglePrivacy giữ nguyên...
-        function toggleFollow(userId, isFollowing) {
-            console.log('toggleFollow called:', userId, isFollowing);
+        const value = inputElement.value;
+        console.log('Saving birth date:', value);
 
-            const url = isFollowing ? '/Profile/Unfollow' : '/Profile/Follow';
-            const btn = document.getElementById('followBtn');
-
-            if (btn) btn.disabled = true;
-
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                },
-                body: JSON.stringify({ userId: userId }) 
+        fetch('/Profile/UpdateField', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            },
+            body: JSON.stringify({
+                field: "BirthDate",
+                value: null,
+                dateValue: value
             })
-                .then(res => {
-                    console.log('Response status:', res.status);
-                    if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                    }
-                    return res.json();
-                })
-                .then(data => {
-                    console.log('Response data:', data);
+        })
+            .then(res => {
+                console.log('Response status:', res.status);
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
 
-                    if (data.success) {
-                        if (btn) {
-                            if (data.isFollowing) {
-                                btn.textContent = 'Đang theo dõi';
-                                btn.className = 'btn btn-outline-primary btn-lg px-5';
-                                btn.onclick = () => toggleFollow(userId, true);
-                            } else {
-                                btn.textContent = 'Theo dõi';
-                                btn.className = 'btn btn-primary btn-lg px-5';
-                                btn.onclick = () => toggleFollow(userId, false);
-                            }
-                            btn.disabled = false;
-                        }
+                if (data.success) {
+                    const formatted = value ? new Date(value).toLocaleDateString('vi-VN') : "Chưa có thông tin để hiển thị";
+                    document.getElementById("birth-display").innerHTML = `<strong>Ngày sinh:</strong> ${formatted}`;
 
-                        if (data.followerCount !== undefined) {
-                            const followerCountElem = document.querySelector('.d-flex.justify-content-center.gap-5 .text-dark.fs-4');
-                            if (followerCountElem) {
-                                followerCountElem.textContent = data.followerCount;
-                            }
-                        }
-                    } else {
-                        alert(data.message || 'Đã xảy ra lỗi');
-                        if (btn) btn.disabled = false;
+                    const actionsElement = document.getElementById("birth-actions");
+                    if (actionsElement) {
+                        actionsElement.style.setProperty('display', 'flex', 'important');
                     }
-                })
-                .catch(error => {
-                    console.error('Fetch error:', error);
-                    alert('Đã xảy ra lỗi khi thực hiện thao tác: ' + error.message);
+
+                    document.getElementById('birth-display').style.setProperty('display', 'block', 'important');
+                    document.getElementById('birth-edit').style.setProperty('display', 'none', 'important');
+                    showToast('Đã cập nhật ngày sinh thành công', 'success');
+                } else {
+                    alert(data.message || "Lưu thất bại!");
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                alert("Đã xảy ra lỗi khi lưu: " + error.message);
+            });
+    }
+     
+    function toggleFollow(userId, isFollowing) {
+        console.log('toggleFollow called:', userId, isFollowing);
+
+        const url = isFollowing ? '/Profile/Unfollow' : '/Profile/Follow';
+        const btn = document.getElementById('followBtn');
+
+        if (btn) btn.disabled = true;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            },
+            body: JSON.stringify({ userId: userId })
+        })
+            .then(res => {
+                console.log('Response status:', res.status);
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+
+                if (data.success) {
+                    if (btn) {
+                        if (data.isFollowing) {
+                            btn.textContent = 'Đang theo dõi';
+                            btn.className = 'btn btn-outline-primary btn-lg px-5';
+                            btn.onclick = () => toggleFollow(userId, true);
+                        } else {
+                            btn.textContent = 'Theo dõi';
+                            btn.className = 'btn btn-primary btn-lg px-5';
+                            btn.onclick = () => toggleFollow(userId, false);
+                        }
+                        btn.disabled = false;
+                    }
+
+                    if (data.followerCount !== undefined) {
+                        const followerCountElem = document.querySelector('.d-flex.justify-content-center.gap-5 .text-dark.fs-4');
+                        if (followerCountElem) {
+                            followerCountElem.textContent = data.followerCount;
+                        }
+                    }
+                } else {
+                    alert(data.message || 'Đã xảy ra lỗi');
                     if (btn) btn.disabled = false;
-                });
-        }
-
-        function togglePrivacy(field, isPublic) {
-            console.log('togglePrivacy:', field, isPublic);
-
-            fetch('/Profile/UpdatePrivacy', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                },
-                body: JSON.stringify({
-                    field: field,
-                    isPublic: isPublic
-                })
+                }
             })
-                .then(res => {
-                    console.log('Response status:', res.status);
-                    if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                    }
-                    return res.json();
-                })
-                .then(data => {
-                    console.log('Response data:', data);
+            .catch(error => {
+                console.error('Fetch error:', error);
+                alert('Đã xảy ra lỗi khi thực hiện thao tác: ' + error.message);
+                if (btn) btn.disabled = false;
+            });
+    }
 
-                    if (data.success) {
-                        showToast('Đã cập nhật cài đặt riêng tư', 'success');
-                    } else {
-                        alert(data.message || 'Cập nhật thất bại');
-                        const switchElem = document.querySelector(`[onchange*="${field}"]`);
-                        if (switchElem) {
-                            switchElem.checked = !isPublic;
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Fetch error:', error);
-                    alert('Đã xảy ra lỗi: ' + error.message);
+    function togglePrivacy(field, isPublic) {
+        console.log('togglePrivacy:', field, isPublic);
+
+        fetch('/Profile/UpdatePrivacy', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            },
+            body: JSON.stringify({
+                field: field,
+                isPublic: isPublic
+            })
+        })
+            .then(res => {
+                console.log('Response status:', res.status);
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+
+                if (data.success) {
+                    showToast('Đã cập nhật cài đặt riêng tư', 'success');
+                } else {
+                    alert(data.message || 'Cập nhật thất bại');
                     const switchElem = document.querySelector(`[onchange*="${field}"]`);
                     if (switchElem) {
                         switchElem.checked = !isPublic;
                     }
-                });
-        }
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                alert('Đã xảy ra lỗi: ' + error.message);
+                const switchElem = document.querySelector(`[onchange*="${field}"]`);
+                if (switchElem) {
+                    switchElem.checked = !isPublic;
+                }
+            });
+    }
 
-        // Hàm hiển thị toast notification
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
-            toast.style.zIndex = '9999';
-            toast.style.minWidth = '300px';
-            toast.textContent = message;
+    // Hàm hiển thị toast notification
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+        toast.style.zIndex = '9999';
+        toast.style.minWidth = '300px';
+        toast.textContent = message;
 
-            document.body.appendChild(toast);
+        document.body.appendChild(toast);
 
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transition = 'opacity 0.5s';
-                setTimeout(() => toast.remove(), 500);
-            }, 3000);
-        }
-    </script>
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.5s';
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
+    }
+
+
+</script>
 }

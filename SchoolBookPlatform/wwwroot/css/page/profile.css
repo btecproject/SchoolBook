@@ -36,3 +36,8 @@
     border: 1px solid var(--tab-inactive-color) !important;
     border-radius: 5px;
 }
+
+.material-symbols-outlined {
+    text-decoration: none !important;
+}
+/* GHI ĐÈ MỌI STYLE CÓ THỂ ẢNH HƯỞNG ĐẾN DISPLAY */
