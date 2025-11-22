@@ -1,0 +1,109 @@
+﻿@{
+    ViewData["Title"] = "Mã khôi phục tài khoản";
+    var codes = ViewBag.RecoveryCodes as List<string>;
+    var username = ViewBag.Username as string;
+}
+
+@if (codes == null || codes.Count == 0)
+{
+    <div class="container mt-5">
+        <div class="alert alert-danger">
+            <h4>Lỗi: Không tìm thấy mã khôi phục!</h4>
+            <p>Vui lòng thử lại.</p>
+            <a asp-action="Index" class="btn btn-primary">Quay lại</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container mt-5">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4>Mã khôi phục tài khoản (Backup Codes)</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h5>Đây là lần DUY NHẤT bạn thấy các mã này!</h5>
+                    <p>Hãy <strong>lưu ngay lập tức</strong> (chụp màn hình, ghi ra giấy, hoặc copy vào trình quản lý mật khẩu).</p>
+                    <p>Nếu mất điện thoại <strong>và</strong> không có mã khôi phục → <strong>bạn sẽ mất tài khoản vĩnh viễn</strong>.</p>
+                </div>
+
+                <h5 class="mt-4">10 mã khôi phục của bạn (mỗi mã dùng 1 lần):</h5>
+                <div class="row row-cols-2 row-cols-md-4 g-4 mb-4">
+                    @foreach (var c in codes)
+                    {
+                        <div class="col">
+                            <div class="p-3 bg-light text-center border rounded">
+                                <code style="font-size: 1.2rem; letter-spacing: 4px; font-weight: bold;">@c</code>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="mt-4">
+                    <button id="copyBtn" class="btn btn-outline-primary">Copy tất cả mã</button>
+                    <button id="downloadBtn" class="btn btn-success btn-lg">Tải xuống file .txt</button>
+                    <a asp-action="Index" class="btn btn-primary btn-lg ms-auto">Hoàn tất, tôi đã lưu xong</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @section Scripts {
+        <partial name="_ValidationScriptsPartial" />
+        <script>
+            document.getElementById('copyBtn').addEventListener('click', async () => {
+                const codes = [@Html.Raw(string.Join(", ", codes.Select(c => $"\"{c}\"")))];
+                const text = codes.join('\n');
+
+                try {
+                    await navigator.clipboard.writeText(text);
+                    alert('Đã copy toàn bộ mã vào clipboard!');
+                } catch (err) {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    alert('Đã copy toàn bộ mã vào clipboard!');
+                }
+            });
+
+            document.getElementById('downloadBtn').addEventListener('click', () => {
+                const codes = [@Html.Raw(string.Join(", ", codes.Select(c => $"\"{c}\"")))];
+                const username = "@username";
+
+                const now = new Date();
+                const formattedDate = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
+
+                const content = `=== MÃ KHÔI PHỤC TÀI KHOẢN SCHOOLBOOK ===
+
+Tài khoản: ${username}
+Thời gian tạo: ${now.toLocaleString('vi-VN')}
+Lưu ý: Mỗi mã chỉ sử dụng được 1 lần!
+Nếu mất điện thoại, hãy dùng 1 trong các mã dưới đây để đăng nhập.
+
+--------------------------------------------------
+${codes.map((c, i) => `${i + 1}. ${c}`).join('\n')}
+--------------------------------------------------
+
+Giữ file này ở nơi an toàn và KHÔNG chia sẻ cho bất kỳ ai!
+`;
+
+                const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `SchoolBook_Recovery_Codes_${username}_${formattedDate}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                alert('Đã tải file mã khôi phục thành công!');
+            });
+        </script>
+    }
+}

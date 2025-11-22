@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<UserProfile> UserProfiles { get; set; }
     public DbSet<Follower> Followers { get; set; }
     public DbSet<Following> Following { get; set; }
+    public DbSet<RecoveryCode> RecoveryCodes { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -100,5 +101,17 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(f => f.FollowingId)
             .OnDelete(DeleteBehavior.NoAction);
+        
+        //RecoveryCodes
+        // modelBuilder.Entity<RecoveryCode>(entity =>
+        // {
+        //     entity.HasIndex(e => new { e.UserId, e.IsUsed })
+        //         .HasDatabaseName("IX_RecoveryCodes_UserId_IsUsed")
+        //         .IncludeProperties(e => e.HashedCode); // Covering index siêu nhanh
+        //
+        //     entity.Property(e => e.HashedCode)
+        //         .IsRequired()
+        //         .HasMaxLength(255);
+        // });
     }
 }

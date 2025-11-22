@@ -14,7 +14,7 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        // builder.WebHost.UseUrls("https://10.24.37.235:7093");
+        // builder.WebHost.UseUrls("https://10.24.19.178:7093");
         var config = builder.Configuration;
         var google = config.GetSection("Authentication:Google");
         // DB
@@ -31,6 +31,7 @@ public class Program
         builder.Services.AddScoped<GoogleAuthenService>();
         builder.Services.AddScoped<TwoFactorService>();
         builder.Services.AddScoped<AvatarService>();
+        builder.Services.AddScoped<RecoveryCodeService>();
         builder.Services.AddSingleton<Cloudinary>(sp =>
         {
             var config = builder.Configuration.GetSection("Cloudinary");
