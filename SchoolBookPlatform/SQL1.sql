@@ -285,3 +285,16 @@ CREATE NONCLUSTERED INDEX IX_RecoveryCodes_UserId_IsUsed
 ON RecoveryCodes (UserId, IsUsed) 
 INCLUDE (HashedCode);
     
+------------------------------Update Post--------------------------------
+UPDATE Posts
+SET Title = 'Không có tiêu đề'
+WHERE Title IS NULL;
+
+UPDATE Posts
+SET Content = ''
+WHERE Content IS NULL;
+
+ALTER TABLE Posts ALTER COLUMN Id UNIQUEIDENTIFIER NOT NULL;
+ALTER TABLE Posts ALTER COLUMN UserId UNIQUEIDENTIFIER NOT NULL;
+ALTER TABLE Posts ALTER COLUMN Title NVARCHAR(300) NOT NULL;
+ALTER TABLE Posts ALTER COLUMN Content NVARCHAR(MAX) NOT NULL;

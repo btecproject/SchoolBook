@@ -1,0 +1,24 @@
+﻿@model SchoolBookPlatform.Models.Post
+
+@{
+    ViewData["Title"] = "Tạo bài viết mới";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <h2>Tạo bài viết mới</h2>
+    <form asp-action="Create" method="post">
+        <div class="mb-3">
+            <label class="form-label">Tiêu đề</label>
+            <input asp-for="Title" class="form-control" required maxlength="300" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Nội dung</label>
+            <textarea asp-for="Content" class="form-control" rows="5"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-success">Đăng bài</button>
+        <a href="/Home/Index" class="btn btn-secondary">Hủy</a>
+    </form>
+</div>

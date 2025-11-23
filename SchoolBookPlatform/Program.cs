@@ -105,17 +105,25 @@ public class Program
 
         app.MapStaticAssets();
 
-        // Route mặc định: Home/Index → Chào mừng
+        // Route mặc định: Feeds/Home → Trang chủ feed
         app.MapControllerRoute(
             "default",
-            "{controller=Home}/{action=Index}");
-
-        // Route cho TokenManager
-        // app.MapControllerRoute(
-        //     "tokenmanager",
-        //     "TokenManager/{action=Index}/{id?}",
-        //     new { controller = "TokenManager" });
-
+            "{controller=Feeds}/{action=Home}/{id?}");
+        app.MapGet("/debug/routes", (IEnumerable<EndpointDataSource> endpointSources) =>
+        {
+            var endpoints = endpointSources.SelectMany(es => es.Endpoints);
+            return Results.Json(endpoints.Select(e =>
+            {
+                var route = (e as RouteEndpoint)?.RoutePattern.RawText ?? "N/A";
+                var methods = e.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? new List<string>();
+                return new
+                {
+                    Route = route,
+                    Methods = string.Join(", ", methods),
+                    DisplayName = e.DisplayName
+                };
+            }));
+        });
         app.Run();
     }
 }
