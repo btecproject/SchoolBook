@@ -105,22 +105,16 @@ public class Program
 
         app.MapStaticAssets();
 
-        // MINIMAL API
         app.MapPost("/api/posts/{id}/delete", async (Guid id, HttpContext context, AppDbContext dbContext) =>
         {
             try
             {
-                // Kiểm tra authentication
                 if (!context.User.Identity?.IsAuthenticated ?? false)
                 {
                     return Results.Json(new { success = false, message = "Chưa đăng nhập" }, statusCode: 401);
                 }
 
                 var post = await dbContext.Posts
-                    .Include(p => p.Attachments)
-                    .Include(p => p.Comments)
-                    .Include(p => p.Votes)
-                    .Include(p => p.Reports)
                     .FirstOrDefaultAsync(p => p.Id == id);
 
                 if (post == null)
@@ -128,41 +122,26 @@ public class Program
                     return Results.Json(new { success = false, message = "Bài viết không tồn tại." });
                 }
 
-                // Kiểm tra quyền xóa
                 var currentUserId = GetCurrentUserId(context.User);
                 var isAdmin = context.User.IsInRole("Admin") || context.User.IsInRole("HighAdmin");
-                
+        
                 if (post.UserId != currentUserId && !isAdmin)
                 {
                     return Results.Json(new { success = false, message = "Bạn không có quyền xóa bài viết này." });
                 }
 
-                // Xóa tất cả dữ liệu liên quan
-                if (post.Attachments?.Any() == true)
-                    dbContext.PostAttachments.RemoveRange(post.Attachments);
-
-                if (post.Comments?.Any() == true)
-                    dbContext.PostComments.RemoveRange(post.Comments);
-
-                if (post.Votes?.Any() == true)
-                    dbContext.PostVotes.RemoveRange(post.Votes);
-
-                if (post.Reports?.Any() == true)
-                    dbContext.PostReports.RemoveRange(post.Reports);
-
-                // Xóa bài đăng chính
+                // ✅ CHỈ CẦN XÓA POST - CASCADE DELETE SẼ TỰ ĐỘNG XÓA MỌI THỨ
                 dbContext.Posts.Remove(post);
                 await dbContext.SaveChangesAsync();
 
-                return Results.Json(new { success = true, message = "Bài viết đã được xóa thành công." });
+                return Results.Json(new { success = true, message = "Bài viết và tất cả dữ liệu liên quan đã được xóa thành công." });
             }
             catch (Exception ex)
             {
-                // Log lỗi
                 app.Logger.LogError(ex, "Lỗi khi xóa bài viết {PostId}", id);
                 return Results.Json(new { success = false, message = "Có lỗi xảy ra khi xóa bài viết." });
             }
-        }).RequireAuthorization(); // Yêu cầu đăng nhập
+        }).RequireAuthorization();
 
         // Route mặc định: Feeds/Home → Trang chủ feed
         app.MapControllerRoute(

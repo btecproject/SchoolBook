@@ -59,7 +59,6 @@ public class PostController : Controller
         return View(post);
     }
 
-    // POST: Xóa bài đăng - SỬ DỤNG ROUTE ATTRIBUTE ĐƠN GIẢN
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("Post/Delete/{id}")]
@@ -68,10 +67,6 @@ public class PostController : Controller
         try
         {
             var post = await _context.Posts
-                .Include(p => p.Attachments)
-                .Include(p => p.Comments)
-                .Include(p => p.Votes)
-                .Include(p => p.Reports)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (post == null)
@@ -80,41 +75,18 @@ public class PostController : Controller
             }
 
             var currentUserId = GetCurrentUserId();
-            var isAdmin = User.IsInRole("Admin");
-            
-            // Kiểm tra quyền xóa
+            var isAdmin = User.IsInRole("Admin") || User.IsInRole("HighAdmin");
+        
             if (post.UserId != currentUserId && !isAdmin)
             {
                 return Json(new { success = false, message = "Bạn không có quyền xóa bài viết này." });
             }
 
-            // Xóa tất cả dữ liệu liên quan
-            if (post.Attachments.Any())
-            {
-                _context.PostAttachments.RemoveRange(post.Attachments);
-            }
-
-            if (post.Comments.Any())
-            {
-                _context.PostComments.RemoveRange(post.Comments);
-            }
-
-            if (post.Votes.Any())
-            {
-                _context.PostVotes.RemoveRange(post.Votes);
-            }
-
-            if (post.Reports.Any())
-            {
-                _context.PostReports.RemoveRange(post.Reports);
-            }
-
-            // Xóa bài đăng chính
+            // ✅ CHỈ CẦN XÓA POST - DATABASE SẼ TỰ ĐỘNG XÓA CÁC BẢNG LIÊN QUAN
             _context.Posts.Remove(post);
-
             await _context.SaveChangesAsync();
 
-            return Json(new { success = true, message = "Bài viết đã được xóa thành công." });
+            return Json(new { success = true, message = "Bài viết và tất cả dữ liệu liên quan đã được xóa thành công." });
         }
         catch (Exception ex)
         {

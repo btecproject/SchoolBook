@@ -110,7 +110,7 @@ public class AppDbContext : DbContext
             .HasForeignKey(f => f.FollowingId)
             .OnDelete(DeleteBehavior.NoAction);
 
-        // Config post
+        
         // Post
         modelBuilder.Entity<Post>()
             .HasOne(p => p.User)
