@@ -245,91 +245,65 @@
             deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
             deleteBtn.disabled = true;
 
-            const formData = new FormData();
-            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-            formData.append('__RequestVerificationToken', token);
-
-            // THỬ CÁC URL KHÁC NHAU
-            const urlsToTry = [
-                `/Post/Delete/${currentPostId}`,
-                `/Post/Delete?id=${currentPostId}`,
-                `/Post/Delete/${currentPostId}?handler=delete`,
-                `./Delete/${currentPostId}`,
-                `./Delete?id=${currentPostId}`
-            ];
-
-            let currentUrlIndex = 0;
-
-            function tryNextUrl() {
-                if (currentUrlIndex >= urlsToTry.length) {
-                    showAlert('Không thể kết nối đến server. Vui lòng thử lại.', 'danger');
-                    deleteBtn.innerHTML = originalText;
-                    deleteBtn.disabled = false;
-                    return;
+            // 🔥 SỬ DỤNG MINIMAL API - KHÔNG CẦN FORM DATA HAY TOKEN
+            fetch(`/api/posts/${currentPostId}/delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
-
-                const url = urlsToTry[currentUrlIndex];
-                console.log('Trying URL:', url);
-
-                fetch(url, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                if (!response.ok) {
+                    // Nếu lỗi 401 (Unauthorized), chuyển hướng đến trang login
+                    if (response.status === 401) {
+                        window.location.href = '/Authen/Login';
+                        return;
                     }
-                })
-                .then(response => {
-                    console.log('Response status:', response.status);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Success with URL:', url);
-                    // Ẩn modal
-                    const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
-                    deleteModal.hide();
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Delete success:', data);
+                
+                // Ẩn modal
+                const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+                deleteModal.hide();
+                
+                // Xóa bài viết khỏi DOM ngay lập tức
+                const postElement = document.getElementById('post-' + currentPostId);
+                if (postElement) {
+                    postElement.style.transition = 'all 0.3s ease';
+                    postElement.style.opacity = '0';
+                    postElement.style.transform = 'translateX(-100px)';
                     
-                    // Xóa bài viết khỏi DOM
-                    const postElement = document.getElementById('post-' + currentPostId);
-                    if (postElement) {
-                        postElement.style.transition = 'all 0.3s ease';
-                        postElement.style.opacity = '0';
-                        postElement.style.transform = 'translateX(-100px)';
+                    setTimeout(() => {
+                        postElement.remove();
+                        showAlert(data.message, 'success');
                         
-                        setTimeout(() => {
-                            postElement.remove();
-                            showAlert(data.message, 'success');
-                            
-                            if (document.querySelectorAll('.card').length === 0) {
-                                document.querySelector('.container').innerHTML += `
-                                    <div class="text-center py-5">
-                                        <p class="text-muted">Không còn bài viết nào để hiển thị.</p>
-                                    </div>
-                                `;
-                            }
-                        }, 300);
-                    }
-                })
-                .catch(error => {
-                    console.error(`Failed with URL ${url}:`, error);
-                    currentUrlIndex++;
-                    
-                    if (currentUrlIndex < urlsToTry.length) {
-                        // Thử URL tiếp theo
-                        setTimeout(tryNextUrl, 100);
-                    } else {
-                        // Đã thử hết tất cả URL
-                        showAlert('Có lỗi xảy ra khi xóa bài viết. Vui lòng thử lại.', 'danger');
-                        deleteBtn.innerHTML = originalText;
-                        deleteBtn.disabled = false;
-                    }
-                });
-            }
-
-            // Bắt đầu thử các URL
-            tryNextUrl();
+                        // Nếu không còn bài viết nào
+                        if (document.querySelectorAll('.card').length === 0) {
+                            document.querySelector('.container').innerHTML += `
+                                <div class="text-center py-5">
+                                    <p class="text-muted">Không còn bài viết nào để hiển thị.</p>
+                                </div>
+                            `;
+                        }
+                    }, 300);
+                }
+            })
+            .catch(error => {
+                console.error('Delete error:', error);
+                showAlert('Có lỗi xảy ra khi xóa bài viết. Vui lòng thử lại.', 'danger');
+            })
+            .finally(() => {
+                // Khôi phục nút
+                deleteBtn.innerHTML = originalText;
+                deleteBtn.disabled = false;
+                currentPostId = null;
+            });
         });
 
         function showAlert(message, type) {
