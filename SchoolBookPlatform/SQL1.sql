@@ -298,3 +298,67 @@ ALTER TABLE Posts ALTER COLUMN Id UNIQUEIDENTIFIER NOT NULL;
 ALTER TABLE Posts ALTER COLUMN UserId UNIQUEIDENTIFIER NOT NULL;
 ALTER TABLE Posts ALTER COLUMN Title NVARCHAR(300) NOT NULL;
 ALTER TABLE Posts ALTER COLUMN Content NVARCHAR(MAX) NOT NULL;
+
+-------------------------Thêm Delete Proc cho post-----------------------
+CREATE OR ALTER PROCEDURE DeleteUser
+    @UserId UNIQUEIDENTIFIER
+    AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- 1. Xoá comment con (reply)
+    ;WITH CommentTree AS (
+    SELECT Id
+    FROM PostComments
+    WHERE UserId = @UserId
+
+    UNION ALL
+
+    SELECT pc.Id
+    FROM PostComments pc
+             INNER JOIN CommentTree ct ON pc.ParentCommentId = ct.Id
+)
+DELETE FROM PostComments
+WHERE Id IN (SELECT Id FROM CommentTree);
+
+
+-- 2. Xoá comments của user trực tiếp
+DELETE FROM PostComments WHERE UserId = @UserId;
+
+
+-- 3. Xoá comment thuộc post mà user sở hữu
+DELETE FROM PostComments
+WHERE PostId IN (
+    SELECT Id FROM Posts WHERE UserId = @UserId
+);
+
+
+-- 4. Xoá vote comments
+DELETE FROM CommentVotes
+WHERE CommentId IN (
+    SELECT Id FROM PostComments WHERE UserId = @UserId
+);
+
+
+-- 5. Xoá vote posts
+DELETE FROM PostVotes
+WHERE PostId IN (
+    SELECT Id FROM Posts WHERE UserId = @UserId
+);
+
+
+-- 6. Xoá attachments của post
+DELETE FROM PostAttachments
+WHERE PostId IN (
+    SELECT Id FROM Posts WHERE UserId = @UserId
+);
+
+
+-- 7. Xoá posts
+DELETE FROM Posts WHERE UserId = @UserId;
+
+
+-- 8. Cuối cùng: xoá user
+DELETE FROM Users WHERE Id = @UserId;
+END;
+GO
