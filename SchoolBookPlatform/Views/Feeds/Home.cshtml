@@ -9,7 +9,7 @@
     <h2 class="mb-4">Bài viết mới nhất</h2>
 
     <div class="mb-3">
-        <a href="/Post/Create" class="btn btn-primary">➕ Tạo bài viết mới</a>
+        <a asp-area="" asp-controller="Post" asp-action="Create" class="btn btn-primary">➕ Tạo bài viết mới</a>
     </div>
 
     @if (!Model.Any())
