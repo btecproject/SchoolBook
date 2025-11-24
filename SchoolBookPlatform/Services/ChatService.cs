@@ -35,108 +35,204 @@ namespace SchoolBookPlatform.Services
                 IsProtected = isProtected,
                 PinHash = pinHash,
                 Salt = salt,
-                MessagesJson = JsonSerializer.Serialize(new List<ChatMessage>())
+                MessagesJson = "[]" // CRITICAL: KHÔNG BAO GIỜ NULL
             };
 
             _context.ChatSegments.Add(segment);
             await _context.SaveChangesAsync();
+            
+            // IMPORTANT: Reload để đảm bảo giá trị từ DB
+            await _context.Entry(segment).ReloadAsync();
+            
+            // CRITICAL: Verify MessagesJson không bị null
+            if (string.IsNullOrEmpty(segment.MessagesJson))
+            {
+                Console.WriteLine($"⚠️ WARNING: MessagesJson is null after save! Fixing...");
+                segment.MessagesJson = "[]";
+                await _context.SaveChangesAsync();
+                await _context.Entry(segment).ReloadAsync();
+            }
+            
+            Console.WriteLine($"✅ Created segment {segment.Id}: MessagesJson = '{segment.MessagesJson}'");
+            
             return segment;
-        }
-
-        public async Task AddMessageToSegment(int segmentId, ChatMessage message)
-        {
-            var segment = await _context.ChatSegments.FindAsync(segmentId);
-            if (segment == null) throw new Exception("Segment not found");
-
-            // Không cần decrypt nếu không protected
-            var messages = segment.IsProtected 
-                ? DeserializeMessages(segment.MessagesJson, true, null) 
-                : DeserializeMessages(segment.MessagesJson, false, null);
-                
-            messages.Add(message);
-
-            // Không cần encrypt nếu không protected
-            segment.MessagesJson = segment.IsProtected
-                ? SerializeMessages(messages, true, null)
-                : SerializeMessages(messages, false, null);
-                
-            await _context.SaveChangesAsync();
         }
 
         public List<ChatMessage> GetMessagesFromSegment(int segmentId, string pin)
         {
-            var segment = _context.ChatSegments.Find(segmentId);
-            if (segment == null) 
-                throw new Exception("Segment not found");
-
-            if (segment.IsProtected)
+            try
             {
-                if (string.IsNullOrEmpty(pin))
+                Console.WriteLine($"📥 GetMessagesFromSegment - SegmentId: {segmentId}");
+                
+                if (segmentId <= 0)
                 {
-                    throw new UnauthorizedAccessException("PIN required for protected segment");
+                    Console.WriteLine($"❌ Invalid segmentId: {segmentId}");
+                    throw new ArgumentException("Invalid segment ID");
                 }
-            
-                if (!VerifyPin(pin, segment.PinHash, segment.Salt)) 
+                
+                // Clear cache
+                _context.ChangeTracker.Clear();
+                
+                var segment = _context.ChatSegments
+                    .Where(s => s.Id == segmentId)
+                    .AsNoTracking()
+                    .FirstOrDefault();
+                    
+                if (segment == null)
                 {
-                    throw new UnauthorizedAccessException("Invalid PIN");
+                    Console.WriteLine($"❌ Segment {segmentId} not found in database");
+                    throw new Exception($"Segment {segmentId} not found");
                 }
-        
-                // Decrypt messages cho protected segment
+
+                Console.WriteLine($"🔍 Segment found: IsProtected={segment.IsProtected}, MessagesJson='{segment.MessagesJson ?? "NULL"}', Length={segment.MessagesJson?.Length ?? 0}");
+
+                // Check PIN nếu protected
+                if (segment.IsProtected)
+                {
+                    if (string.IsNullOrEmpty(pin))
+                    {
+                        Console.WriteLine("❌ PIN required but not provided");
+                        throw new UnauthorizedAccessException("PIN required for protected segment");
+                    }
+                        
+                    if (!VerifyPin(pin, segment.PinHash, segment.Salt))
+                    {
+                        Console.WriteLine("❌ Invalid PIN");
+                        throw new UnauthorizedAccessException("Invalid PIN");
+                    }
+                    
+                    Console.WriteLine("✅ PIN verified");
+                }
+
+                var messagesJson = segment.MessagesJson;
+
+                // CRITICAL: Fix nếu NULL hoặc invalid
+                if (string.IsNullOrWhiteSpace(messagesJson) || messagesJson == "null")
+                {
+                    Console.WriteLine($"⚠️ MessagesJson is invalid: '{messagesJson}' - Fixing in database...");
+                    
+                    // Update trong database
+                    var segmentToUpdate = _context.ChatSegments.Find(segmentId);
+                    if (segmentToUpdate != null)
+                    {
+                        segmentToUpdate.MessagesJson = "[]";
+                        _context.SaveChanges();
+                        Console.WriteLine($"✅ Fixed MessagesJson in database");
+                    }
+                    
+                    messagesJson = "[]";
+                }
+
+                // Deserialize
                 try
                 {
-                    var key = DeriveKeyFromPin(pin, segment.Salt);
-                    var decryptedJson = _encryptionService.Decrypt(segment.MessagesJson, key);
-                    return JsonSerializer.Deserialize<List<ChatMessage>>(decryptedJson) ?? new List<ChatMessage>();
+                    Console.WriteLine($"🔄 Deserializing: '{messagesJson}'");
+                    
+                    var messages = JsonSerializer.Deserialize<List<ChatMessage>>(messagesJson) 
+                                   ?? new List<ChatMessage>();
+                    
+                    Console.WriteLine($"✅ Deserialized {messages.Count} messages successfully");
+                    return messages;
                 }
                 catch (Exception ex)
                 {
-                    throw new UnauthorizedAccessException("Failed to decrypt messages. Invalid PIN or corrupted data.");
-                }
-            }
-
-            // Segment không protected
-            try
-            {
-                return JsonSerializer.Deserialize<List<ChatMessage>>(segment.MessagesJson) ?? new List<ChatMessage>();
-            }
-            catch (Exception ex)
-            {
-                // Nếu JSON bị lỗi, trả về empty list thay vì crash
-                return new List<ChatMessage>();
-            }
-        }
-
-        private string SerializeMessages(List<ChatMessage> messages, bool isProtected, string pin)
-        {
-            var json = JsonSerializer.Serialize(messages);
-            
-            if (!isProtected || string.IsNullOrEmpty(pin)) 
-                return json;
-
-            var key = DeriveKeyFromPin(pin, RandomNumberGenerator.GetBytes(16));
-            return _encryptionService.Encrypt(json, key);
-        }
-
-        private List<ChatMessage> DeserializeMessages(string json, bool isProtected, string pin)
-        {
-            if (string.IsNullOrEmpty(json)) 
-                return new List<ChatMessage>();
-                
-            if (!isProtected || string.IsNullOrEmpty(pin))
-            {
-                try
-                {
-                    return JsonSerializer.Deserialize<List<ChatMessage>>(json) ?? new List<ChatMessage>();
-                }
-                catch
-                {
+                    Console.WriteLine($"❌ JSON Deserialize error: {ex.GetType().Name}: {ex.Message}");
+                    Console.WriteLine($"Problematic JSON: '{messagesJson}'");
+                    
+                    // Return empty list thay vì throw
                     return new List<ChatMessage>();
                 }
             }
-            
-            var key = DeriveKeyFromPin(pin, RandomNumberGenerator.GetBytes(16));
-            json = _encryptionService.Decrypt(json, key);
-            return JsonSerializer.Deserialize<List<ChatMessage>>(json) ?? new List<ChatMessage>();
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ GetMessagesFromSegment fatal error: {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine($"Stack: {ex.StackTrace}");
+                throw; // Re-throw để controller xử lý
+            }
+        }
+
+        public async Task AddMessageToSegment(int segmentId, ChatMessage message)
+        {
+            try
+            {
+                Console.WriteLine($"📝 AddMessageToSegment - SegmentId: {segmentId}");
+                
+                // CRITICAL: Detach tất cả entities để tránh cache
+                _context.ChangeTracker.Clear();
+                
+                // Query lại segment
+                var segment = await _context.ChatSegments
+                    .Where(s => s.Id == segmentId)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync();
+                    
+                if (segment == null)
+                {
+                    Console.WriteLine($"❌ Segment {segmentId} not found");
+                    throw new Exception($"Segment {segmentId} not found");
+                }
+
+                var messagesJson = segment.MessagesJson ?? "[]";
+                Console.WriteLine($"🔍 Current MessagesJson: '{messagesJson}'");
+                
+                // Fix nếu invalid
+                if (string.IsNullOrWhiteSpace(messagesJson) || messagesJson == "null")
+                {
+                    Console.WriteLine($"⚠️ Fixing invalid MessagesJson...");
+                    messagesJson = "[]";
+                    
+                    var segmentToFix = await _context.ChatSegments.FindAsync(segmentId);
+                    if (segmentToFix != null)
+                    {
+                        segmentToFix.MessagesJson = "[]";
+                        await _context.SaveChangesAsync();
+                        _context.ChangeTracker.Clear();
+                    }
+                }
+
+                // Deserialize
+                List<ChatMessage> messages;
+                
+                try
+                {
+                    messages = JsonSerializer.Deserialize<List<ChatMessage>>(messagesJson) 
+                               ?? new List<ChatMessage>();
+                    Console.WriteLine($"✅ Current messages count: {messages.Count}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Deserialize error: {ex.Message}");
+                    messages = new List<ChatMessage>();
+                }
+                
+                // Add message
+                messages.Add(message);
+                Console.WriteLine($"📝 Added message, new count: {messages.Count}");
+                
+                // Serialize
+                var newJson = JsonSerializer.Serialize(messages);
+                Console.WriteLine($"💾 Serialized to: {newJson.Length} chars");
+                
+                // Update
+                var segmentForSave = await _context.ChatSegments.FindAsync(segmentId);
+                if (segmentForSave != null)
+                {
+                    segmentForSave.MessagesJson = newJson;
+                    await _context.SaveChangesAsync();
+                    Console.WriteLine($"✅ Saved to database");
+                }
+                else
+                {
+                    Console.WriteLine($"❌ Could not find segment {segmentId} for saving");
+                    throw new Exception($"Segment {segmentId} not found for update");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ AddMessageToSegment error: {ex.Message}");
+                Console.WriteLine($"Stack: {ex.StackTrace}");
+                throw;
+            }
         }
 
         private byte[] DeriveKeyFromPin(string pin, byte[] salt)
@@ -174,20 +270,19 @@ namespace SchoolBookPlatform.Services
         
         public ChatThread GetThreadById(int threadId, string userId)
         {
-            // Load all threads into memory first, then filter
             var threads = _context.ChatThreads
                 .Include(t => t.Segments)
-                .ToList(); // Load to memory
+                .ToList();
             
-            // Filter in memory using UserIds property
             var thread = threads.FirstOrDefault(t => 
                 t.Id == threadId && 
                 t.UserIds.Contains(userId)
             );
             
-            // Tạo segment mặc định nếu chưa có
             if (thread != null && !thread.Segments.Any())
             {
+                Console.WriteLine($"⚠️ Thread {threadId} has no segments, creating initial segment...");
+                
                 var segment = new ChatSegment
                 {
                     ThreadId = thread.Id,
@@ -198,6 +293,10 @@ namespace SchoolBookPlatform.Services
                 _context.ChatSegments.Add(segment);
                 _context.SaveChanges();
                 
+                // Reload to get ID
+                _context.Entry(segment).Reload();
+                
+                Console.WriteLine($"✅ Created initial segment {segment.Id}");
                 thread.Segments.Add(segment);
             }
             
@@ -209,12 +308,10 @@ namespace SchoolBookPlatform.Services
             if (string.IsNullOrEmpty(userId)) 
                 return new List<ChatThread>();
             
-            // Load all threads into memory first
             var allThreads = _context.ChatThreads
                 .Include(t => t.Segments)
                 .ToList();
             
-            // Filter in memory using UserIds property
             var userThreads = allThreads
                 .Where(t => t.UserIds.Contains(userId))
                 .OrderByDescending(t => t.Segments.Any() 
@@ -235,7 +332,6 @@ namespace SchoolBookPlatform.Services
                 .ToList();
         }
         
-        // Tạo thread mới
         public async Task<ChatThread> CreateThread(ChatThread thread)
         {
             _context.ChatThreads.Add(thread);
@@ -243,7 +339,16 @@ namespace SchoolBookPlatform.Services
             return thread;
         }
         
-        // Xóa tất cả chats (for testing)
+        public async Task DeleteThread(int threadId)
+        {
+            var thread = await _context.ChatThreads.FindAsync(threadId);
+            if (thread != null)
+            {
+                _context.ChatThreads.Remove(thread);
+                await _context.SaveChangesAsync();
+            }
+        }
+        
         public async Task ClearAllChats()
         {
             _context.ChatSegments.RemoveRange(_context.ChatSegments);
@@ -251,7 +356,6 @@ namespace SchoolBookPlatform.Services
             await _context.SaveChangesAsync();
         }
         
-        // Tìm kiếm users
         public List<UserSearchResult> SearchUsers(string query, string currentUserId)
         {
             if (string.IsNullOrEmpty(query)) 
@@ -271,14 +375,12 @@ namespace SchoolBookPlatform.Services
                 .ToList();
         }
         
-        // Kiểm tra thread đã tồn tại giữa 2 users
         public ChatThread FindExistingThread(List<string> userIds)
         {
             var allThreads = _context.ChatThreads
                 .Include(t => t.Segments)
                 .ToList();
             
-            // Tìm thread có cùng members
             return allThreads.FirstOrDefault(t => 
                 t.UserIds.Count == userIds.Count && 
                 t.UserIds.All(id => userIds.Contains(id))
