@@ -486,7 +486,7 @@ public class AdminController(
                 .FirstOrDefaultAsync(u => u.Id == id);
             if (user == null)
             {
-                TempData["ErrorMessage"] = "Không tìm thấy user.";
+                TempData["ErrorMessage"] = "Không tìm thấy user.";               
                 return RedirectToAction(nameof(Index));
             }
 
