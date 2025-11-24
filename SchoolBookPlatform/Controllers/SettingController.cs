@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Manager;
+using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels.Setting;
 using SchoolBookPlatform.ViewModels.TwoFactorA;
@@ -14,6 +16,7 @@ public class SettingController(
     TwoFactorService twoFactorService,
     TrustedService trustedService,
     AppDbContext db,
+    RecoveryCodeService recoveryCodeService,
     OtpService otpService,
     TokenService tokenService,
     FaceService faceService) : Controller
@@ -266,11 +269,19 @@ public class SettingController(
         user.TwoFactorEnabled = true;
         user.UpdatedAt = DateTime.UtcNow;
         user.TwoFactorSecret = secret;
+
+        user.RecoveryCodesGenerated = true;
+        user.RecoveryCodesLeft = 10;
         
+        var recoveryCodes = await recoveryCodeService.GenerateAndSaveNewCodesAsync(user.Id);
+        user.RecoveryCodesLeft = await recoveryCodeService.GetRemainingCountAsync(user.Id);
         await db.SaveChangesAsync();
+        logger.LogInformation("Google Authenticator + Recovery Codes enabled for user {UserId}", userId);
+        ViewBag.RecoveryCodes = recoveryCodes;
+        ViewBag.Usernname = user.Username;
         logger.LogInformation("Google Authenticator enabled for user {UserId}", userId);
         TempData["success"] = "Đã bật Google Authenticator thành công!";
-        return RedirectToAction("Index");
+        return View("ShowRecoveryCodes");
     }
     
     [HttpGet]
@@ -282,12 +293,35 @@ public class SettingController(
         {
             return RedirectToAction("Login", "Authen");
         }
+
+        var canDisableMfa = TempData["CanDisableMFA"] as bool? == true;
+        logger.LogInformation("Can disable MFA: "+ canDisableMfa);
+        if (canDisableMfa)
+        {
+            if (user.TwoFactorEnabled == false|| string.IsNullOrEmpty(user.TwoFactorSecret))
+            {
+                TempData["error"] = "2FA chưa được bật";
+                return RedirectToAction("Index");
+            }
+            //x
+            user.TwoFactorEnabled = false;
+            user.TwoFactorSecret = null;
+            user.UpdatedAt = DateTime.UtcNow;
+        
+            user.RecoveryCodesGenerated = false;
+            user.RecoveryCodesLeft = 0;
+        
+            var oldCodes = await db.RecoveryCodes
+                .Where(rc => rc.UserId == user.Id)
+                .ToListAsync();
+            db.RemoveRange(oldCodes);
+            await db.SaveChangesAsync();
+        }
         if (user.TwoFactorEnabled == false)
         {
             TempData["error"] = "2FA đã tắt!";
             return RedirectToAction("Index");
         }
-
         return View(new TwoFactorSetupViewModel());
     }
 
@@ -315,19 +349,105 @@ public class SettingController(
         user.TwoFactorSecret = null;
         user.UpdatedAt = DateTime.UtcNow;
         
+        user.RecoveryCodesGenerated = false;
+        user.RecoveryCodesLeft = 0;
+        
+        var oldCodes = await db.RecoveryCodes
+            .Where(rc => rc.UserId == user.Id)
+            .ToListAsync();
+        db.RemoveRange(oldCodes);
         await db.SaveChangesAsync();
         
-        logger.LogInformation("Google Authenticator disabled for user {UserId}", userId);
-        TempData["success"] = "Đã tắt Google Authenticator, sau khi tắt 2FA, " +
+        logger.LogInformation("Google Authenticator disabled and recovery codes cleared for user {UserId}", userId);        TempData["success"] = "Đã tắt Google Authenticator, sau khi tắt 2FA, " +
                               "entry \"SchoolBook\" vẫn sẽ hiển thị trong ứng dụng Google Authenticator. " +
                               "\nĐể bảo mật, vui lòng xóa entry này thủ công.";
 
         return RedirectToAction("Index");
     }
+
+    [HttpGet]
+    public async Task<IActionResult> ShowRecoveryCodes()
+    {
+        logger.LogInformation("ShowRecoveryCodes called");
+    
+        var codesJson = TempData.Peek("RecoveryCodes") as string;
+        logger.LogInformation("RecoveryCodes from TempData: {Codes}", codesJson ?? "NULL");
+    
+        if (string.IsNullOrEmpty(codesJson))
+        {
+            logger.LogWarning("RecoveryCodes is null or empty in TempData");
+            TempData["error"] = "Không tìm thấy mã khôi phục. Vui lòng bật lại 2FA";
+            return RedirectToAction("Index");
+        }
+    
+        List<string>? codes = null;
+        try
+        {
+            codes = System.Text.Json.JsonSerializer.Deserialize<List<string>>(codesJson);
+            logger.LogInformation("Deserialized {Count} recovery codes", codes?.Count ?? 0);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deserializing recovery codes");
+            TempData["error"] = "Lỗi đọc mã khôi phục. Vui lòng bật lại 2FA";
+            return RedirectToAction("Index");
+        }
+    
+        if (codes == null || codes.Count == 0)
+        {
+            logger.LogWarning("Codes list is null or empty after deserialization");
+            TempData["error"] = "Không tìm thấy mã khôi phục. Vui lòng bật lại 2FA";
+            return RedirectToAction("Index");
+        }
+    
+        ViewBag.RecoveryCodes = codes;
+        logger.LogInformation("Set ViewBag.RecoveryCodes with {Count} codes", codes.Count);
+    
+        var user = await HttpContext.GetCurrentUserAsync(db);
+        if (user == null)
+        {
+            logger.LogWarning("User not found in ShowRecoveryCodes");
+            return RedirectToAction("Login", "Authen");
+        }
+    
+        TempData["username"] = user.Username;
+        logger.LogInformation("Showing recovery codes for user {Username}", user.Username);
+    
+        return View();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RegenerateRecoveryCodes()
+    {
+        var userId = GetCurrentUserId();
+        var user = await db.Users.FindAsync(userId);
+
+        if (user == null || user.TwoFactorEnabled == false)
+        {
+            TempData["error"] = "Vui lòng bật 2FA trước khi tạo mã khôi phục";
+            return RedirectToAction("Index");
+        }
+        
+        var newCodes = await recoveryCodeService.GenerateAndSaveNewCodesAsync(user.Id);
+        user.RecoveryCodesGenerated = true;
+        user.RecoveryCodesLeft = await recoveryCodeService.GetRemainingCountAsync(user.Id);
+        await db.SaveChangesAsync();
+        ViewBag.RecoveryCodes = newCodes;
+        TempData["success"] = "Đã tạo lại 10 mã khôi phục mới! Mã cũ đã bị vô hiệu hóa.";
+
+        return View("ShowRecoveryCodes");
+    }
     
     [HttpGet]
-    public IActionResult Index()
+    public async Task<IActionResult> Index()
     {
-        return View();
+        var u = await HttpContext.GetCurrentUserAsync(db);
+        if (u == null) return RedirectToAction("Login", "Authen");
+        var model = new IndexSettingViewModel
+        {
+           user = u
+        };
+        return View(model);
     }
 }

@@ -1,5 +1,8 @@
-﻿<!DOCTYPE html>
-
+﻿@{
+    
+}
+@model SchoolBookPlatform.ViewModels.Setting.IndexSettingViewModel
+<!DOCTYPE html>
 <html>
 <head>
     <title>Setting Page</title>
@@ -17,6 +20,12 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
+    @if (Model.user.TwoFactorEnabled == false)
+    {
+        <div class="alert alert-warning">
+            <p>You are not enable Two-factor Authentication! </p>
+        </div>
+    }
 </head>
 <body>
 <div>
@@ -28,5 +37,14 @@
 <div>
     <a class="accordion-button" asp-action="DisableGoogleAuthenticator" asp-controller="Setting">Disable Google 2FA</a>
 </div>
+@if (Model.user.TwoFactorEnabled == true)
+{
+    <div class="alert alert-warning">
+        Bạn còn <strong>@Model.user.RecoveryCodesLeft</strong> mã khôi phục!
+        <form asp-controller="Setting" asp-action="RegenerateRecoveryCodes" method="post">
+            <button type="submit" class="btn btn-warning">Tạo mã mới ngay</button>
+        </form>
+    </div>
+}
 </body>
 </html>

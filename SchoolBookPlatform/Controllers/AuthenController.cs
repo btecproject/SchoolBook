@@ -17,6 +17,7 @@ public class AuthenController(
     ILogger<AuthenController> logger,
     TrustedService trustedService,
     AppDbContext db,
+    RecoveryCodeService recoveryCodeService,
     OtpService otpService,
     TokenService tokenService,
     FaceService faceService)
@@ -113,30 +114,42 @@ public class AuthenController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel model, string returnUrl = null)
     {
-        if (!ModelState.IsValid)
+        try
         {
-            ViewData["ReturnUrl"] = returnUrl;
-            return View(model);
+            if (!ModelState.IsValid)
+            {
+                ViewData["ReturnUrl"] = returnUrl;
+                return View(model);
+            }
+
+            var user = await db.Users
+                .FirstOrDefaultAsync(u => u.Username == model.Username);
+            if (user != null)
+            {
+                logger.LogInformation("User loaded - TwoFactorEnabled: {0}, RecoveryCodesGenerated: {1}", 
+                    user.TwoFactorEnabled, user.RecoveryCodesGenerated);
+            }
+            if (user == null || !BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash))
+            {
+                ModelState.AddModelError(string.Empty, "Tên đăng nhập hoặc mật khẩu không đúng");
+                ViewData["ReturnUrl"] = returnUrl;
+                return View(model);
+            }
+
+            if (!user.IsActive)
+            {
+                ModelState.AddModelError(string.Empty, "Tài khoản đã bị vô hiệu hóa");
+                ViewData["ReturnUrl"] = returnUrl;
+                return View(model);
+            }
+
+            return await ProcessUserLoginAsync(user, returnUrl);
         }
-
-        var user = await db.Users
-            .FirstOrDefaultAsync(u => u.Username == model.Username);
-
-        if (user == null || !BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash))
+        catch (Exception ex)
         {
-            ModelState.AddModelError(string.Empty, "Tên đăng nhập hoặc mật khẩu không đúng");
-            ViewData["ReturnUrl"] = returnUrl;
-            return View(model);
+            logger.LogError("Login failed: "+ex.Message);
         }
-
-        if (!user.IsActive)
-        {
-            ModelState.AddModelError(string.Empty, "Tài khoản đã bị vô hiệu hóa");
-            ViewData["ReturnUrl"] = returnUrl;
-            return View(model);
-        }
-
-        return await ProcessUserLoginAsync(user, returnUrl);
+        return RedirectToAction(nameof(Login));
     }
 
     private async Task<IActionResult> ProcessUserLoginAsync(Models.User user, string? returnUrl)
@@ -167,8 +180,8 @@ public class AuthenController(
         }
 
         // Kiểm tra trusted device
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        var deviceInfo = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
+        var ipAddress = trustedService.GetDeviceIpAsync(HttpContext);
+        var deviceInfo = trustedService.GetDeviceInfoAsync(HttpContext);
         var isTrustedDevice = await trustedService.IsTrustedAsync(user.Id, ipAddress, deviceInfo);
 
         if (!isTrustedDevice)
@@ -246,18 +259,22 @@ public class AuthenController(
         
         var returnUrl = TempData.Peek("ReturnUrl")?.ToString();
         
-        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        var device = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
-        var isTrusted = await trustedService.IsTrustedAsync(user.Id, ip, device);
-
-        if (!isTrusted)
-        {
-            await otpService.GenerateOtpAsync(user, "Email");
-            TempData["UserId"] = user.Id.ToString();
-            TempData["OtpType"] = "Email";
-            TempData["ReturnUrl"] = returnUrl;
-            return RedirectToAction(nameof(VerifyOtp));
-        }
+        var ip = trustedService.GetDeviceIpAsync(HttpContext);
+        var device = trustedService.GetDeviceInfoAsync(HttpContext);
+        
+        //Đăng nhập 2FA ko cần otp
+        await trustedService.AddTrustedDeviceAsync(user.Id, ip, device);
+        
+        // var isTrusted = await trustedService.IsTrustedAsync(user.Id, ip, device);
+        //
+        // if (!isTrusted)
+        // {
+        //     await otpService.GenerateOtpAsync(user, "Email");
+        //     TempData["UserId"] = user.Id.ToString();
+        //     TempData["OtpType"] = "Email";
+        //     TempData["ReturnUrl"] = returnUrl;
+        //     return RedirectToAction(nameof(VerifyOtp));
+        // }
         
         await tokenService.SignInAsync(HttpContext, user, db);
         return LocalRedirect(returnUrl ?? Url.Action("Home", "Feeds"));
@@ -328,8 +345,9 @@ public class AuthenController(
         }
         
         var returnUrl = TempData["ReturnUrl"]?.ToString() ?? Url.Action("Home", "Feeds");
-        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        var device = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
+        var ip = trustedService.GetDeviceIpAsync(HttpContext);
+        var device = trustedService.GetDeviceInfoAsync(HttpContext);
+        
         await trustedService.AddTrustedDeviceAsync(user.Id, ip, device);
         logger.LogInformation("Trusted device added for user {UserId}", user.Id);
 
@@ -442,7 +460,63 @@ public class AuthenController(
         await tokenService.SignInAsync(HttpContext, user, db);
         return LocalRedirect(returnUrl ?? Url.Action("Home", "Feeds"));
     }
+    
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult LoginWithRecoveryCode()
+    {
+        var userId = TempData.Peek("UserId")?.ToString();
+        if (string.IsNullOrEmpty(userId))
+            return RedirectToAction("Login");
+        var model =  new RecoveryCodeViewModel();
+        return View(model);
+    }
 
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> LoginWithRecoveryCode(RecoveryCodeViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            TempData.Keep();
+            return View(model);
+        }
+
+        var userIdStr = TempData.Peek("UserId")?.ToString();
+        if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+            return RedirectToAction("Login");
+        logger.LogInformation("User {UserId} logged in with Recovery Code", userId);
+        
+        var user = await db.Users.FindAsync(userId);
+        if (user == null || user.TwoFactorEnabled==false)
+            return RedirectToAction("Login");
+        if(model.RecoveryCode == null) return View(model);
+        logger.LogInformation("User logged in with Recovery Code: "+ model.RecoveryCode);
+        
+        //Validate recovery code
+        var isValid = await recoveryCodeService.VerifyCodeAsync(user.Id, model.RecoveryCode!);
+        logger.LogInformation("Verifying");
+        if (!isValid)
+        {
+            ModelState.AddModelError("recoveryCode", "Mã khôi phục không đúng hoặc đã sử dụng");
+            logger.LogInformation("Wrong Recovery Code or Code is used!");
+            return View();
+        }
+
+        user.RecoveryCodesLeft = await recoveryCodeService.GetRemainingCountAsync(user.Id);
+        logger.LogInformation("Login completed with code: {RecoveryCode}", model.RecoveryCode);
+        logger.LogInformation("Remaining: "+user.RecoveryCodesLeft+" codes");
+        await db.SaveChangesAsync();
+
+        logger.LogWarning("User {UserId} logged in using Recovery Code", user.Id);
+
+        await tokenService.SignInAsync(HttpContext,user,db);
+        TempData["success"] = "Đăng nhập bằng mã khôi phục thành công! Mã vừa dùng đã bị xóa. Hãy tắt MFA và bật lại!";
+        TempData["CanDisableMFA"] = true;
+        return RedirectToAction("Home", "Feeds");
+    }
+    
     [HttpGet]
     [AllowAnonymous]
     public IActionResult FaceVerification()

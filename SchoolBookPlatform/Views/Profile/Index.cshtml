@@ -25,6 +25,16 @@
                             </label>
                             <small class="d-block text-muted mb-3">Nhấp vào ảnh để thay đổi</small>
                         </form>
+                        @if (!string.IsNullOrEmpty(Model.AvatarUrl))
+                        {
+                            <form asp-action="DeleteAvatar" asp-controller="Profile" method="post" 
+                                  onsubmit="return confirm('Bạn có chắc muốn xóa avatar không?')" 
+                                  class="d-inline">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="fas fa-trash-alt"></i> Xóa Avatar
+                                </button>
+                            </form>
+                        }
                     }
                     else
                     {

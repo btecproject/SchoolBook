@@ -91,12 +91,12 @@ VALUES
 INSERT INTO UserRoles (UserId, RoleId)
 SELECT @highAdminId, Id FROM Roles WHERE Name = 'HighAdmin';
 
-----------------------------------------------------------------------------
+-----------------------------Thêm gg/ms authenticator----------------------------------
 ALTER TABLE Users
     ADD TwoFactorEnabled BIT DEFAULT 0,
     TwoFactorSecret NVARCHAR(200) NULL;
 
-----------------------------------------------------------------------------
+-----------------------------Thêm User profile--------------------------------
 -- Bảng UserProfiles
 CREATE TABLE UserProfiles (
                               UserId UNIQUEIDENTIFIER PRIMARY KEY,
@@ -177,3 +177,28 @@ ALTER TABLE OtpCodes DROP CONSTRAINT FK__OtpCodes__UserId__778AC167;
 ALTER TABLE OtpCodes
     ADD CONSTRAINT FK_OtpCodes_UserId
         FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE;
+        
+
+-----------------------------------Thêm Recovery Code-----------------------------------
+ALTER TABLE Users
+    ADD
+        RecoveryCodesGenerated BIT DEFAULT 0,        -- Đã từng tạo code chưa
+    RecoveryCodesLeft       INT  DEFAULT 0;       -- Còn bao nhiêu code chưa dùng
+
+CREATE TABLE RecoveryCodes (
+                               Id         UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                               UserId     UNIQUEIDENTIFIER NOT NULL,
+                               HashedCode NVARCHAR(255) NOT NULL,
+                               IsUsed     BIT NOT NULL DEFAULT 0,
+                               CreatedAt  DATETIME2(7) NOT NULL DEFAULT SYSUTCDATETIME(),
+                               UsedAt     DATETIME2(7) NULL,
+
+                               CONSTRAINT FK_RecoveryCodes_UserId
+                                   FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+);
+
+CREATE NONCLUSTERED INDEX IX_RecoveryCodes_UserId_IsUsed 
+ON RecoveryCodes (UserId, IsUsed) 
+INCLUDE (HashedCode);
+------------------------------------Thêm ABS-XYZ-----------------------------------------------
+Create table abc
