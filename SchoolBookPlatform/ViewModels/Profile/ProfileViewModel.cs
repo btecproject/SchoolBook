@@ -1,4 +1,4 @@
-﻿namespace SchoolBookPlatform.ViewModels.Profile;
+namespace SchoolBookPlatform.ViewModels.Profile;
 
 public class ProfileViewModel
 {

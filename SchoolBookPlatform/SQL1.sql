@@ -223,7 +223,7 @@ CREATE TABLE PostReports (
                              ReviewedAt DATETIME NULL,
                              CreatedAt DATETIME DEFAULT GETUTCDATE(),
 
-                             FOREIGN KEY (PostId) REFERENCES Posts2(Id) ON DELETE CASCADE,
+                             FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
                              FOREIGN KEY (ReportedBy) REFERENCES Users(Id) ON DELETE NO ACTION,
                              FOREIGN KEY (ReviewedBy) REFERENCES Users(Id) ON DELETE NO ACTION
 );
