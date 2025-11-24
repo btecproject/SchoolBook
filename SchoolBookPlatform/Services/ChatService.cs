@@ -20,6 +20,8 @@ namespace SchoolBookPlatform.Services
         
         public async Task<ChatSegment> CreateSegment(int threadId, bool isProtected, string pin = null)
         {
+            Console.WriteLine($"🔨 CreateSegment START - ThreadId: {threadId}, IsProtected: {isProtected}");
+            
             var salt = RandomNumberGenerator.GetBytes(16);
             string pinHash = null;
             if (isProtected)
@@ -35,38 +37,70 @@ namespace SchoolBookPlatform.Services
                 IsProtected = isProtected,
                 PinHash = pinHash,
                 Salt = salt,
-                MessagesJson = "[]" // CRITICAL: KHÔNG BAO GIỜ NULL
+                MessagesJson = "[]" // CRITICAL: EXPLICIT assignment
             };
 
+            Console.WriteLine($"Segment object created - MessagesJson: '{segment.MessagesJson}'");
+
             _context.ChatSegments.Add(segment);
+            
+            Console.WriteLine($"Calling SaveChangesAsync...");
             await _context.SaveChangesAsync();
             
-            // IMPORTANT: Reload để đảm bảo giá trị từ DB
-            await _context.Entry(segment).ReloadAsync();
+            Console.WriteLine($"SaveChangesAsync completed - Segment ID: {segment.Id}");
             
-            // CRITICAL: Verify MessagesJson không bị null
-            if (string.IsNullOrEmpty(segment.MessagesJson))
+            // CRITICAL: Detach and reload from database
+            _context.Entry(segment).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+            
+            var reloadedSegment = await _context.ChatSegments
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == segment.Id);
+                
+            if (reloadedSegment == null)
             {
-                Console.WriteLine($"⚠️ WARNING: MessagesJson is null after save! Fixing...");
-                segment.MessagesJson = "[]";
-                await _context.SaveChangesAsync();
-                await _context.Entry(segment).ReloadAsync();
+                throw new Exception($"CRITICAL: Segment {segment.Id} not found after save!");
             }
             
-            Console.WriteLine($"✅ Created segment {segment.Id}: MessagesJson = '{segment.MessagesJson}'");
+            Console.WriteLine($"Reloaded from DB - MessagesJson: '{reloadedSegment.MessagesJson ?? "NULL"}', Length: {reloadedSegment.MessagesJson?.Length ?? 0}");
             
-            return segment;
+            // CRITICAL: Fix if NULL
+            if (string.IsNullOrWhiteSpace(reloadedSegment.MessagesJson))
+            {
+                Console.WriteLine($"CRITICAL: MessagesJson is NULL/empty after save! Force fixing...");
+                
+                // Direct SQL update to bypass any EF Core issues
+                var sql = "UPDATE ChatSegments SET MessagesJson = '[]' WHERE Id = {0}";
+                await _context.Database.ExecuteSqlRawAsync(sql, segment.Id);
+                
+                Console.WriteLine($" Executed direct SQL update");
+                
+                // Reload again
+                reloadedSegment = await _context.ChatSegments
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.Id == segment.Id);
+                    
+                Console.WriteLine($"After fix - MessagesJson: '{reloadedSegment.MessagesJson}'");
+                
+                if (string.IsNullOrWhiteSpace(reloadedSegment.MessagesJson))
+                {
+                    throw new Exception("FATAL: Cannot set MessagesJson even with direct SQL!");
+                }
+            }
+            
+            Console.WriteLine($"CreateSegment COMPLETED - ID: {reloadedSegment.Id}, MessagesJson: '{reloadedSegment.MessagesJson}'");
+            
+            return reloadedSegment;
         }
 
         public List<ChatMessage> GetMessagesFromSegment(int segmentId, string pin)
         {
             try
             {
-                Console.WriteLine($"📥 GetMessagesFromSegment - SegmentId: {segmentId}");
+                Console.WriteLine($"GetMessagesFromSegment - SegmentId: {segmentId}");
                 
                 if (segmentId <= 0)
                 {
-                    Console.WriteLine($"❌ Invalid segmentId: {segmentId}");
+                    Console.WriteLine($"Invalid segmentId: {segmentId}");
                     throw new ArgumentException("Invalid segment ID");
                 }
                 
@@ -80,7 +114,7 @@ namespace SchoolBookPlatform.Services
                     
                 if (segment == null)
                 {
-                    Console.WriteLine($"❌ Segment {segmentId} not found in database");
+                    Console.WriteLine($"Segment {segmentId} not found in database");
                     throw new Exception($"Segment {segmentId} not found");
                 }
 
@@ -91,17 +125,17 @@ namespace SchoolBookPlatform.Services
                 {
                     if (string.IsNullOrEmpty(pin))
                     {
-                        Console.WriteLine("❌ PIN required but not provided");
+                        Console.WriteLine("PIN required but not provided");
                         throw new UnauthorizedAccessException("PIN required for protected segment");
                     }
                         
                     if (!VerifyPin(pin, segment.PinHash, segment.Salt))
                     {
-                        Console.WriteLine("❌ Invalid PIN");
+                        Console.WriteLine("Invalid PIN");
                         throw new UnauthorizedAccessException("Invalid PIN");
                     }
                     
-                    Console.WriteLine("✅ PIN verified");
+                    Console.WriteLine("PIN verified");
                 }
 
                 var messagesJson = segment.MessagesJson;
@@ -109,7 +143,7 @@ namespace SchoolBookPlatform.Services
                 // CRITICAL: Fix nếu NULL hoặc invalid
                 if (string.IsNullOrWhiteSpace(messagesJson) || messagesJson == "null")
                 {
-                    Console.WriteLine($"⚠️ MessagesJson is invalid: '{messagesJson}' - Fixing in database...");
+                    Console.WriteLine($"MessagesJson is invalid: '{messagesJson}' - Fixing in database...");
                     
                     // Update trong database
                     var segmentToUpdate = _context.ChatSegments.Find(segmentId);
@@ -117,7 +151,7 @@ namespace SchoolBookPlatform.Services
                     {
                         segmentToUpdate.MessagesJson = "[]";
                         _context.SaveChanges();
-                        Console.WriteLine($"✅ Fixed MessagesJson in database");
+                        Console.WriteLine($"Fixed MessagesJson in database");
                     }
                     
                     messagesJson = "[]";
@@ -126,17 +160,17 @@ namespace SchoolBookPlatform.Services
                 // Deserialize
                 try
                 {
-                    Console.WriteLine($"🔄 Deserializing: '{messagesJson}'");
+                    Console.WriteLine($"Deserializing: '{messagesJson}'");
                     
                     var messages = JsonSerializer.Deserialize<List<ChatMessage>>(messagesJson) 
                                    ?? new List<ChatMessage>();
                     
-                    Console.WriteLine($"✅ Deserialized {messages.Count} messages successfully");
+                    Console.WriteLine($"Deserialized {messages.Count} messages successfully");
                     return messages;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"❌ JSON Deserialize error: {ex.GetType().Name}: {ex.Message}");
+                    Console.WriteLine($"JSON Deserialize error: {ex.GetType().Name}: {ex.Message}");
                     Console.WriteLine($"Problematic JSON: '{messagesJson}'");
                     
                     // Return empty list thay vì throw
@@ -145,7 +179,7 @@ namespace SchoolBookPlatform.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ GetMessagesFromSegment fatal error: {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine($"GetMessagesFromSegment fatal error: {ex.GetType().Name}: {ex.Message}");
                 Console.WriteLine($"Stack: {ex.StackTrace}");
                 throw; // Re-throw để controller xử lý
             }
@@ -155,7 +189,7 @@ namespace SchoolBookPlatform.Services
         {
             try
             {
-                Console.WriteLine($"📝 AddMessageToSegment - SegmentId: {segmentId}");
+                Console.WriteLine($"AddMessageToSegment - SegmentId: {segmentId}");
                 
                 // CRITICAL: Detach tất cả entities để tránh cache
                 _context.ChangeTracker.Clear();
@@ -168,7 +202,7 @@ namespace SchoolBookPlatform.Services
                     
                 if (segment == null)
                 {
-                    Console.WriteLine($"❌ Segment {segmentId} not found");
+                    Console.WriteLine($"Segment {segmentId} not found");
                     throw new Exception($"Segment {segmentId} not found");
                 }
 
@@ -178,7 +212,7 @@ namespace SchoolBookPlatform.Services
                 // Fix nếu invalid
                 if (string.IsNullOrWhiteSpace(messagesJson) || messagesJson == "null")
                 {
-                    Console.WriteLine($"⚠️ Fixing invalid MessagesJson...");
+                    Console.WriteLine($"Fixing invalid MessagesJson...");
                     messagesJson = "[]";
                     
                     var segmentToFix = await _context.ChatSegments.FindAsync(segmentId);
@@ -197,21 +231,21 @@ namespace SchoolBookPlatform.Services
                 {
                     messages = JsonSerializer.Deserialize<List<ChatMessage>>(messagesJson) 
                                ?? new List<ChatMessage>();
-                    Console.WriteLine($"✅ Current messages count: {messages.Count}");
+                    Console.WriteLine($"Current messages count: {messages.Count}");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"❌ Deserialize error: {ex.Message}");
+                    Console.WriteLine($"Deserialize error: {ex.Message}");
                     messages = new List<ChatMessage>();
                 }
                 
                 // Add message
                 messages.Add(message);
-                Console.WriteLine($"📝 Added message, new count: {messages.Count}");
+                Console.WriteLine($"Added message, new count: {messages.Count}");
                 
                 // Serialize
                 var newJson = JsonSerializer.Serialize(messages);
-                Console.WriteLine($"💾 Serialized to: {newJson.Length} chars");
+                Console.WriteLine($"Serialized to: {newJson.Length} chars");
                 
                 // Update
                 var segmentForSave = await _context.ChatSegments.FindAsync(segmentId);
@@ -219,17 +253,17 @@ namespace SchoolBookPlatform.Services
                 {
                     segmentForSave.MessagesJson = newJson;
                     await _context.SaveChangesAsync();
-                    Console.WriteLine($"✅ Saved to database");
+                    Console.WriteLine($"Saved to database");
                 }
                 else
                 {
-                    Console.WriteLine($"❌ Could not find segment {segmentId} for saving");
+                    Console.WriteLine($"Could not find segment {segmentId} for saving");
                     throw new Exception($"Segment {segmentId} not found for update");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ AddMessageToSegment error: {ex.Message}");
+                Console.WriteLine($"AddMessageToSegment error: {ex.Message}");
                 Console.WriteLine($"Stack: {ex.StackTrace}");
                 throw;
             }
@@ -281,7 +315,7 @@ namespace SchoolBookPlatform.Services
             
             if (thread != null && !thread.Segments.Any())
             {
-                Console.WriteLine($"⚠️ Thread {threadId} has no segments, creating initial segment...");
+                Console.WriteLine($"Thread {threadId} has no segments, creating initial segment...");
                 
                 var segment = new ChatSegment
                 {
@@ -296,7 +330,7 @@ namespace SchoolBookPlatform.Services
                 // Reload to get ID
                 _context.Entry(segment).Reload();
                 
-                Console.WriteLine($"✅ Created initial segment {segment.Id}");
+                Console.WriteLine($"Created initial segment {segment.Id}");
                 thread.Segments.Add(segment);
             }
             
