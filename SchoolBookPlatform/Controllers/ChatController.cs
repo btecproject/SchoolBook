@@ -6,7 +6,7 @@ using SchoolBookPlatform.Services;
 
 namespace SchoolBookPlatform.Controllers
 {
-    // ==================== MVC VIEWS CONTROLLER ====================
+    // MVC VIEWS CONTROLLER
     [Authorize]
     public class ChatController : Controller
     {
@@ -45,7 +45,7 @@ namespace SchoolBookPlatform.Controllers
         }
     }
 
-    // ==================== API CONTROLLER ====================
+    // API CONTROLLER
     [Route("api/chat")]
     [Authorize]
     [ApiController]
@@ -65,7 +65,7 @@ namespace SchoolBookPlatform.Controllers
             _context = context;
         }
 
-        // ==================== GET MESSAGES ====================
+        //GET MESSAGES
         [HttpGet("messages")]
         public IActionResult GetMessages(int segmentId, string pin = null)
         {
@@ -185,7 +185,7 @@ namespace SchoolBookPlatform.Controllers
             }
         }
 
-        // ==================== SEARCH USERS ====================
+        //SEARCH USERS
         [HttpGet("search-users")]
         public IActionResult SearchUsers([FromQuery] string query)
         {
@@ -215,7 +215,7 @@ namespace SchoolBookPlatform.Controllers
             }
         }
 
-        // ==================== CREATE THREAD ====================
+        //CREATE THREAD
         [HttpPost("create-thread")]
         public async Task<IActionResult> CreateThread([FromBody] CreateThreadRequest request)
         {
@@ -355,7 +355,7 @@ namespace SchoolBookPlatform.Controllers
         }
     }
 
-    // ==================== REQUEST MODEL ====================
+    //REQUEST MODEL
     public class CreateThreadRequest
     {
         public string ThreadName { get; set; }

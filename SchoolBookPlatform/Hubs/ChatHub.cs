@@ -108,6 +108,7 @@ namespace SchoolBookPlatform.Hubs
                 throw new HubException($"Failed to send message: {ex.Message}");
             }
         }
+        
 
         public async Task JoinThread(int threadId)
         {

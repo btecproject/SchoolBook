@@ -83,7 +83,7 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // ChatSegment - CRITICAL: Đảm bảo MessagesJson không bao giờ NULL
+        // ChatSegment
         modelBuilder.Entity<ChatSegment>(entity =>
         {
             entity.HasKey(s => s.Id);
