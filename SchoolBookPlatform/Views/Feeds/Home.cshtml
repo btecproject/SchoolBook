@@ -9,7 +9,7 @@
     <h2 class="mb-4">Bài viết mới nhất</h2>
 
     <div class="mb-3">
-        <a class="btn btn-primary" asp-controller="Post" asp-action="Create">Tạo bài viết mới</a>
+        <a asp-area="" asp-controller="Post" asp-action="Create" class="btn btn-primary">➕ Tạo bài viết mới</a>
     </div>
 
     @if (!Model.Any())
@@ -28,6 +28,7 @@
                             • @post.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
                         </p>
                         
+                        <!-- Nút 3 chấm dropdown -->
                         @if (post.CanEdit || post.CanDelete)
                         {
                             <div class="dropdown">
