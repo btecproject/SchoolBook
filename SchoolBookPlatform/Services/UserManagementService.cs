@@ -86,6 +86,7 @@ public class UserManagementService
             return await _db.Users
                 .Include(u => u.UserRoles!)
                 .ThenInclude(ur => ur.Role)
+                .Include(u => u.UserProfile)
                 .ToListAsync();
         }
 
@@ -100,6 +101,7 @@ public class UserManagementService
             return await _db.Users
                 .Include(u => u.UserRoles!)
                 .ThenInclude(ur => ur.Role)
+                .Include(u => u.UserProfile)
                 .Where(u => u.UserRoles!.Any(ur => manageableRoleIds.Contains(ur.RoleId)))
                 .ToListAsync();
         }

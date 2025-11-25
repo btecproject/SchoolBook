@@ -43,7 +43,8 @@ public class AdminController(
             Roles = u.UserRoles?.Select(ur => ur.Role.Name).ToList() ?? new List<string>(),
             IsActive = u.IsActive,
             FaceRegistered = u.FaceRegistered,
-            CreatedAt = u.CreatedAt
+            CreatedAt = u.CreatedAt,
+            AvatarUrl = avatarService.GetAvatar(u)
         }).ToList();
 
         return View(viewModels);

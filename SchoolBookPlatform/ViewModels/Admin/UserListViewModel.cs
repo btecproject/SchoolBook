@@ -1,3 +1,5 @@
+using SchoolBookPlatform.Models;
+
 namespace SchoolBookPlatform.ViewModels.Admin;
 
 public class UserListViewModel
@@ -10,5 +12,6 @@ public class UserListViewModel
     public bool IsActive { get; set; }
     public bool FaceRegistered { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? AvatarUrl { get; set; }
 }
 

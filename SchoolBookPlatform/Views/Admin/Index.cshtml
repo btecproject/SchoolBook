@@ -110,8 +110,11 @@
                                 <tr class="user-row" data-user-id="@user.Id">
                                     <td class="ps-4">
                                         <div class="d-flex align-items-center">
-                                            <div class="avatar avatar-sm me-3 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
-                                                @(user.Username?[0].ToString().ToUpper() ?? "?")
+                                            <div class="position-relative me-3">
+                                                <img src="@(string.IsNullOrEmpty(user.AvatarUrl) ? 
+                                                              "/images/avatars/default.png" : user.AvatarUrl)"
+                                                     class="avatar avatar-sm rounded-circle object-fit-cover border border-2 border-white shadow-sm"
+                                                     style="width: 60px; height: 60px;">
                                             </div>
                                             <div>
                                                 <a asp-controller="Profile" asp-action="Index" asp-route-username="@user.Username"
