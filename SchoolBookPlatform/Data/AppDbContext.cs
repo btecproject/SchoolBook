@@ -88,17 +88,27 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(s => s.Id);
             
-            // IMPORTANT: Chỉ dùng HasDefaultValueSql (SQL Server)
+            // MessagesJson - Required with default
             entity.Property(s => s.MessagesJson)
                 .IsRequired()
                 .HasDefaultValueSql("'[]'");
             
+            // StartTime - Required with default
             entity.Property(s => s.StartTime)
                 .IsRequired()
                 .HasDefaultValueSql("GETUTCDATE()");
-                
+            
+            // IsProtected - Default false    
             entity.Property(s => s.IsProtected)
                 .HasDefaultValue(false);
+                
+            // PinHash - Optional (NULL when not protected)
+            entity.Property(s => s.PinHash)
+                .IsRequired(false);
+                
+            // Salt - Optional (NULL when not protected)
+            entity.Property(s => s.Salt)
+                .IsRequired(false);
         });
         
         // ChatAttachment

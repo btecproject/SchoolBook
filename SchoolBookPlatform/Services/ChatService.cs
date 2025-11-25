@@ -20,14 +20,21 @@ namespace SchoolBookPlatform.Services
         
         public async Task<ChatSegment> CreateSegment(int threadId, bool isProtected, string pin = null)
         {
-            Console.WriteLine($"🔨 CreateSegment START - ThreadId: {threadId}, IsProtected: {isProtected}");
+            Console.WriteLine($" CreateSegment START - ThreadId: {threadId}, IsProtected: {isProtected}");
             
-            var salt = RandomNumberGenerator.GetBytes(16);
-            string pinHash = null;
+            // CRITICAL: Chỉ tạo salt và pinHash khi isProtected = true
+            byte[]? salt = null;
+            string? pinHash = null;
+            
             if (isProtected)
             {
-                if (string.IsNullOrEmpty(pin)) throw new ArgumentException("PIN required for protected segment");
+                if (string.IsNullOrEmpty(pin)) 
+                    throw new ArgumentException("PIN required for protected segment");
+                
+                salt = RandomNumberGenerator.GetBytes(16);
                 pinHash = ComputePinHash(pin, salt);
+                
+                Console.WriteLine($" Protected segment - Created salt and pinHash");
             }
 
             var segment = new ChatSegment
@@ -40,14 +47,35 @@ namespace SchoolBookPlatform.Services
                 MessagesJson = "[]" // CRITICAL: EXPLICIT assignment
             };
 
-            Console.WriteLine($"Segment object created - MessagesJson: '{segment.MessagesJson}'");
+            Console.WriteLine($"Segment object created:");
+            Console.WriteLine($"   ThreadId: {segment.ThreadId}");
+            Console.WriteLine($"   IsProtected: {segment.IsProtected}");
+            Console.WriteLine($"   PinHash: {(segment.PinHash != null ? "SET" : "NULL")}");
+            Console.WriteLine($"   Salt: {(segment.Salt != null ? $"{segment.Salt.Length} bytes" : "NULL")}");
+            Console.WriteLine($"   MessagesJson: '{segment.MessagesJson}'");
 
             _context.ChatSegments.Add(segment);
             
             Console.WriteLine($"Calling SaveChangesAsync...");
-            await _context.SaveChangesAsync();
             
-            Console.WriteLine($"SaveChangesAsync completed - Segment ID: {segment.Id}");
+            try
+            {
+                await _context.SaveChangesAsync();
+                Console.WriteLine($"SaveChangesAsync completed - Segment ID: {segment.Id}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SaveChangesAsync FAILED!");
+                Console.WriteLine($"   Error: {ex.Message}");
+                Console.WriteLine($"   Type: {ex.GetType().Name}");
+                
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"   Inner: {ex.InnerException.Message}");
+                }
+                
+                throw;
+            }
             
             // CRITICAL: Detach and reload from database
             _context.Entry(segment).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
@@ -61,18 +89,20 @@ namespace SchoolBookPlatform.Services
                 throw new Exception($"CRITICAL: Segment {segment.Id} not found after save!");
             }
             
-            Console.WriteLine($"Reloaded from DB - MessagesJson: '{reloadedSegment.MessagesJson ?? "NULL"}', Length: {reloadedSegment.MessagesJson?.Length ?? 0}");
+            Console.WriteLine($" Reloaded from DB:");
+            Console.WriteLine($"   MessagesJson: '{reloadedSegment.MessagesJson ?? "NULL"}' (Length: {reloadedSegment.MessagesJson?.Length ?? 0})");
+            Console.WriteLine($"   IsProtected: {reloadedSegment.IsProtected}");
             
             // CRITICAL: Fix if NULL
             if (string.IsNullOrWhiteSpace(reloadedSegment.MessagesJson))
             {
                 Console.WriteLine($"CRITICAL: MessagesJson is NULL/empty after save! Force fixing...");
                 
-                // Direct SQL update to bypass any EF Core issues
+                // Direct SQL update
                 var sql = "UPDATE ChatSegments SET MessagesJson = '[]' WHERE Id = {0}";
                 await _context.Database.ExecuteSqlRawAsync(sql, segment.Id);
                 
-                Console.WriteLine($" Executed direct SQL update");
+                Console.WriteLine($"Executed direct SQL update");
                 
                 // Reload again
                 reloadedSegment = await _context.ChatSegments
@@ -87,7 +117,7 @@ namespace SchoolBookPlatform.Services
                 }
             }
             
-            Console.WriteLine($"CreateSegment COMPLETED - ID: {reloadedSegment.Id}, MessagesJson: '{reloadedSegment.MessagesJson}'");
+            Console.WriteLine($"CreateSegment COMPLETED - ID: {reloadedSegment.Id}");
             
             return reloadedSegment;
         }
@@ -118,7 +148,7 @@ namespace SchoolBookPlatform.Services
                     throw new Exception($"Segment {segmentId} not found");
                 }
 
-                Console.WriteLine($"🔍 Segment found: IsProtected={segment.IsProtected}, MessagesJson='{segment.MessagesJson ?? "NULL"}', Length={segment.MessagesJson?.Length ?? 0}");
+                Console.WriteLine($"Segment found: IsProtected={segment.IsProtected}, MessagesJson='{segment.MessagesJson ?? "NULL"}', Length={segment.MessagesJson?.Length ?? 0}");
 
                 // Check PIN nếu protected
                 if (segment.IsProtected)
@@ -207,7 +237,7 @@ namespace SchoolBookPlatform.Services
                 }
 
                 var messagesJson = segment.MessagesJson ?? "[]";
-                Console.WriteLine($"🔍 Current MessagesJson: '{messagesJson}'");
+                Console.WriteLine($"Current MessagesJson: '{messagesJson}'");
                 
                 // Fix nếu invalid
                 if (string.IsNullOrWhiteSpace(messagesJson) || messagesJson == "null")

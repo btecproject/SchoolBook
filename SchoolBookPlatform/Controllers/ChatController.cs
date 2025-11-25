@@ -71,7 +71,7 @@ namespace SchoolBookPlatform.Controllers
         {
             try
             {
-                _logger.LogInformation($"📥 GetMessages API called");
+                _logger.LogInformation($" GetMessages API called");
                 _logger.LogInformation($"   SegmentId: {segmentId}");
                 _logger.LogInformation($"   PIN: {(pin != null ? "PROVIDED" : "NULL")}");
                 _logger.LogInformation($"   User: {User.Identity?.Name}");
