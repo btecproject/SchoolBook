@@ -1,6 +1,7 @@
 using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
@@ -81,6 +82,18 @@ public class Program
                 options.SaveTokens = true;
             });
         
+        builder.Services.Configure<FormOptions>(options =>
+        {
+            options.MultipartBodyLengthLimit = 100_000_000; // 100MB
+        });
+
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.Limits.MaxRequestBodySize = 100_000_000; // 100MB
+        });
+        builder.Logging.AddConsole();
+        builder.Logging.SetMinimumLevel(LogLevel.Debug);
+        
         // Authorization + Policy
         builder.Services.AddAuthorization(options =>
         {
@@ -89,6 +102,21 @@ public class Program
             
             options.AddPolicy("AdminOrHigher", policy =>
                 policy.RequireRole("HighAdmin", "Admin"));
+        });
+        
+        builder.Services.AddSignalR(options =>
+        {
+            options.EnableDetailedErrors = true;
+            options.MaximumReceiveMessageSize = 102400;
+        });
+        builder.Services.AddControllersWithViews();
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowAll", policy =>
+                policy.WithOrigins("https://localhost:7093", "http://localhost:5000")
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .AllowCredentials());
         });
         
         var app = builder.Build();
@@ -104,15 +132,23 @@ public class Program
         app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();
-        
+        app.UseCors("AllowAll");
         app.MapStaticAssets();
+        app.MapControllers();
 
+        app.MapHub<ChatHub>("/chatHub");
+        app.MapControllers();
+        
         // Route mặc định: Home/Index → Chào mừng
         app.MapControllerRoute(
             "default",
             "{controller=Home}/{action=Index}");
         
         app.MapHub<ImportExcelHub>("/importExcelHub");
+        app.MapControllerRoute(
+            name: "chat",
+            pattern: "Chat/{action=Index}/{threadId?}",
+            defaults: new { controller = "Chat" });
         
         // Route cho TokenManager
         // app.MapControllerRoute(

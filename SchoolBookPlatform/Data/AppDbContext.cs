@@ -20,7 +20,10 @@ public class AppDbContext : DbContext
     public DbSet<Follower> Followers { get; set; }
     public DbSet<Following> Following { get; set; }
     public DbSet<RecoveryCode> RecoveryCodes { get; set; } = null!;
-
+    
+    public DbSet<ChatThread> ChatThreads { get; set; }
+    public DbSet<ChatSegment> ChatSegments { get; set; }
+    public DbSet<ChatAttachment> ChatAttachments { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -113,5 +116,58 @@ public class AppDbContext : DbContext
         //         .IsRequired()
         //         .HasMaxLength(255);
         // });
+               // ChatThread
+        modelBuilder.Entity<ChatThread>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.ThreadName).IsRequired().HasMaxLength(200);
+            entity.Property(t => t.UserIdsJson).IsRequired().HasColumnName("UserIds");
+        
+            entity.HasMany(t => t.Segments)
+                .WithOne()
+                .HasForeignKey(s => s.ThreadId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ChatSegment
+        modelBuilder.Entity<ChatSegment>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            
+            // MessagesJson - Required with default
+            entity.Property(s => s.MessagesJson)
+                .IsRequired()
+                .HasDefaultValueSql("'[]'");
+            
+            // StartTime - Required with default
+            entity.Property(s => s.StartTime)
+                .IsRequired()
+                .HasDefaultValueSql("GETUTCDATE()");
+            
+            // IsProtected - Default false    
+            entity.Property(s => s.IsProtected)
+                .HasDefaultValue(false);
+                
+            // PinHash - Optional (NULL when not protected)
+            entity.Property(s => s.PinHash)
+                .IsRequired(false);
+                
+            // Salt - Optional (NULL when not protected)
+            entity.Property(s => s.Salt)
+                .IsRequired(false);
+        });
+        
+        // ChatAttachment
+        modelBuilder.Entity<ChatAttachment>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.FileName).IsRequired().HasMaxLength(255);
+            entity.Property(a => a.FileType).IsRequired().HasMaxLength(50);
+            entity.Property(a => a.MimeType).IsRequired().HasMaxLength(100);
+            entity.Property(a => a.FileData).IsRequired();
+            entity.Property(a => a.UploadedAt).HasDefaultValueSql("GETUTCDATE()");
+        
+            entity.HasIndex(a => a.SegmentId);
+        });
     }
 }
