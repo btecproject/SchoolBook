@@ -458,31 +458,47 @@ Layout = "~/Views/Shared/_Layout.cshtml";
         createBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Creating...';
 
         try {
+            console.log('Creating chat with users:', selectedUsers);
+
             const response = await fetch('/api/chat/create-thread', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
                 body: JSON.stringify({
                     threadName: chatName || null,
                     userIds: selectedUsers.map(u => u.username)
                 })
             });
 
-            const result = await response.json();
+            console.log('Response status:', response.status);
 
-            if (result.success) {
-                window.location.href = `/api/chat/Thread/${result.threadId}`;
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server error:', errorText);
+                throw new Error(`Server returned ${response.status}: ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log('Create thread result:', result);
+
+            if (result.success && result.threadId) {
+                console.log('Redirecting to thread:', result.threadId);
+
+                // FIXED: Đúng route cho MVC View
+                window.location.href = `/Chat/Thread/${result.threadId}`;
             } else {
-                alert(result.message || 'Failed to create chat');
-                createBtn.disabled = false;
-                createBtn.innerHTML = '<i class="bi bi-check-circle"></i> Create Chat';
+                throw new Error(result.message || 'Failed to create chat');
             }
         } catch (error) {
             console.error('Error creating chat:', error);
-            alert('Error creating chat. Please try again.');
+            alert('Error creating chat: ' + error.message);
+
             createBtn.disabled = false;
             createBtn.innerHTML = '<i class="bi bi-check-circle"></i> Create Chat';
         }
-    }
+}
 
     // Escape HTML
     function escapeHtml(text) {

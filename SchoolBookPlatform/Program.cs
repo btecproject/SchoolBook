@@ -112,6 +112,7 @@ public class Program
         app.UseAuthorization();
         app.UseCors("AllowAll");
         app.MapStaticAssets();
+        app.MapControllers();
         
         // Map SignalR Hub
                         app.MapHub<ChatHub>("/chatHub");
@@ -119,11 +120,15 @@ public class Program
 
         // Route mặc định: Home/Index → Chào mừng
         app.MapControllerRoute(
-            "default",
-            "{controller=Home}/{action=Index}");
+            name: "default",
+            pattern: "{controller=Home}/{action=Index}/{id?}");
         
+        // Route cho Chat MVC Views
+        app.MapControllerRoute(
+            name: "chat",
+            pattern: "Chat/{action=Index}/{threadId?}",
+            defaults: new { controller = "Chat" });
         
-
         // Route cho TokenManager
         app.MapControllerRoute(
             "tokenmanager",

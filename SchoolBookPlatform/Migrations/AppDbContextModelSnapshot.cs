@@ -82,11 +82,15 @@ namespace SchoolBookPlatform.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("IsProtected")
-                        .HasColumnType("bit");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("MessagesJson")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValueSql("'[]'");
 
                     b.Property<string>("PinHash")
                         .IsRequired()
@@ -97,7 +101,9 @@ namespace SchoolBookPlatform.Migrations
                         .HasColumnType("varbinary(max)");
 
                     b.Property<DateTime>("StartTime")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<int>("ThreadId")
                         .HasColumnType("int");

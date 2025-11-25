@@ -70,28 +70,48 @@ public class AppDbContext : DbContext
                 .HasForeignKey<FaceProfile>(f => f.UserId);
         });
 
-        // ChatThread - Cấu hình UserIdsJson
+        // ChatThread
         modelBuilder.Entity<ChatThread>(entity =>
         {
             entity.HasKey(t => t.Id);
             entity.Property(t => t.ThreadName).IsRequired().HasMaxLength(200);
             entity.Property(t => t.UserIdsJson).IsRequired().HasColumnName("UserIds");
-            
+        
             entity.HasMany(t => t.Segments)
                 .WithOne()
                 .HasForeignKey(s => s.ThreadId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // ChatSegment
+        // ChatSegment - CRITICAL: Đảm bảo MessagesJson không bao giờ NULL
         modelBuilder.Entity<ChatSegment>(entity =>
         {
             entity.HasKey(s => s.Id);
-            entity.Property(s => s.MessagesJson).IsRequired();
-            entity.Property(s => s.StartTime).IsRequired();
+            
+            // MessagesJson - Required with default
+            entity.Property(s => s.MessagesJson)
+                .IsRequired()
+                .HasDefaultValueSql("'[]'");
+            
+            // StartTime - Required with default
+            entity.Property(s => s.StartTime)
+                .IsRequired()
+                .HasDefaultValueSql("GETUTCDATE()");
+            
+            // IsProtected - Default false    
+            entity.Property(s => s.IsProtected)
+                .HasDefaultValue(false);
+                
+            // PinHash - Optional (NULL when not protected)
+            entity.Property(s => s.PinHash)
+                .IsRequired(false);
+                
+            // Salt - Optional (NULL when not protected)
+            entity.Property(s => s.Salt)
+                .IsRequired(false);
         });
         
-        //ChatAttachment
+        // ChatAttachment
         modelBuilder.Entity<ChatAttachment>(entity =>
         {
             entity.HasKey(a => a.Id);
@@ -100,7 +120,7 @@ public class AppDbContext : DbContext
             entity.Property(a => a.MimeType).IsRequired().HasMaxLength(100);
             entity.Property(a => a.FileData).IsRequired();
             entity.Property(a => a.UploadedAt).HasDefaultValueSql("GETUTCDATE()");
-            
+        
             entity.HasIndex(a => a.SegmentId);
         });
     }

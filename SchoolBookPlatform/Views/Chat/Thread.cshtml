@@ -531,7 +531,7 @@
 
         // Initialize SignalR
         function initializeSignalR() {
-            console.log("🔄 Initializing SignalR...");
+            console.log("Initializing SignalR...");
 
             connection = new signalR.HubConnectionBuilder()
                 .withUrl("/chatHub")
@@ -636,12 +636,32 @@
         // Load messages
         async function loadMessages(segmentId, pin = null) {
             try {
+                console.log(`Loading messages for segment ${segmentId}...`);
+
+                if (!segmentId || segmentId <= 0) {
+                    console.error('Invalid segmentId:', segmentId);
+                    const messagesDiv = document.getElementById("messages");
+                    messagesDiv.innerHTML = `
+                <div style="text-align: center; color: #999; padding: 20px;">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 10px;"></i>
+                    <p>No active segment. Please create one to start chatting.</p>
+                </div>`;
+                    return;
+                }
+
                 let url = `/api/chat/messages?segmentId=${segmentId}`;
                 if (pin) url += `&pin=${encodeURIComponent(pin)}`;
 
-                console.log(`Loading messages from: ${url}`);
+                console.log(`📡 Fetching from: ${url}`);
 
-                const response = await fetch(url);
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                console.log('Response status:', response.status);
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -652,7 +672,7 @@
                         return;
                     }
 
-                    throw new Error(errorData.error || 'Failed to load messages');
+                    throw new Error(errorData.error || `HTTP ${response.status}: Failed to load messages`);
                 }
 
                 const messages = await response.json();
@@ -674,12 +694,25 @@
                         );
                     });
                     messageIndex = messages.length;
+
+                    // Scroll to bottom
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
                 } else {
-                    messagesDiv.innerHTML += '<div style="text-align: center; color: #999; padding: 20px;">No messages yet</div>';
+                    messagesDiv.innerHTML += '<div style="text-align: center; color: #999; padding: 20px;">No messages yet. Start the conversation!</div>';
                 }
             } catch (err) {
                 console.error("Error loading messages:", err);
-                alert('Failed to load messages: ' + err.message);
+                const messagesDiv = document.getElementById("messages");
+                messagesDiv.innerHTML = `
+            <div style="text-align: center; color: #dc3545; padding: 20px;">
+                <i class="bi bi-exclamation-circle" style="font-size: 48px; margin-bottom: 10px;"></i>
+                <p>Failed to load messages</p>
+                <small>${escapeHtml(err.message)}</small>
+                <br><br>
+                <button class="btn btn-primary" onclick="loadMessages(${currentSegmentId})">
+                    <i class="bi bi-arrow-clockwise"></i> Retry
+                </button>
+            </div>`;
             }
 }
 
@@ -907,13 +940,25 @@
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating...';
 
+            console.log('Creating first segment for thread:', threadId);
+
+            if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+                console.error('SignalR not connected');
+                alert('Chat connection not ready. Please refresh the page.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-plus-circle"></i> Create Segment';
+                return;
+            }
+
             connection.invoke("StartNewSegment", threadId)
                 .then(() => {
-                    alert("Created!");
+                    console.log('Segment created successfully');
+                    alert("Segment created! Reloading...");
                     setTimeout(() => location.reload(), 1000);
                 })
                 .catch(err => {
-                    alert("Failed: " + err.message);
+                    console.error('Failed to create segment:', err);
+                    alert("Failed to create segment: " + err.message);
                     btn.disabled = false;
                     btn.innerHTML = '<i class="bi bi-plus-circle"></i> Create Segment';
                 });
@@ -921,9 +966,27 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing chat...');
+            console.log('Thread ID:', threadId);
+            console.log('Current Segment ID:', currentSegmentId);
+            console.log('Current User:', currentUser);
+
+            // Initialize SignalR
             initializeSignalR();
+
+            // Load messages if segment exists
             if (currentSegmentId > 0) {
+                console.log('Loading messages for existing segment...');
                 loadMessages(currentSegmentId);
+            } else {
+                console.warn('⚠️ No active segment found');
+                const messagesDiv = document.getElementById("messages");
+                messagesDiv.innerHTML = `
+            <div style="text-align: center; color: #999; padding: 40px;">
+                <i class="bi bi-chat-dots" style="font-size: 64px; opacity: 0.3; margin-bottom: 20px;"></i>
+                <h5>No Active Chat Segment</h5>
+                <p>Create a segment to start messaging</p>
+            </div>`;
             }
 });
     </script>
