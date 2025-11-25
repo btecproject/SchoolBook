@@ -247,7 +247,7 @@
         height: 40px;
         border-radius: 50%;
         border: none;
-        background: #0088cc;
+        background: #a8e39d;
         color: white;
         display: flex;
         align-items: center;
@@ -393,7 +393,7 @@
                    onkeypress="if(event.key === 'Enter') sendMessage()"
                    @(!hasSegment ? "disabled" : "") />
             <button type="button" id="sendBtn" onclick="sendMessage()" @(!hasSegment ? "disabled" : "")>
-                <i class="bi bi-send-fill"></i>
+                <img src="/uploads/image/send.png" style="width:22px; height:22px;">
             </button>
         </div>
         
@@ -668,7 +668,7 @@
                     console.error('Failed to load messages:', errorData);
 
                     if (response.status === 401) {
-                        alert('Invalid PIN. Please try again.');
+                        alert('PIN required for protected segment');
                         return;
                     }
 
@@ -979,7 +979,7 @@
                 console.log('Loading messages for existing segment...');
                 loadMessages(currentSegmentId);
             } else {
-                console.warn('⚠️ No active segment found');
+                console.warn(' No active segment found');
                 const messagesDiv = document.getElementById("messages");
                 messagesDiv.innerHTML = `
             <div style="text-align: center; color: #999; padding: 40px;">
