@@ -200,5 +200,3 @@ CREATE TABLE RecoveryCodes (
 CREATE NONCLUSTERED INDEX IX_RecoveryCodes_UserId_IsUsed 
 ON RecoveryCodes (UserId, IsUsed) 
 INCLUDE (HashedCode);
-------------------------------------Thêm ABS-XYZ-----------------------------------------------
-Create table abc
