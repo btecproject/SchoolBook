@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using CloudinaryDotNet;
 using Microsoft.AspNetCore.Http.Features;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Models;
@@ -94,6 +95,24 @@ public class Program
                 policy.RequireRole("HighAdmin", "Admin"));
         });
         
+        builder.Services.AddSignalR(options =>
+        {
+            options.EnableDetailedErrors = true;
+            options.MaximumReceiveMessageSize = 102400;
+        });
+        
+        builder.Services.AddControllersWithViews();
+        
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowAll", policy =>
+                policy.WithOrigins("https://localhost:5001", "http://localhost:5000")
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .AllowCredentials());
+        });
+
+        
         var app = builder.Build();
 
         if (!app.Environment.IsDevelopment())
@@ -107,13 +126,24 @@ public class Program
         app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();
-
+        app.UseCors("AllowAll");
         app.MapStaticAssets();
+        app.MapControllers();
+        
+        // Map SignalR Hub
+        app.MapHub<ChatHub>("/chatHub");
+        app.MapControllers();
 
         // Route mặc định: Home/Index → Chào mừng
         app.MapControllerRoute(
             "default",
             "{controller=Home}/{action=Index}");
+        
+        // Route cho Chat MVC Views
+        app.MapControllerRoute(
+            name: "chat",
+            pattern: "Chat/{action=Index}/{threadId?}",
+            defaults: new { controller = "Chat" });
 
         // Route cho TokenManager
         // app.MapControllerRoute(
