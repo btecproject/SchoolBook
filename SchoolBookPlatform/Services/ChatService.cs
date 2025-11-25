@@ -22,7 +22,7 @@ namespace SchoolBookPlatform.Services
         {
             Console.WriteLine($" CreateSegment START - ThreadId: {threadId}, IsProtected: {isProtected}");
             
-            // CRITICAL: Chỉ tạo salt và pinHash khi isProtected = true
+            // Chỉ tạo salt và pinHash khi isProtected = true
             byte[]? salt = null;
             string? pinHash = null;
             
@@ -44,7 +44,7 @@ namespace SchoolBookPlatform.Services
                 IsProtected = isProtected,
                 PinHash = pinHash,
                 Salt = salt,
-                MessagesJson = "[]" // CRITICAL: EXPLICIT assignment
+                MessagesJson = "[]" // EXPLICIT assignment
             };
 
             Console.WriteLine($"Segment object created:");
@@ -77,7 +77,7 @@ namespace SchoolBookPlatform.Services
                 throw;
             }
             
-            // CRITICAL: Detach and reload from database
+            // Detach and reload from database
             _context.Entry(segment).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
             
             var reloadedSegment = await _context.ChatSegments
@@ -170,7 +170,7 @@ namespace SchoolBookPlatform.Services
 
                 var messagesJson = segment.MessagesJson;
 
-                // CRITICAL: Fix nếu NULL hoặc invalid
+                // Fix nếu NULL hoặc invalid
                 if (string.IsNullOrWhiteSpace(messagesJson) || messagesJson == "null")
                 {
                     Console.WriteLine($"MessagesJson is invalid: '{messagesJson}' - Fixing in database...");
@@ -221,7 +221,7 @@ namespace SchoolBookPlatform.Services
             {
                 Console.WriteLine($"AddMessageToSegment - SegmentId: {segmentId}");
                 
-                // CRITICAL: Detach tất cả entities để tránh cache
+                // Detach tất cả entities để tránh cache
                 _context.ChangeTracker.Clear();
                 
                 // Query lại segment
