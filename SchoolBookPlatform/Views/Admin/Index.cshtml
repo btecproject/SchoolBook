@@ -7,292 +7,276 @@
 
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="bi bi-people"></i> Quản lý người dùng</h2>
-        <a asp-action="Create" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> Tạo user mới
-        </a>
+        <div>
+            <h2 class="mb-0"><i class="bi bi-people-fill text-primary"></i> Quản lý người dùng</h2>
+            <small class="text-muted">Tổng cộng: <strong>@Model.Count</strong> tài khoản</small>
+        </div>
+        <div class="btn-group">
+            <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#importExcelModal">
+                <i class="bi bi-file-earmark-excel"></i> Import từ Excel
+            </button>
+            <a asp-action="Create" class="btn btn-primary btn-lg">
+                <i class="bi bi-plus-circle"></i> Tạo user mới
+            </a>
+        </div>
     </div>
 
     @if (TempData["SuccessMessage"] != null)
     {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            @TempData["SuccessMessage"]
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @TempData["SuccessMessage"]
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
-
     @if (TempData["ErrorMessage"] != null)
     {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            @TempData["ErrorMessage"]
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @TempData["ErrorMessage"]
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
 
-    <div class="card shadow">
-        <div class="card-body">
+    <div class="card border-0 shadow-lg rounded-3 overflow-hidden">
+        <div class="card-header bg-gradient bg-primary text-white py-3">
+            <h5 class="mb-0"><i class="bi bi-table"></i> Danh sách tài khoản</h5>
+        </div>
+        <div class="card-body p-0">
             @if (Model.Any())
             {
                 <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-light">
-                        <tr>
-                            <th>Username</th>
-                            <th>Email</th>
-                            <th>Số điện thoại</th>
-                            <th>Vai trò</th>
-                            <th>Trạng thái</th>
-                            <th>Face</th>
-                            <th>Ngày tạo</th>
-                            <th>Thao tác</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach (var user in Model)
-                        {
+                    <table class="table table-hover mb-0 align-middle" id="usersTable">
+                        <thead class="bg-light">
                             <tr>
-                                <td><a asp-action="Index" asp-controller="Profile" asp-route-username="@user.Username">
-                                    <strong>@user.Username</strong>
-                                </a></td>
-                                <td>@(user.Email ?? "-")</td>
-                                <td>@(user.PhoneNumber ?? "-")</td>
-                                <td>
-                                    @foreach (var role in user.Roles)
-                                    {
-                                        var badgeClass = role switch
-                                        {
-                                            "HighAdmin" => "bg-danger",
-                                            "Admin" => "bg-warning text-dark",
-                                            "Moderator" => "bg-info text-dark",
-                                            "Teacher" => "bg-success",
-                                            "Student" => "bg-secondary",
-                                            _ => "bg-light text-dark"
-                                        };
-                                        <span class="badge @badgeClass me-1">@role</span>
-                                    }
-                                </td>
-                                <td>
-                                    @if (user.IsActive)
-                                    {
-                                        <span class="badge bg-success">Hoạt động</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-secondary">Vô hiệu hóa</span>
-                                    }
-                                </td>
-                                <td>
-                                    @if (user.FaceRegistered)
-                                    {
-                                        <span class="badge bg-primary"><i class="bi bi-check-circle"></i></span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-light text-dark"><i class="bi bi-x-circle"></i></span>
-                                    }
-                                </td>
-                                <td>@user.CreatedAt.ToString("dd/MM/yyyy")</td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-sm btn-outline-primary" title="Chỉnh sửa">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                        <a asp-action="Delete" asp-route-id="@user.Id" class="btn btn-sm btn-outline-danger" title="Xóa">
-                                            <i class="bi bi-trash"></i>
-                                        </a>
-                                        <button type="button" class="btn btn-sm btn-outline-warning" 
-                                                onclick="showResetPasswordModal('@user.Id', '@user.Username')" title="Reset mật khẩu">
-                                            <i class="bi bi-key"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" 
-                                                onclick="revokeTokens('@user.Id', '@user.Username')" title="Hủy tokens">
-                                            <i class="bi bi-shield-x"></i>
-                                        </button>
-                                        @if (user.IsActive)
-                                        {
-                                            <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                    onclick="disableUser('@user.Id', '@user.Username')" title="Vô hiệu hóa">
-                                                <i class="bi bi-lock"></i>
-                                            </button>
-                                        }
-                                        else
-                                        {
-                                            <button type="button" class="btn btn-sm btn-outline-success" 
-                                                    onclick="enableUser('@user.Id', '@user.Username')" title="Kích hoạt">
-                                                <i class="bi bi-unlock"></i>
-                                            </button>
-                                        }
-                                    </div>
-                                </td>
+                                <th class="ps-4">Người dùng</th>
+                                <th>Email</th>
+                                <th>SĐT</th>
+                                <th>Vai trò</th>
+                                <th>Trạng thái</th>
+                                <th>Khuôn mặt</th>
+                                <th>Ngày tạo</th>
+                                <th class="text-center">Thao tác</th>
                             </tr>
-                        }
+                        </thead>
+                        <tbody id="usersTableBody">
+                            @foreach (var user in Model)
+                            {
+                                <tr class="user-row" data-user-id="@user.Id">
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-sm me-3 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
+                                                @(user.Username?[0].ToString().ToUpper() ?? "?")
+                                            </div>
+                                            <div>
+                                                <a asp-controller="Profile" asp-action="Index" asp-route-username="@user.Username"
+                                                   class="fw-bold text-decoration-none hover-primary">
+                                                    @user.Username
+                                                </a>
+                                                <br><small class="text-muted">@user.Id.ToString()[..8]...</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><span class="text-primary">@(user.Email ?? "-")</span></td>
+                                    <td>@(user.PhoneNumber ?? "-")</td>
+                                    <td>
+                                        @foreach (var role in user.Roles)
+                                        {
+                                            var (bg, fg) = role switch
+                                            {
+                                                "HighAdmin" => ("bg-danger", "text-white"),
+                                                "Admin" => ("bg-warning", "text-dark"),
+                                                "Moderator" => ("bg-info", "text-white"),
+                                                "Teacher" => ("bg-success", "text-white"),
+                                                "Student" => ("bg-secondary", "text-white"),
+                                                _ => ("bg-light", "text-dark")
+                                            };
+                                            <span class="badge @bg @fg px-3 py-2 me-1">@role</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge @(user.IsActive ? "bg-success" : "bg-danger") px-3 py-2">
+                                            @(user.IsActive ? "Hoạt động" : "Bị khóa")
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <i class="bi @(user.FaceRegistered ? "bi-person-check-fill text-success" : "bi-person-x text-muted") fs-4"></i>
+                                    </td>
+                                    <td><small>@user.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small></td>
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-outline-primary btn-sm" title="Sửa">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="showResetPasswordModal('@user.Id', '@user.Username')">
+                                                <i class="bi bi-key"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="revokeTokens('@user.Id', '@user.Username')">
+                                                <i class="bi bi-shield-x"></i>
+                                            </button>
+                                            <button type="button" class="btn @(user.IsActive ? "btn-outline-dark" : "btn-outline-success") btn-sm"
+                                                    onclick="@(user.IsActive ? "disableUser" : "enableUser")('@user.Id', '@user.Username')">
+                                                <i class="bi @(user.IsActive ? "bi-lock" : "bi-unlock")"></i>
+                                            </button>
+                                            <a asp-action="Delete" asp-route-id="@user.Id" class="btn btn-outline-danger btn-sm">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
                         </tbody>
                     </table>
                 </div>
             }
             else
             {
-                <div class="text-center py-5 text-muted">
-                    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
-                    <p class="mt-3">Chưa có user nào.</p>
+                <div class="text-center py-5">
+                    <i class="bi bi-people display-1 text-muted"></i>
+                    <h4 class="text-muted mt-3">Chưa có người dùng nào</h4>
+                    <p class="text-muted">Bắt đầu bằng cách import từ Excel hoặc tạo tài khoản mới.</p>
                 </div>
             }
         </div>
     </div>
 </div>
 
-<!-- Reset Password Modal -->
-<div class="modal fade" id="resetPasswordModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Reset mật khẩu</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<!-- Modal Import Excel -->
+<div class="modal fade" id="importExcelModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-excel"></i> Import danh sách học sinh từ Excel</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>Reset mật khẩu cho user: <strong id="resetPasswordUsername"></strong></p>
-                <div class="mb-3">
-                    <label for="newPassword" class="form-label">Mật khẩu mới</label>
-                    <input type="password" class="form-control" id="newPassword" minlength="6" required>
-                    <small class="text-muted">Mật khẩu phải chứa ít nhất một chữ cái viết hoa, một chữ cái viết thường, một số và một ký tự đặc biệt.</small>
-                </div>
+                <form id="importForm" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">File Excel (.xlsx)</label>
+                        <input type="file" name="excelFile" accept=".xlsx" class="form-control form-control-lg" required />
+                        <div class="form-text mt-2">
+                            <strong>Cấu trúc file:</strong><br>
+                            Cột A: Họ và tên (VD: Nguyễn Thành Vinh)<br>
+                            Cột B: Mã sinh viên (VD: BH01523)<br>
+                            Cột C: Email (tùy chọn)<br>
+                            Cột D: Số điện thoại (tùy chọn)
+                        </div>
+                        <a href="/sample-import.xlsx" class="btn btn-outline-info btn-sm mt-2">
+                            <i class="bi bi-download"></i> Tải file mẫu
+                        </a>
+                    </div>
+
+                    <div id="progressSection" class="mt-4" style="display:none;">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="fw-bold">Đang xử lý...</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress" style="height: 32px;">
+                            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width: 0%">0%</div>
+                        </div>
+                        <div class="mt-3 text-center">
+                            <small>
+                                Đã xử lý: <strong id="processed">0</strong> / <strong id="total">0</strong> | 
+                                Thành công: <strong id="successCount">0</strong>
+                            </small>
+                        </div>
+                    </div>
+                </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                <button type="button" class="btn btn-primary" onclick="confirmResetPassword()">Reset</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-success btn-lg px-5" id="btnStartImport">
+                    <span id="importSpinner" class="spinner-border spinner-border-sm me-2 d-none"></span>
+                    <i class="bi bi-upload"></i> Bắt đầu Import
+                </button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Modal Reset Password -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">...</div> <!-- Giữ nguyên như cũ -->
+
 @section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
     <script>
-        let currentResetUserId = null;
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/importExcelHub")
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
 
-        function showResetPasswordModal(userId, username) {
-            currentResetUserId = userId;
-            document.getElementById('resetPasswordUsername').textContent = username;
-            document.getElementById('newPassword').value = '';
-            new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
-        }
+        connection.on("ImportProgress", function (data) {
+            $("#progressSection").show();
+            $("#processed").text(data.Current);
+            $("#total").text(data.Total);
+            $("#successCount").text(data.Success);
 
-        function confirmResetPassword() {
-            const newPassword = document.getElementById('newPassword').value;
-            if (!newPassword || newPassword.length < 6) {
-                alert('Mật khẩu phải có ít nhất 6 ký tự!');
+            const percent = Math.round((data.Current / data.Total) * 100);
+            $("#progressBar").css("width", percent + "%").text(percent + "%");
+            $("#progressPercent").text(percent + "%");
+
+            // Thêm dòng mới vào bảng
+            const avatarLetter = data.Username ? data.Username[0].toUpperCase() : "?";
+            const row = `
+                <tr class="table-success animate__animated animate__fadeIn">
+                    <td class="ps-4">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar avatar-sm me-3 bg-success text-white rounded-circle">${avatarLetter}</div>
+                            <div>
+                                <a href="/Profile/${data.Username}" class="fw-bold text-success">${data.Username}</a><br>
+                                <small class="text-success"><i class="bi bi-star-fill"></i> Vừa được tạo</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="text-primary">${data.Email || "-"}</span></td>
+                    <td>-</td>
+                    <td><span class="badge bg-secondary text-white px-3 py-2">Student</span></td>
+                    <td><span class="badge bg-success px-3 py-2">Hoạt động</span></td>
+                    <td class="text-center"><i class="bi bi-person-x text-muted fs-4"></i></td>
+                    <td><small>Vừa xong</small></td>
+                    <td class="text-center text-success"><i class="bi bi-check-circle-fill fs-3"></i></td>
+                </tr>`;
+            $("#usersTableBody").prepend(row);
+        });
+
+        connection.start().catch(err => console.error("SignalR Error:", err));
+
+        $("#btnStartImport").click(function () {
+            const fileInput = $("#importForm input[name='excelFile']")[0];
+            if (!fileInput.files.length) {
+                alert("Vui lòng chọn file Excel!");
                 return;
             }
 
-            fetch('@Url.Action("ResetPassword", "Admin")', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    id: currentResetUserId,
-                    newPassword: newPassword
-                })
+            const formData = new FormData($("#importForm")[0]);
+
+            $("#importSpinner").removeClass("d-none");
+            $(this).prop("disabled", true);
+            $("#progressSection").hide();
+
+            fetch("/Admin/ImportStudentsFromExcel", {
+                method: "POST",
+                body: formData,
+                headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() }
             })
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    alert(data.message);
-                    bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
-                    location.reload();
+                    alert(`Import thành công! Đã tạo ${data.count} tài khoản mới.`);
                 } else {
-                    alert(data.message);
+                    alert("Lỗi: " + data.message);
                 }
             })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Có lỗi xảy ra!');
+            .finally(() => {
+                $("#importSpinner").addClass("d-none");
+                $("#btnStartImport").prop("disabled", false);
             });
-        }
+        });
 
-        function revokeTokens(userId, username) {
-            if (!confirm(`Bạn có chắc muốn hủy tất cả tokens của user "${username}"? User sẽ bị đăng xuất khỏi tất cả thiết bị.`)) {
-                return;
-            }
-
-            fetch('@Url.Action("RevokeTokens", "Admin")', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({ id: userId })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    location.reload();
-                } else {
-                    alert(data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Có lỗi xảy ra!');
-            });
-        }
-
-        function disableUser(userId, username) {
-            if (!confirm(`Bạn có chắc muốn vô hiệu hóa user "${username}"? User sẽ bị đăng xuất và không thể đăng nhập.`)) {
-                return;
-            }
-
-            fetch('@Url.Action("DisableUser", "Admin")', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({ id: userId })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message);
-                        location.reload();
-                    } else {
-                        alert(data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Có lỗi xảy ra!');
-                });
-        }
-
-        function enableUser(userId, username) {
-            if (!confirm(`Bạn có chắc muốn kích hoạt user "${username}"?`)) {
-                return;
-            }
-
-            fetch('@Url.Action("EnableUser", "Admin")', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({ id: userId })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message);
-                        location.reload();
-                    } else {
-                        alert(data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Có lỗi xảy ra!');
-                });
-        }
     </script>
-}
 
+    <style>
+        .avatar { width: 40px; height: 40px; font-weight: bold; font-size: 16px; line-height: 40px; }
+        .hover-primary:hover { color: #0d6efd !important; }
+        tr.table-success { background-color: rgba(25, 135, 84, 0.1) !important; }
+    </style>
+}

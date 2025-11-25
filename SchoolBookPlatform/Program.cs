@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Hubs;
 using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
 
@@ -23,6 +24,7 @@ public class Program
         // Services
         builder.Services.AddHttpClient();
         builder.Services.AddHttpContextAccessor();
+        builder.Services.AddSignalR();
         builder.Services.AddScoped<TokenService>();
         builder.Services.AddScoped<FaceService>();
         builder.Services.AddScoped<OtpService>();
@@ -109,6 +111,7 @@ public class Program
         app.MapControllerRoute(
             "default",
             "{controller=Home}/{action=Index}");
+        app.MapHub<ImportExcelHub>("/importExcelHub");
 
         // Route cho TokenManager
         // app.MapControllerRoute(
