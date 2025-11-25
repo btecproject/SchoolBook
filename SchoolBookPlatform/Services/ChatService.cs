@@ -22,7 +22,7 @@ namespace SchoolBookPlatform.Services
         {
             Console.WriteLine($" CreateSegment START - ThreadId: {threadId}, IsProtected: {isProtected}");
             
-            // Chỉ tạo salt và pinHash khi isProtected = true
+            // CRITICAL: Chỉ tạo salt và pinHash khi isProtected = true
             byte[]? salt = null;
             string? pinHash = null;
             
@@ -44,7 +44,7 @@ namespace SchoolBookPlatform.Services
                 IsProtected = isProtected,
                 PinHash = pinHash,
                 Salt = salt,
-                MessagesJson = "[]" 
+                MessagesJson = "[]" // CRITICAL: EXPLICIT assignment
             };
 
             Console.WriteLine($"Segment object created:");
@@ -77,7 +77,7 @@ namespace SchoolBookPlatform.Services
                 throw;
             }
             
-            //Detach and reload from database
+            // CRITICAL: Detach and reload from database
             _context.Entry(segment).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
             
             var reloadedSegment = await _context.ChatSegments
@@ -93,7 +93,7 @@ namespace SchoolBookPlatform.Services
             Console.WriteLine($"   MessagesJson: '{reloadedSegment.MessagesJson ?? "NULL"}' (Length: {reloadedSegment.MessagesJson?.Length ?? 0})");
             Console.WriteLine($"   IsProtected: {reloadedSegment.IsProtected}");
             
-            // Fix if NULL
+            // CRITICAL: Fix if NULL
             if (string.IsNullOrWhiteSpace(reloadedSegment.MessagesJson))
             {
                 Console.WriteLine($"CRITICAL: MessagesJson is NULL/empty after save! Force fixing...");
@@ -170,7 +170,7 @@ namespace SchoolBookPlatform.Services
 
                 var messagesJson = segment.MessagesJson;
 
-                // Fix nếu NULL hoặc invalid
+                // CRITICAL: Fix nếu NULL hoặc invalid
                 if (string.IsNullOrWhiteSpace(messagesJson) || messagesJson == "null")
                 {
                     Console.WriteLine($"MessagesJson is invalid: '{messagesJson}' - Fixing in database...");
@@ -221,7 +221,7 @@ namespace SchoolBookPlatform.Services
             {
                 Console.WriteLine($"AddMessageToSegment - SegmentId: {segmentId}");
                 
-                //Detach tất cả entities để tránh cache
+                // CRITICAL: Detach tất cả entities để tránh cache
                 _context.ChangeTracker.Clear();
                 
                 // Query lại segment
