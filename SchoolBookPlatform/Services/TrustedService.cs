@@ -40,7 +40,7 @@ public class TrustedService
                 UserId = userId,
                 IPAddress = ip.Truncate(50),
                 DeviceInfo = device.Truncate(200),
-                ExpiresAt = DateTime.UtcNow.AddDays(30)
+                ExpiresAt = DateTime.UtcNow.AddDays(3)
             };
             _db.TrustedDevices.Add(trusted);
         }

@@ -19,11 +19,15 @@ public class AppDbContext : DbContext
     public DbSet<OtpCode> OtpCodes { get; set; } = null!;
     public DbSet<FaceProfile> FaceProfiles { get; set; } = null!;
     public DbSet<TrustedDevice> TrustedDevices { get; set; } = null!;
+    public DbSet<UserProfile> UserProfiles { get; set; }
+    public DbSet<Follower> Followers { get; set; }
+    public DbSet<Following> Following { get; set; }
+    public DbSet<RecoveryCode> RecoveryCodes { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
+        
         // UserRole
         modelBuilder.Entity<UserRole>()
             .HasKey(ur => new { ur.UserId, ur.RoleId });
@@ -123,5 +127,41 @@ public class AppDbContext : DbContext
         
             entity.HasIndex(a => a.SegmentId);
         });
+        
+        modelBuilder.Entity<Follower>()
+            .HasOne(f => f.User)
+            .WithMany()
+            .HasForeignKey(f => f.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Follower>()
+            .HasOne(f => f.FollowerUser)
+            .WithMany()
+            .HasForeignKey(f => f.FollowerId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<Following>()
+            .HasOne(f => f.User)
+            .WithMany()
+            .HasForeignKey(f => f.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Following>()
+            .HasOne(f => f.FollowingUser)
+            .WithMany()
+            .HasForeignKey(f => f.FollowingId)
+            .OnDelete(DeleteBehavior.NoAction);
+        
+        //RecoveryCodes
+        // modelBuilder.Entity<RecoveryCode>(entity =>
+        // {
+        //     entity.HasIndex(e => new { e.UserId, e.IsUsed })
+        //         .HasDatabaseName("IX_RecoveryCodes_UserId_IsUsed")
+        //         .IncludeProperties(e => e.HashedCode); // Covering index siêu nhanh
+        //
+        //     entity.Property(e => e.HashedCode)
+        //         .IsRequired()
+        //         .HasMaxLength(255);
+        // });
     }
 }

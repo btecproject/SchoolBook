@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace SchoolBookPlatform.ViewModels.Authen;
+namespace SchoolBookPlatform.ViewModels.ForgotPassword;
 
 public class ForgotPasswordViewModel
 {

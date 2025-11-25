@@ -29,4 +29,12 @@
         <PackageReference Include="Twilio" Version="7.13.5" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Include="ViewModels\Feed\FeedHomeViewModel.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="wwwroot\images\avatars\" />
+    </ItemGroup>
+
 </Project>

@@ -1,0 +1,42 @@
+﻿@model SchoolBookPlatform.ViewModels.TwoFactorA.RecoveryCodeViewModel
+@{
+    ViewData["Title"] = "Đăng nhập bằng mã khôi phục";
+}
+@if (TempData["error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header text-center">
+                    <h4>Nhập mã khôi phục</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <p>Nếu bạn không có điện thoại, hãy nhập một trong các <strong>mã khôi phục</strong> bạn đã lưu.</p>
+                        <p>Mỗi mã chỉ dùng được <strong>1 lần</strong>.</p>
+                    </div>
+
+                    <form asp-action="LoginWithRecoveryCode" asp-controller="Authen" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label asp-for="RecoveryCode" class="form-label">Mã khôi phục (có dấu gạch ngang)</label>
+                            <input asp-for="RecoveryCode" class="form-control text-center" 
+                                   style="font-size: 1.5rem; letter-spacing: 5px;" 
+                                   placeholder="XXXX-XXXX-XXXX" maxlength="14" required />
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">Đăng nhập</button>
+                            <a asp-action="VerifyTwoFactor" class="btn btn-link">Quay lại nhập mã Google Authenticator</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

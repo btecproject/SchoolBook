@@ -8,8 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Services;
-using SchoolBookPlatform.ViewModels;
 using SchoolBookPlatform.ViewModels.Authen;
+using SchoolBookPlatform.ViewModels.TwoFactorA;
 
 namespace SchoolBookPlatform.Controllers;
 
@@ -17,6 +17,7 @@ public class AuthenController(
     ILogger<AuthenController> logger,
     TrustedService trustedService,
     AppDbContext db,
+    RecoveryCodeService recoveryCodeService,
     OtpService otpService,
     TokenService tokenService,
     FaceService faceService)
@@ -113,30 +114,42 @@ public class AuthenController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel model, string returnUrl = null)
     {
-        if (!ModelState.IsValid)
+        try
         {
-            ViewData["ReturnUrl"] = returnUrl;
-            return View(model);
+            if (!ModelState.IsValid)
+            {
+                ViewData["ReturnUrl"] = returnUrl;
+                return View(model);
+            }
+
+            var user = await db.Users
+                .FirstOrDefaultAsync(u => u.Username == model.Username);
+            if (user != null)
+            {
+                logger.LogInformation("User loaded - TwoFactorEnabled: {0}, RecoveryCodesGenerated: {1}", 
+                    user.TwoFactorEnabled, user.RecoveryCodesGenerated);
+            }
+            if (user == null || !BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash))
+            {
+                ModelState.AddModelError(string.Empty, "Tên đăng nhập hoặc mật khẩu không đúng");
+                ViewData["ReturnUrl"] = returnUrl;
+                return View(model);
+            }
+
+            if (!user.IsActive)
+            {
+                ModelState.AddModelError(string.Empty, "Tài khoản đã bị vô hiệu hóa");
+                ViewData["ReturnUrl"] = returnUrl;
+                return View(model);
+            }
+
+            return await ProcessUserLoginAsync(user, returnUrl);
         }
-
-        var user = await db.Users
-            .FirstOrDefaultAsync(u => u.Username == model.Username);
-
-        if (user == null || !BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash))
+        catch (Exception ex)
         {
-            ModelState.AddModelError(string.Empty, "Tên đăng nhập hoặc mật khẩu không đúng");
-            ViewData["ReturnUrl"] = returnUrl;
-            return View(model);
+            logger.LogError("Login failed: "+ex.Message);
         }
-
-        if (!user.IsActive)
-        {
-            ModelState.AddModelError(string.Empty, "Tài khoản đã bị vô hiệu hóa");
-            ViewData["ReturnUrl"] = returnUrl;
-            return View(model);
-        }
-
-        return await ProcessUserLoginAsync(user, returnUrl);
+        return RedirectToAction(nameof(Login));
     }
 
     private async Task<IActionResult> ProcessUserLoginAsync(Models.User user, string? returnUrl)
@@ -149,7 +162,14 @@ public class AuthenController(
             logger.LogInformation("User {UserId} must change password", user.Id);
             return RedirectToAction(nameof(ChangePassword));
         }
-
+        // Kiểm tra 2FA
+        if (user.TwoFactorEnabled == true && !string.IsNullOrEmpty(user.TwoFactorSecret))
+        {
+            TempData["UserId"] = user.Id.ToString();
+            TempData["ReturnUrl"] = returnUrl;
+            logger.LogInformation("User {UserId} requires 2FA", user.Id);
+            return RedirectToAction(nameof(VerifyTwoFactor));
+        }
         // Kiểm tra Face verification
         if (user.FaceRegistered)
         {
@@ -191,7 +211,72 @@ public class AuthenController(
 
         return LocalRedirect((returnUrl ?? Url.Action("Home", "Feeds"))!);
     }
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult VerifyTwoFactor()
+    {
+        var userId = TempData.Peek("UserId")?.ToString();
+        if (string.IsNullOrEmpty(userId))
+            return RedirectToAction(nameof(Login));
 
+        return View(new TwoFactorVerifyViewModel());
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> VerifyTwoFactor(TwoFactorVerifyViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            TempData.Keep();
+            return View(model);
+        }
+
+        var userIdStr = TempData.Peek("UserId")?.ToString();
+        if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+            return RedirectToAction(nameof(Login));
+
+        var user = await db.Users.FindAsync(userId);
+        if (user == null || user.TwoFactorEnabled==false || string.IsNullOrEmpty(user.TwoFactorSecret))
+            return RedirectToAction(nameof(Login));
+        
+        // DEBUG: Log secret key và code
+        logger.LogInformation("2FA Verification - User: {UserId}, Secret: {Secret}, Code: {Code}", 
+            userId, user.TwoFactorSecret, model.Code);
+        //Verify
+        var twoFactorService = HttpContext.RequestServices.GetRequiredService<TwoFactorService>();
+        var isValid = twoFactorService.VerifyCode(user.TwoFactorSecret, model.Code);
+        
+        if (!isValid)
+        {
+            ModelState.AddModelError("Code", "Mã xác thực không đúng hoặc đã hết hạn");
+            TempData.Keep();
+            return View(model);
+        }
+
+        logger.LogInformation("2FA verified for user {UserId}", userId);
+        
+        var returnUrl = TempData.Peek("ReturnUrl")?.ToString();
+        
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        var device = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
+        var isTrusted = await trustedService.IsTrustedAsync(user.Id, ip, device);
+
+        if (!isTrusted)
+        {
+            await otpService.GenerateOtpAsync(user, "Email");
+            TempData["UserId"] = user.Id.ToString();
+            TempData["OtpType"] = "Email";
+            TempData["ReturnUrl"] = returnUrl;
+            return RedirectToAction(nameof(VerifyOtp));
+        }
+        
+        await tokenService.SignInAsync(HttpContext, user, db);
+        return LocalRedirect(returnUrl ?? Url.Action("Home", "Feeds"));
+    }
+    
+    
     [HttpGet]
     [AllowAnonymous]
     public IActionResult VerifyOtp()
@@ -254,7 +339,8 @@ public class AuthenController(
             TempData.Keep();
             return View(model);
         }
-
+        
+        var returnUrl = TempData["ReturnUrl"]?.ToString() ?? Url.Action("Home", "Feeds");
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
         var device = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
         await trustedService.AddTrustedDeviceAsync(user.Id, ip, device);
@@ -262,8 +348,6 @@ public class AuthenController(
 
         await tokenService.SignInAsync(HttpContext, user, db);
         logger.LogInformation("User {UserId} signed in successfully", user.Id);
-
-        var returnUrl = TempData["ReturnUrl"]?.ToString() ?? Url.Action("Home", "Feeds");
         return LocalRedirect(returnUrl);
     }
 
@@ -334,13 +418,11 @@ public class AuthenController(
             return RedirectToAction(nameof(Login));
 
         var user = await db.Users.FindAsync(userGuid);
-        if (user == null)
+        if (user == null || user.MustChangePassword == false)
             return RedirectToAction(nameof(Login));
-
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
         user.MustChangePassword = false;
         user.UpdatedAt = DateTime.UtcNow;
-
         try
         {
             await db.SaveChangesAsync();
@@ -355,18 +437,11 @@ public class AuthenController(
         }
 
         var returnUrl = TempData.Peek("ReturnUrl")?.ToString();
-
-        if (user.FaceRegistered)
-        {
-            TempData["UserId"] = user.Id.ToString();
-            TempData["ReturnUrl"] = returnUrl;
-            return RedirectToAction(nameof(FaceVerification));
-        }
-
+        
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
         var device = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown";
         var isTrusted = await trustedService.IsTrustedAsync(user.Id, ip, device);
-
+        
         if (!isTrusted)
         {
             await otpService.GenerateOtpAsync(user, "Email");
@@ -376,10 +451,66 @@ public class AuthenController(
             return RedirectToAction(nameof(VerifyOtp));
         }
 
+        await tokenService.RevokeAllTokensAsync(userGuid);
         await tokenService.SignInAsync(HttpContext, user, db);
         return LocalRedirect(returnUrl ?? Url.Action("Home", "Feeds"));
     }
+    
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult LoginWithRecoveryCode()
+    {
+        var userId = TempData.Peek("UserId")?.ToString();
+        if (string.IsNullOrEmpty(userId))
+            return RedirectToAction("Login");
+        var model =  new RecoveryCodeViewModel();
+        return View(model);
+    }
 
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> LoginWithRecoveryCode(RecoveryCodeViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            TempData.Keep();
+            return View(model);
+        }
+
+        var userIdStr = TempData.Peek("UserId")?.ToString();
+        if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+            return RedirectToAction("Login");
+        logger.LogInformation("User {UserId} logged in with Recovery Code", userId);
+        
+        var user = await db.Users.FindAsync(userId);
+        if (user == null || user.TwoFactorEnabled==false)
+            return RedirectToAction("Login");
+        if(model.RecoveryCode == null) return View(model);
+        logger.LogInformation("User logged in with Recovery Code: "+ model.RecoveryCode);
+        
+        //Validate recovery code
+        var isValid = await recoveryCodeService.VerifyCodeAsync(user.Id, model.RecoveryCode!);
+        logger.LogInformation("Verifying");
+        if (!isValid)
+        {
+            ModelState.AddModelError("recoveryCode", "Mã khôi phục không đúng hoặc đã sử dụng");
+            logger.LogInformation("Wrong Recovery Code or Code is used!");
+            return View();
+        }
+
+        user.RecoveryCodesLeft = await recoveryCodeService.GetRemainingCountAsync(user.Id);
+        logger.LogInformation("Login completed with code: {RecoveryCode}", model.RecoveryCode);
+        logger.LogInformation("Remaining: "+user.RecoveryCodesLeft+" codes");
+        await db.SaveChangesAsync();
+
+        logger.LogWarning("User {UserId} logged in using Recovery Code", user.Id);
+
+        await tokenService.SignInAsync(HttpContext,user,db);
+        TempData["success"] = "Đăng nhập bằng mã khôi phục thành công! Mã vừa dùng đã bị xóa.";
+        return RedirectToAction("Home", "Feeds");
+    }
+    
     [HttpGet]
     [AllowAnonymous]
     public IActionResult FaceVerification()
@@ -397,50 +528,10 @@ public class AuthenController(
     public async Task<IActionResult> FaceVerification(FaceVerificationViewModel model)
     {
         // TODO: Implement face verification logic
-        await Task.CompletedTask;
+        // await Task.CompletedTask;
         return RedirectToAction(nameof(Login));
     }
     
-    [HttpGet]
-    [AllowAnonymous]
-    public IActionResult ForgotPassword()
-    {
-        return View();
-    }
-
-    [HttpPost]
-    [AllowAnonymous]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
-    {
-        if (!ModelState.IsValid)
-        {
-            TempData["error"] = "Please enter a valid email address";
-            return View(model);
-        }
-        var user = await db.GetUserByEmailAsync(model.Email);
-        if (user == null)
-        {
-            TempData["error"] = "Email address not found";
-            return View(model);
-        }
-
-        try
-        {
-            await otpService.GenerateOtpAsync(user, "Email");
-            TempData["UserId"] = user.Id.ToString();
-            TempData["OtpType"] = "Email";
-            TempData["ReturnUrl"] = Url.Action("ChangePassword", "Authen");
-            logger.LogInformation("OTP sent to user {UserId} via Email", user.Id);
-            return RedirectToAction(nameof(VerifyOtp));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error resending OTP for user {UserId}", user.Id);
-        }
-        return View(model);
-    }
-
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()

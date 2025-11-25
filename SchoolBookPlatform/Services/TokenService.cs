@@ -6,6 +6,8 @@ using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Models;
 
+namespace SchoolBookPlatform.Services;
+
 public class TokenService(AppDbContext db, ILogger<TokenService> logger)
 {
     public async Task SignInAsync(HttpContext ctx, User user, AppDbContext db)
@@ -19,7 +21,7 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
         db.UserTokens.Add(token);
         await db.SaveChangesAsync();
 
-        IEnumerable<string> roleNames = await UserManager.GetUserRolesAsync(db, user.Id);
+        IEnumerable<string> roleNames = await db.GetUserRolesAsync(user.Id);
 
         var claims = new List<Claim>
         {

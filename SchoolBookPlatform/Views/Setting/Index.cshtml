@@ -1,13 +1,29 @@
-﻿<!DOCTYPE html>
-
+﻿@{
+    
+}
+@model SchoolBookPlatform.ViewModels.Setting.IndexSettingViewModel
+<!DOCTYPE html>
 <html>
 <head>
     <title>Setting Page</title>
     @if (TempData["success"] != null)
     {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
             @TempData["success"]
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (Model.user.TwoFactorEnabled == false)
+    {
+        <div class="alert alert-warning">
+            <p>You are not enable Two-factor Authentication! </p>
         </div>
     }
 </head>
@@ -15,5 +31,20 @@
 <div>
     <a class="accordion-button" asp-action="SettingChangePassword" asp-controller="Setting">Change Password</a>
 </div>
+<div>
+    <a class="accordion-button" asp-action="EnableGoogleAuthenticator" asp-controller="Setting">Enable Google 2FA</a>
+</div>
+<div>
+    <a class="accordion-button" asp-action="DisableGoogleAuthenticator" asp-controller="Setting">Disable Google 2FA</a>
+</div>
+@if (Model.user.TwoFactorEnabled == true)
+{
+    <div class="alert alert-warning">
+        Bạn còn <strong>@Model.user.RecoveryCodesLeft</strong> mã khôi phục!
+        <form asp-controller="Setting" asp-action="RegenerateRecoveryCodes" method="post">
+            <button type="submit" class="btn btn-warning">Tạo mã mới ngay</button>
+        </form>
+    </div>
+}
 </body>
 </html>
