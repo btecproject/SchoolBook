@@ -3,13 +3,14 @@
 @{
     ViewData["Title"] = "Trang chủ";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    <link rel="stylesheet" href="css/page/feed.css" asp-append-version="true"/>
 }
 
 <div class="container py-4">
     <h2 class="mb-4">Bài viết mới nhất</h2>
 
     <div class="mb-3">
-        <a asp-area="" asp-controller="Post" asp-action="Create" class="btn btn-primary">➕ Tạo bài viết mới</a>
+        <a asp-area="" asp-controller="Post" asp-action="Create" class="btn btn-primary">Tạo bài viết mới</a>
     </div>
 
     @if (!Model.Any())
@@ -118,16 +119,30 @@
                     {
                         <div class="mb-3">
                             <h6>File đính kèm:</h6>
-                            <div class="d-flex flex-wrap gap-2">
+                            <div class="d-flex flex-wrap gap-3">
                                 @foreach (var attachment in post.Attachments)
                                 {
-                                    <div class="border rounded p-2">
-                                        <small>
-                                            <i class="fas fa-file @GetFileIcon(attachment.FileType) me-1"></i>
-                                            @attachment.FileName
-                                            <br>
-                                            <span class="text-muted">@attachment.FileSizeFormatted</span>
-                                        </small>
+                                    <div class="attachment-item text-center">
+                                        <a href="@attachment.FilePath" 
+                                           data-fancybox="gallery-@post.Id" 
+                                           data-caption="@attachment.FileName"
+                                           class="text-decoration-none">
+                                            <div class="attachment-thumbnail position-relative">
+                                                <!-- Thử hiển thị như ảnh, nếu lỗi sẽ hiển fallback -->
+                                                <img src="@attachment.FilePath" 
+                                                     alt="@attachment.FileName" 
+                                                     class="img-thumbnail attachment-image"
+                                                     onerror="handleImageError(this)"
+                                                     style="width: 120px; height: 120px; object-fit: cover;">
+                                                
+                                                <!-- Fallback hiển thị khi không phải ảnh -->
+                                                <div class="file-fallback d-none" style="width: 120px; height: 120px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 5px;">
+                                                    <i class="fas @GetFileIcon(attachment.FileType) fa-2x mb-2"></i>
+                                                    <small class="text-muted text-truncate" style="max-width: 100px;">@System.IO.Path.GetFileNameWithoutExtension(attachment.FileName)</small>
+                                                    <small class="text-muted">@attachment.FileSizeFormatted</small>
+                                                </div>
+                                            </div>
+                                        </a>
                                     </div>
                                 }
                             </div>
@@ -209,22 +224,30 @@
 @functions {
     private string GetFileIcon(string fileType)
     {
-        return fileType switch
+        if (string.IsNullOrEmpty(fileType))
+            return "fa-file text-muted";
+            
+        return fileType.ToLower() switch
         {
-            "PDF" => "fa-file-pdf text-danger",
-            "Word" => "fa-file-word text-primary",
-            "Excel" => "fa-file-excel text-success",
-            "PowerPoint" => "fa-file-powerpoint text-warning",
-            "Image" => "fa-file-image text-info",
-            "Video" => "fa-file-video text-purple",
-            "Audio" => "fa-file-audio text-secondary",
-            "Archive" => "fa-file-archive text-warning",
+            "pdf" => "fa-file-pdf text-danger",
+            "word" or "doc" or "docx" => "fa-file-word text-primary",
+            "excel" or "xls" or "xlsx" => "fa-file-excel text-success",
+            "powerpoint" or "ppt" or "pptx" => "fa-file-powerpoint text-warning",
+            "image" or "jpg" or "jpeg" or "png" or "gif" or "bmp" or "webp" => "fa-file-image text-info",
+            "video" or "mp4" or "avi" or "mov" => "fa-file-video text-purple",
+            "audio" or "mp3" or "wav" => "fa-file-audio text-secondary",
+            "archive" or "zip" or "rar" => "fa-file-archive text-warning",
             _ => "fa-file text-muted"
         };
     }
 }
 
 @section Scripts {
+    <!-- Fancybox CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css" />
+    
+    <!-- Fancybox JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js"></script>
     <script>
         let currentPostId = null;
 
@@ -244,8 +267,7 @@
             const originalText = deleteBtn.innerHTML;
             deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
             deleteBtn.disabled = true;
-
-            // 🔥 SỬ DỤNG MINIMAL API - KHÔNG CẦN FORM DATA HAY TOKEN
+            
             fetch(`/api/posts/${currentPostId}/delete`, {
                 method: 'POST',
                 headers: {
@@ -328,5 +350,44 @@
                 }
             }, 5000);
         }
+        // Hàm xử lý khi ảnh bị lỗi (không phải file ảnh)
+        function handleImageError(imgElement) {
+            const thumbnail = imgElement.closest('.attachment-thumbnail');
+            const fallback = thumbnail.querySelector('.file-fallback');
+
+            // Ẩn ảnh, hiển thị fallback
+            imgElement.style.display = 'none';
+            fallback.classList.remove('d-none');
+        }
+
+        // Khởi tạo fancybox
+        $(document).ready(function() {
+            $('[data-fancybox]').fancybox({
+                buttons: [
+                    "zoom",
+                    "share",
+                    "slideShow",
+                    "fullScreen",
+                    "download",
+                    "thumbs",
+                    "close"
+                ],
+                // Chỉ áp dụng fancybox cho ảnh thực sự
+                selector : '[data-fancybox="gallery"] img:visible'
+            });
+        });
+
+        // Xử lý khi click vào file không phải ảnh
+        document.addEventListener('click', function(e) {
+            const fallback = e.target.closest('.file-fallback');
+            if (fallback) {
+                e.preventDefault();
+                const link = fallback.closest('a');
+                if (link && link.href) {
+                    // Mở file trong tab mới
+                    window.open(link.href, '_blank');
+                }
+            }
+        });
     </script>
 }

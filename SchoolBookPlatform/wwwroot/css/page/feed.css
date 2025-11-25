@@ -470,3 +470,42 @@
 .btn-outline-secondary:hover {
     background-color: #f8f9fa;
 }
+
+.attachment-item {
+    transition: transform 0.2s ease;
+}
+
+.attachment-item:hover {
+    transform: translateY(-2px);
+}
+
+.attachment-thumbnail {
+    display: inline-block;
+    position: relative;
+}
+
+.attachment-image {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.attachment-image:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.file-fallback {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.file-fallback:hover {
+    background: #e9ecef !important;
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.img-thumbnail {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+}

@@ -130,7 +130,6 @@ public class Program
                     return Results.Json(new { success = false, message = "Bạn không có quyền xóa bài viết này." });
                 }
 
-                // ✅ CHỈ CẦN XÓA POST - CASCADE DELETE SẼ TỰ ĐỘNG XÓA MỌI THỨ
                 dbContext.Posts.Remove(post);
                 await dbContext.SaveChangesAsync();
 

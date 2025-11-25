@@ -1,100 +1,65 @@
-﻿@model SchoolBookPlatform.Models.Post
+﻿@model SchoolBookPlatform.Models.ViewModels.CreatePostViewModel
 
 @{
-    ViewData["Title"] = "Tạo bài viết mới";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Tạo Bài Viết Mới";
 }
 
-<div class="container mt-5">
-    <h2 class="mb-4">Tạo bài viết mới</h2>
-    
-    @if (!ViewData.ModelState.IsValid)
-    {
-        <div class="alert alert-danger">
-            @Html.ValidationSummary(true)
-        </div>
-    }
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">@ViewData["Title"]</h3>
+            </div>
+            <div class="card-body">
+                <form asp-action="Create" method="post" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-    <form asp-action="Create" asp-controller="Post" method="post" enctype="multipart/form-data">
-        @Html.AntiForgeryToken()
-        
-        <div class="form-group mb-3">
-            <label asp-for="Title" class="form-label">Tiêu đề</label>
-            <input asp-for="Title" class="form-control" required />
-            <span asp-validation-for="Title" class="text-danger"></span>
+                    <div class="form-group mb-3">
+                        <label asp-for="Title" class="form-label"></label>
+                        <input asp-for="Title" class="form-control" placeholder="Nhập tiêu đề bài viết..." />
+                        <span asp-validation-for="Title" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label asp-for="Content" class="form-label"></label>
+                        <textarea asp-for="Content" class="form-control" rows="6" placeholder="Nhập nội dung bài viết..."></textarea>
+                        <span asp-validation-for="Content" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label asp-for="VisibleToRoles" class="form-label"></label>
+                        <select asp-for="VisibleToRoles" class="form-select">
+                            @foreach (var option in Model.VisibleToOptions)
+                            {
+                                <option value="@option.Key">@option.Value</option>
+                            }
+                        </select>
+                        <span asp-validation-for="VisibleToRoles" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label asp-for="Attachments" class="form-label"></label>
+                        <input asp-for="Attachments" type="file" class="form-control" multiple />
+                        <small class="form-text text-muted">Có thể chọn nhiều file cùng lúc</small>
+                        <span asp-validation-for="Attachments" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Tạo Bài Viết
+                        </button>
+                        <a asp-controller="Feeds" asp-action="Home" class="btn btn-secondary">Hủy</a>
+                    </div>
+                </form>
+            </div>
         </div>
-        
-        <div class="form-group mb-3">
-            <label asp-for="Content" class="form-label">Nội dung</label>
-            <textarea asp-for="Content" class="form-control" rows="5"></textarea>
-            <span asp-validation-for="Content" class="text-danger"></span>
-        </div>
-        
-        <div class="form-group mb-3">
-            <label asp-for="VisibleToRoles" class="form-label">Hiển thị cho vai trò</label>
-            <select asp-for="VisibleToRoles" class="form-control">
-                <option value="All">Tất cả</option>
-                <option value="Student">Học sinh</option>
-                <option value="Teacher">Giáo viên</option>
-                <option value="Admin">Quản trị viên</option>
-            </select>
-            <span asp-validation-for="VisibleToRoles" class="text-danger"></span>
-        </div>
-        
-        <div class="form-group mb-3">
-            <label for="attachments" class="form-label">Đính kèm tệp</label>
-            <input type="file" class="form-control" id="attachments" name="attachments" multiple />
-        </div>
-        
-        <button type="submit" class="btn btn-primary">Đăng bài</button>
-        <a asp-action="Home" asp-controller="Feeds" class="btn btn-secondary ms-2">Hủy</a>
-    </form>
+    </div>
 </div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-    const form = document.getElementById('createPostForm');
-    if (form) {
-    form.addEventListener('submit', function (event) {
-    event.preventDefault(); // Prevent default form submission
-
-    const formData = new FormData(form); // Collect form data including files
-
-    fetch('/Post/Create', { // Replace with your actual endpoint if different
-    method: 'POST',
-    body: formData,
-    headers: {
-    'RequestVerificationToken': getAntiForgeryToken() // Include anti-forgery token
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
-    })
-    .then(response => {
-    if (!response.ok) {
-    throw new Error('Network response was not ok');
-    }
-    return response.json(); // Assuming JSON response from server
-    })
-    .then(data => {
-    // Handle success: e.g., close modal, refresh feed
-    console.log('Success:', data);
-    alert('Bài viết đã được tạo thành công!');
-    // Optionally, reload the page or update the feed dynamically
-    window.location.reload();
-    })
-    .catch(error => {
-    // Handle error
-    console.error('Error:', error);
-    alert('Có lỗi xảy ra khi tạo bài viết. Vui lòng thử lại.');
-    });
-    });
-    }
-    });
-
-    // Function to get anti-forgery token from cookie or hidden input
-    function getAntiForgeryToken() {
-    const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
-    return tokenInput ? tokenInput.value : '';
-    }
-    </script>    
 }
