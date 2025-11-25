@@ -271,7 +271,132 @@
                 $("#btnStartImport").prop("disabled", false);
             });
         });
+        
+        
+        function showResetPasswordModal(userId, username) {
+            currentResetUserId = userId;
+            document.getElementById('resetPasswordUsername').textContent = username;
+            document.getElementById('newPassword').value = '';
+            new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+        }
 
+        function confirmResetPassword() {
+            const newPassword = document.getElementById('newPassword').value;
+            if (!newPassword || newPassword.length < 6) {
+                alert('Mật khẩu phải có ít nhất 6 ký tự!');
+                return;
+            }
+
+            fetch('@Url.Action("ResetPassword", "Admin")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    id: currentResetUserId,
+                    newPassword: newPassword
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+                        location.reload();
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra!');
+                });
+        }
+
+        function revokeTokens(userId, username) {
+            if (!confirm(`Bạn có chắc muốn hủy tất cả tokens của user "${username}"? User sẽ bị đăng xuất khỏi tất cả thiết bị.`)) {
+                return;
+            }
+
+            fetch('@Url.Action("RevokeTokens", "Admin")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ id: userId })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra!');
+                });
+        }
+
+        function disableUser(userId, username) {
+            if (!confirm(`Bạn có chắc muốn vô hiệu hóa user "${username}"? User sẽ bị đăng xuất và không thể đăng nhập.`)) {
+                return;
+            }
+
+            fetch('@Url.Action("DisableUser", "Admin")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ id: userId })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra!');
+                });
+        }
+
+        function enableUser(userId, username) {
+            if (!confirm(`Bạn có chắc muốn kích hoạt user "${username}"?`)) {
+                return;
+            }
+
+            fetch('@Url.Action("EnableUser", "Admin")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ id: userId })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra!');
+                });
+        }
     </script>
 
     <style>
