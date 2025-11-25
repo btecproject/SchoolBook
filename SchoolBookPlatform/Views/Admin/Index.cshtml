@@ -271,8 +271,8 @@
                 $("#btnStartImport").prop("disabled", false);
             });
         });
-        
-        
+
+        let currentResetUserId = null;
         function showResetPasswordModal(userId, username) {
             currentResetUserId = userId;
             document.getElementById('resetPasswordUsername').textContent = username;
