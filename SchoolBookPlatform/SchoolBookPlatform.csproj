@@ -32,4 +32,9 @@
       <Folder Include="wwwroot\images\avatars\" />
     </ItemGroup>
 
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="wwwroot\uploads\posts\83136903-070d-4a8e-858d-7c6953ec58ae.webp" />
+      <_ContentIncludedByDefault Remove="wwwroot\uploads\posts\e67a5e25-8e07-4750-8838-8516895a3401.png" />
+    </ItemGroup>
+
 </Project>

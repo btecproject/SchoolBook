@@ -9,19 +9,33 @@ using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Models.ViewModels;
 using Microsoft.AspNetCore.Hosting;
 using System.IO;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 
 namespace SchoolBookPlatform.Controllers;
 
 [Authorize]
 public class PostController : Controller
 {
+    private readonly ILogger<PostController> logger;
     private readonly AppDbContext _context;
     private readonly IWebHostEnvironment _webHostEnvironment;
+    private readonly Cloudinary _cloudinary;
 
-    public PostController(AppDbContext context, IWebHostEnvironment webHostEnvironment)
+    public PostController(AppDbContext context, IWebHostEnvironment webHostEnvironment, IConfiguration configuration, ILogger<PostController> _logger)
     {
+        logger = _logger;
         _context = context;
         _webHostEnvironment = webHostEnvironment;
+        
+        // Khởi tạo Cloudinary
+        var cloudinaryConfig = configuration.GetSection("Cloudinary");
+        var account = new Account(
+            cloudinaryConfig["CloudName"],
+            cloudinaryConfig["ApiKey"],
+            cloudinaryConfig["ApiSecret"]
+        );
+        _cloudinary = new Cloudinary(account);
     }
 
     // GET: Hiển thị form tạo post
@@ -78,35 +92,57 @@ public class PostController : Controller
 
     private async Task HandlePostAttachments(Post post, List<IFormFile> attachments)
     {
-        var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", "posts");
-        
-        // Tạo thư mục nếu chưa tồn tại
-        if (!Directory.Exists(uploadsFolder))
-        {
-            Directory.CreateDirectory(uploadsFolder);
-        }
-
         foreach (var file in attachments)
         {
             if (file.Length > 0)
             {
-                // Tạo tên file unique
-                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
-                var filePath = Path.Combine(uploadsFolder, fileName);
+                // Tạo public ID unique cho Cloudinary
+                var publicId = $"SchoolBook/Post/{post.Id}/PostAttachment/{Guid.NewGuid()}";
 
-                // Lưu file
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                // Xác định resource type
+                var resourceType = GetResourceType(file);
+                
+                UploadResult uploadResult;
+
+                if (resourceType == ResourceType.Video || resourceType == ResourceType.Raw)
                 {
-                    await file.CopyToAsync(stream);
+                    // Upload video hoặc file raw
+                    var uploadParams = new RawUploadParams()
+                    {
+                        File = new FileDescription(file.FileName, file.OpenReadStream()),
+                        PublicId = publicId,
+                        Folder = $"SchoolBook/Post/{post.Id}/PostAttachment",
+                        Overwrite = false
+                    };
+
+                    uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                }
+                else
+                {
+                    // Upload image (mặc định)
+                    var uploadParams = new ImageUploadParams()
+                    {
+                        File = new FileDescription(file.FileName, file.OpenReadStream()),
+                        PublicId = publicId,
+                        Folder = $"SchoolBook/Post/{post.Id}/PostAttachment",
+                        Overwrite = false
+                    };
+
+                    uploadResult = await _cloudinary.UploadAsync(uploadParams);
                 }
 
-                // Tạo post attachment
+                if (uploadResult.Error != null)
+                {
+                    throw new Exception($"Lỗi upload file lên Cloudinary: {uploadResult.Error.Message}");
+                }
+
+                // Tạo post attachment với URL từ Cloudinary
                 var attachment = new PostAttachment
                 {
                     Id = Guid.NewGuid(),
                     PostId = post.Id,
                     FileName = file.FileName,
-                    FilePath = $"/uploads/posts/{fileName}",
+                    FilePath = uploadResult.SecureUrl.ToString(), // Sử dụng Secure URL
                     FileSize = (int)file.Length,
                     UploadedAt = DateTime.UtcNow
                 };
@@ -114,6 +150,24 @@ public class PostController : Controller
                 _context.PostAttachments.Add(attachment);
             }
         }
+    }
+    
+    private ResourceType GetResourceType(IFormFile file)
+    {
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+    
+        // Định nghĩa các extension cho video
+        var videoExtensions = new[] { ".mp4", ".avi", ".mov", ".wmv", ".mkv", ".flv", ".webm" };
+    
+        // Định nghĩa các extension cho raw files (document, etc.)
+        var rawExtensions = new[] { ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".rar" };
+    
+        if (videoExtensions.Contains(extension))
+            return ResourceType.Video;
+        else if (rawExtensions.Contains(extension))
+            return ResourceType.Raw;
+        else
+            return ResourceType.Image; // Mặc định là image
     }
 
     // Các action khác giữ nguyên...
@@ -147,6 +201,7 @@ public class PostController : Controller
         try
         {
             var post = await _context.Posts
+                .Include(p => p.Attachments)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (post == null)
@@ -162,6 +217,12 @@ public class PostController : Controller
                 return Json(new { success = false, message = "Bạn không có quyền xóa bài viết này." });
             }
 
+            // Xóa file từ Cloudinary trước
+            foreach (var attachment in post.Attachments)
+            {
+                await DeleteFileFromCloudinary(attachment.FilePath, id);
+            }
+
             _context.Posts.Remove(post);
             await _context.SaveChangesAsync();
 
@@ -170,6 +231,41 @@ public class PostController : Controller
         catch (Exception ex)
         {
             return Json(new { success = false, message = "Có lỗi xảy ra khi xóa bài viết: " + ex.Message });
+        }
+    }
+
+    private async Task DeleteFileFromCloudinary(string fileUrl, Guid postId)
+    {
+        try
+        {
+            logger.LogInformation("DeleteFileFromCloudinary: {postId}", postId);
+            // Extract public ID từ URL
+            var uri = new Uri(fileUrl);
+            var segments = uri.AbsolutePath.Split('/');
+            var publicIdWithExtension = segments.Last();
+            var publicId = Path.GetFileNameWithoutExtension(publicIdWithExtension);
+            
+        
+            // Tìm full public id với folder
+            var fullPublicId = $"SchoolBook/Post/{postId}/PostAttachment/{publicId}";
+
+            var deleteParams = new DeletionParams(fullPublicId)
+            {
+                ResourceType = ResourceType.Image // Cloudinary sẽ tự động detect loại resource
+            };
+
+            var result = await _cloudinary.DestroyAsync(deleteParams);
+        
+            if (result.Error != null)
+            {
+                // Log lỗi nhưng không throw exception để không ảnh hưởng đến flow chính
+                Console.WriteLine($"Lỗi xóa file từ Cloudinary: {result.Error.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log lỗi nhưng không throw exception
+            Console.WriteLine($"Lỗi khi xóa file từ Cloudinary: {ex.Message}");
         }
     }
 

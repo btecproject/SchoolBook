@@ -485,6 +485,8 @@
 }
 
 .attachment-image {
+    width: 80% !important;
+    height: 80% !important;
     transition: all 0.3s ease;
     cursor: pointer;
 }
@@ -508,4 +510,18 @@
 .img-thumbnail {
     background-color: #f8f9fa;
     border: 1px solid #dee2e6;
+}
+
+.post-image-wrapper {
+    width: 100%;
+    margin-top: 10px;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.post-image {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
 }
