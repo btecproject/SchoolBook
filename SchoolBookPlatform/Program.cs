@@ -104,15 +104,16 @@ public class Program
         app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();
-
+        
         app.MapStaticAssets();
 
         // Route mặc định: Home/Index → Chào mừng
         app.MapControllerRoute(
             "default",
             "{controller=Home}/{action=Index}");
+        
         app.MapHub<ImportExcelHub>("/importExcelHub");
-
+        
         // Route cho TokenManager
         // app.MapControllerRoute(
         //     "tokenmanager",
