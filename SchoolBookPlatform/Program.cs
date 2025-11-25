@@ -35,6 +35,8 @@ public class Program
         builder.Services.AddScoped<TwoFactorService>();
         builder.Services.AddScoped<AvatarService>();
         builder.Services.AddScoped<RecoveryCodeService>();
+        builder.Services.AddScoped<ChatService>();
+        builder.Services.AddScoped<EncryptionService>();
         builder.Services.AddSingleton<Cloudinary>(sp =>
         {
             var config = builder.Configuration.GetSection("Cloudinary");
