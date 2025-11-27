@@ -499,7 +499,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
             throw new InvalidOperationException($"SendGrid lỗi: {response.StatusCode}");
         }
 
-        logger.LogInformation("Email OTP gửi thành công đến {Email}",email);
+        logger.LogInformation("Email Login Info gửi thành công đến {Email}",email);
     }
     
     // GET: Users/Edit
