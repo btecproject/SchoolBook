@@ -173,7 +173,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
             var studentCode = ws.Cells[row, colMap["StudentCode"]].GetValue<string>()?.Trim();
             var email = ws.Cells[row, colMap["Email"]].GetValue<string>()?.Trim();
             var phone = colMap.ContainsKey("Phone") 
-                ? (ws.Cells[row, colMap["Phone"]].Value?.ToString()!).Trim() 
+                ? ws.Cells[row, colMap["Phone"]].Value?.ToString()?.Trim() 
                 : null;
 
             logger.LogInformation("Row {Row}: {FullName} - {StudentCode} - {Email}", row, fullName, studentCode, email);
@@ -499,7 +499,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
             throw new InvalidOperationException($"SendGrid lỗi: {response.StatusCode}");
         }
 
-        logger.LogInformation("Email OTP gửi thành công đến {Email}",email);
+        logger.LogInformation("Email Login Info gửi thành công đến {Email}",email);
     }
     
     // GET: Users/Edit
