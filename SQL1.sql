@@ -1,4 +1,4 @@
-CREATE TABLE Users (
+CREATE table Users (
                        Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
                        Username NVARCHAR(50) NOT NULL UNIQUE,
                        PasswordHash NVARCHAR(MAX) NOT NULL,
@@ -10,7 +10,11 @@ CREATE TABLE Users (
                        TokenVersion INT DEFAULT 1,
                        IsActive BIT DEFAULT 1,
                        CreatedAt DATETIME DEFAULT GETUTCDATE(),
-                       UpdatedAt DATETIME NULL
+                       UpdatedAt DATETIME NULL,
+                       TwoFactorEnabled BIT DEFAULT 0,
+                       TwoFactorSecret NVARCHAR(200) NULL,
+                       RecoveryCodesGenerated BIT DEFAULT 0,
+                       RecoveryCodesLeft INT DEFAULT 0
 );
 
 CREATE TABLE Roles (
@@ -23,7 +27,7 @@ CREATE TABLE UserRoles (
                            UserId UNIQUEIDENTIFIER NOT NULL,
                            RoleId UNIQUEIDENTIFIER NOT NULL,
                            PRIMARY KEY (UserId, RoleId),
-                           FOREIGN KEY (UserId) REFERENCES Users(Id),
+                           FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
                            FOREIGN KEY (RoleId) REFERENCES Roles(Id)
 );
 
@@ -35,7 +39,7 @@ CREATE TABLE UserTokens (
                             IsRevoked BIT DEFAULT 0,
                             FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
--- Index để tìm nhanh
+
 CREATE INDEX IX_UserTokens_UserId ON UserTokens (UserId);
 
 CREATE TABLE OtpCodes (
@@ -46,8 +50,9 @@ CREATE TABLE OtpCodes (
                           ExpiresAt DATETIME NOT NULL,
                           IsUsed BIT DEFAULT 0,
                           CreatedAt DATETIME DEFAULT GETUTCDATE(),
-                          FOREIGN KEY (UserId) REFERENCES Users(Id)
+                          FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
+
 
 CREATE TABLE FaceProfiles (
                               UserId UNIQUEIDENTIFIER PRIMARY KEY,
@@ -68,36 +73,9 @@ CREATE TABLE TrustedDevices (
                                 IsRevoked BIT DEFAULT 0,
                                 FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
-
--- Index để tìm nhanh
 CREATE INDEX IX_TrustedDevices_UserId_IP_Device
     ON TrustedDevices (UserId, IPAddress, DeviceInfo);
 
-INSERT INTO Roles (Name, Description)
-VALUES
-    ('HighAdmin', 'Super admin with full control'),
-    ('Admin', 'System administrator'),
-    ('Moderator', 'Content moderator'),
-    ('Teacher', 'Content creator'),
-    ('Student', 'Basic user');
-
-
-DECLARE @highAdminId UNIQUEIDENTIFIER = NEWID();
-INSERT INTO Users (Id, Username, PasswordHash, Email, PhoneNumber, FaceRegistered, MustChangePassword, TokenVersion, IsActive)
-VALUES
-    (@highAdminId, 'highadmin', '$2a$12$1z0WFrouH5JZdDkmpjQPiuyOcYIOeswMPhJMDa7VwJe9uT/d0QoD.', 'highadmin@mail.com', 0123456789, 0, 1, 1, 1);
-
-
-INSERT INTO UserRoles (UserId, RoleId)
-SELECT @highAdminId, Id FROM Roles WHERE Name = 'HighAdmin';
-
------------------------------Thêm gg/ms authenticator----------------------------------
-ALTER TABLE Users
-    ADD TwoFactorEnabled BIT DEFAULT 0,
-    TwoFactorSecret NVARCHAR(200) NULL;
-
------------------------------Thêm User profile--------------------------------
--- Bảng UserProfiles
 CREATE TABLE UserProfiles (
                               UserId UNIQUEIDENTIFIER PRIMARY KEY,
                               FullName NVARCHAR(100),
@@ -151,6 +129,8 @@ CREATE TABLE Following (
 CREATE NONCLUSTERED INDEX IX_Followers_FollowerId   ON Followers(FollowerId);
 CREATE NONCLUSTERED INDEX IX_Following_FollowingId ON Following(FollowingId);
 
+
+
 CREATE PROCEDURE usp_DeleteUser @userId UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -168,23 +148,6 @@ COMMIT TRAN;
 END
 
 
-ALTER TABLE UserRoles DROP CONSTRAINT FK__UserRoles__UserI__693CA210;
-ALTER TABLE UserRoles
-    ADD CONSTRAINT FK_UserRoles_UserId
-        FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE;
-
-ALTER TABLE OtpCodes DROP CONSTRAINT FK__OtpCodes__UserId__778AC167;
-ALTER TABLE OtpCodes
-    ADD CONSTRAINT FK_OtpCodes_UserId
-        FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE;
-        
-
------------------------------------Thêm Recovery Code-----------------------------------
-ALTER TABLE Users
-    ADD
-        RecoveryCodesGenerated BIT DEFAULT 0,        -- Đã từng tạo code chưa
-    RecoveryCodesLeft       INT  DEFAULT 0;       -- Còn bao nhiêu code chưa dùng
-
 CREATE TABLE RecoveryCodes (
                                Id         UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
                                UserId     UNIQUEIDENTIFIER NOT NULL,
@@ -200,7 +163,27 @@ CREATE TABLE RecoveryCodes (
 CREATE NONCLUSTERED INDEX IX_RecoveryCodes_UserId_IsUsed 
 ON RecoveryCodes (UserId, IsUsed) 
 INCLUDE (HashedCode);
-       
+
+
+
+INSERT INTO Roles (Name, Description)
+VALUES
+    ('HighAdmin', 'Super admin with full control'),
+    ('Admin', 'System administrator'),
+    ('Moderator', 'Content moderator'),
+    ('Teacher', 'Content creator'),
+    ('Student', 'Basic user');
+
+
+DECLARE @highAdminId UNIQUEIDENTIFIER = NEWID();
+INSERT INTO Users (Id, Username, PasswordHash, Email, PhoneNumber, FaceRegistered, MustChangePassword, TokenVersion, IsActive)
+VALUES
+    (@highAdminId, 'highadmin', '$2a$12$1z0WFrouH5JZdDkmpjQPiuyOcYIOeswMPhJMDa7VwJe9uT/d0QoD.', 'highadmin@mail.com', 0123456789, 0, 1, 1, 1);
+
+--- highadmin, Admin123.
+INSERT INTO UserRoles (UserId, RoleId)
+SELECT @highAdminId, Id FROM Roles WHERE Name = 'HighAdmin';
+
 ------------------------------------Chat--------------------------------------------
 -- 1. Conversations (đoạn chat 1-1 hoặc nhóm)
 CREATE TABLE Conversations (
