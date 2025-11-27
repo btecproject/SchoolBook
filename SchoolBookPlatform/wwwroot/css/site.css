@@ -69,3 +69,17 @@ a {
 a:hover {
     color: #feb47b;
 }
+
+.app-footer {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 48px;
+    line-height: 48px;
+    background: linear-gradient(135deg, #ff8c00, #ff6b35);
+    color: white;
+    text-align: center;
+    font-size: 13.5px;
+    z-index: 99999 !important;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.15);
+}
+.app-footer a { color: white; }

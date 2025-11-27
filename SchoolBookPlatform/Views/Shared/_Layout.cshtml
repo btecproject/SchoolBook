@@ -5,7 +5,7 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>@ViewData["Title"] - SchoolBook Platform</title>
-    @RenderSection("Styles", required: false)
+    @await RenderSectionAsync("Styles", required: false)
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css"/>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
     <link rel="stylesheet" href="~/css/page/home.css" asp-append-version="true"/>
@@ -112,9 +112,12 @@
     </main>
 </div>
 
-<footer class="border-top footer text-muted">
-    <div class="container">
-        &copy; 2025 - SchoolBook Platform - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+<footer class="app-footer">
+    <div class="container py-2 text-center text-white small">
+        © 2025 SchoolBook Platform • 
+        <a asp-area="" asp-controller="Home" asp-action="Privacy" class="text-white text-decoration-underline">
+            Quy định bảo mật
+        </a>
     </div>
 </footer>
 
