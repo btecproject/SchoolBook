@@ -518,7 +518,9 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/chat-encryption.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
     
     <script>
         const threadId = parseInt('@Model.Id') || 0;
@@ -538,9 +540,19 @@
                 .configureLogging(signalR.LogLevel.Information)
                 .build();
 
-            connection.on("ReceiveMessage", (userId, content, timestamp, attachmentId, attachmentType, attachmentName, attachmentSize) => {
-                console.log("Received message:", userId, content, attachmentId);
-                appendMessage(userId, content, new Date(timestamp), attachmentId, attachmentType, attachmentName, attachmentSize);
+            connection.on("ReceiveEncryptedMessage", async (userId, encryptedContent, timestamp, isEncrypted, iv, encryptedKey, attachmentId, attachmentType, attachmentName, attachmentSize) => {
+                let displayText = encryptedContent;
+
+                if (isEncrypted && chatEncryption) {
+                    try {
+                        displayText = await chatEncryption.decryptMessage(encryptedContent, iv, encryptedKey);
+                    } catch (decErr) {
+                        console.warn("Unable to decrypt (maybe old message or wrong key):", decErr);
+                        displayText = "Encrypted Message";
+                    }
+                }
+
+                appendMessage(userId, displayText, new Date(timestamp), attachmentId, attachmentType, attachmentName, attachmentSize);
             });
 
             connection.on("SegmentStarted", (segmentId, message) => {
@@ -579,9 +591,14 @@
         }
 
         // Append message
-        function appendMessage(userId, content, timestamp, attachmentId, attachmentType, attachmentName, attachmentSize) {
+        function appendMessage(userId, content, timestamp, attachmentId, attachmentType, attachmentName, attachmentSize, isEncrypted = false) {
             const messagesDiv = document.getElementById("messages");
             const isSent = userId === currentUser;
+
+            let encryptionBadge = '';
+            if (isEncrypted && !isSent) {
+                encryptionBadge = '<span class="badge bg-dark ms-2" style="font-size: 10px;">🔒</span>';
+            }
 
             let attachmentHtml = '';
             if (attachmentId) {
@@ -620,7 +637,7 @@
             const messageHtml = `
         <div class="message ${isSent ? 'sent' : 'received'}">
             <div class="message-bubble">
-                ${!isSent ? `<div class="message-sender">${escapeHtml(userId)}</div>` : ''}
+                ${!isSent ? `<div class="message-sender">${escapeHtml(userId)}${encryptionBadge}</div>` : ''}
                 ${content ? `<div class="message-content">${escapeHtml(content)}</div>` : ''}
                 ${attachmentHtml}
                 <div class="message-time">${formatTime(timestamp)}</div>
@@ -785,44 +802,73 @@
             const content = input.value.trim();
 
             if (!content && !selectedFile) return;
-            if (!currentSegmentId) {
-                alert("No active segment");
-                return;
-            }
-            if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
-                alert("Not connected");
+            if (!currentSegmentId || !connection || connection.state !== signalR.HubConnectionState.Connected) {
+                alert("Cannot send a message");
                 return;
             }
 
             try {
+                let attachmentId = null;
+                let attachmentType = null;
+                let attachmentName = null;
+                let attachmentSize = null;
+
                 if (selectedFile) {
-                    // Upload file trước
                     const uploadResult = await uploadFile();
-                    if (!uploadResult) return; // Upload failed
+                    if (!uploadResult) return;
 
-                    // Gửi message với attachment
-                    await connection.invoke("SendMessageWithAttachment",
-                        threadId,
-                        currentSegmentId,
-                        content,
-                        uploadResult.attachmentId,
-                        uploadResult.type,
-                        uploadResult.name,
-                        uploadResult.size
-                    );
-
+                    attachmentId = uploadResult.attachmentId;
+                    attachmentType = uploadResult.type;
+                    attachmentName = uploadResult.name;
+                    attachmentSize = uploadResult.size;
                     messageIndex++;
-                    cancelFile(); // Clear file after sending
-                } else {
-                    // Gửi message thường
-                    await connection.invoke("SendMessage", threadId, currentSegmentId, content);
+                    cancelFile();
                 }
+                
+                const threadMembersExceptMe = @Html.Raw(Json.Serialize(Model.UserIds.Where(u => u != currentUser)));
 
-                console.log("Message sent");
+                let finalContent = content || "File";
+                let iv = "";
+                let encryptedKey = "";
+                let isEncrypted = true;
+
+                if (finalContent && chatEncryption && threadMembersExceptMe.length > 0) {
+                    try {
+                        const encryptResult = await chatEncryption.encryptMessage(
+                            finalContent,
+                            threadMembersExceptMe  
+                        );
+
+                        finalContent = encryptResult.encryptedContent;
+                        iv = encryptResult.iv;
+                        encryptedKey = encryptResult.encryptedKey;
+                    } catch (encErr) {
+                        console.warn("Encryption failed, send normal form:", encErr);
+                        isEncrypted = false;
+                    }
+                } else {
+                   
+                    isEncrypted = false;
+                }
+                
+                await connection.invoke("SendEncryptedMessage",
+                    threadId,
+                    currentSegmentId,
+                    finalContent,
+                    iv,
+                    encryptedKey,
+                    isEncrypted,
+                    attachmentId,
+                    attachmentType,
+                    attachmentName,
+                    attachmentSize
+                );
+
                 input.value = "";
+                console.log("Message sent (encrypted:", isEncrypted, ")");
             } catch (err) {
-                console.error("Error:", err);
-                alert("Failed: " + err.message);
+                console.error("Error sending message:", err);
+                alert("Send failed: " + err.message);
             }
 }
 
@@ -964,29 +1010,43 @@
         }
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
+        let chatEncryption = null;
+
+        // ================ KHỞI TẠO TOÀN BỘ ================
+        document.addEventListener('DOMContentLoaded', async function () {
             console.log('Initializing chat...');
             console.log('Thread ID:', threadId);
             console.log('Current Segment ID:', currentSegmentId);
             console.log('Current User:', currentUser);
 
-            // Initialize SignalR
-            initializeSignalR();
+            try {
+                // BƯỚC 1: Khởi tạo hệ thống mã hóa trước tiên
+                console.log('Khởi tạo ChatEncryption...');
+                chatEncryption = new ChatEncryption();
+                await chatEncryption.initialize(); // ← QUAN TRỌNG NHẤT!
+                console.log('Mã hóa đã sẵn sàng!');
 
-            // Load messages if segment exists
-            if (currentSegmentId > 0) {
-                console.log('Loading messages for existing segment...');
-                loadMessages(currentSegmentId);
-            } else {
-                console.warn(' No active segment found');
-                const messagesDiv = document.getElementById("messages");
-                messagesDiv.innerHTML = `
-            <div style="text-align: center; color: #999; padding: 40px;">
-                <i class="bi bi-chat-dots" style="font-size: 64px; opacity: 0.3; margin-bottom: 20px;"></i>
-                <h5>No Active Chat Segment</h5>
-                <p>Create a segment to start messaging</p>
-            </div>`;
+                // BƯỚC 2: Sau khi có key rồi mới kết nối SignalR
+                initializeSignalR();
+
+                // BƯỚC 3: Load tin nhắn (có thể giải mã)
+                if (currentSegmentId > 0) {
+                    console.log('Loading messages for segment:', currentSegmentId);
+                    loadMessages(currentSegmentId);
+                } else {
+                    console.warn('No active segment found');
+                    const messagesDiv = document.getElementById("messages");
+                    messagesDiv.innerHTML = `
+                        <div style="text-align: center; color: #999; padding: 40px;">
+                            <i class="bi bi-chat-dots" style="font-size: 64px; opacity: 0.3; margin-bottom: 20px;"></i>
+                            <h5>No Active Chat Segment</h5>
+                            <p>Create a segment to start messaging</p>
+                        </div>`;
+                }
+            } catch (err) {
+                console.error('Lỗi khởi tạo mã hóa:', err);
+                alert('Lỗi bảo mật: Không thể khởi tạo mã hóa. Vui lòng tải lại trang.');
             }
-});
+        });
     </script>
 }

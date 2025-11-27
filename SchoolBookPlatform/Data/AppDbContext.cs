@@ -23,6 +23,8 @@ public class AppDbContext : DbContext
     public DbSet<Follower> Followers { get; set; }
     public DbSet<Following> Following { get; set; }
     public DbSet<RecoveryCode> RecoveryCodes { get; set; } = null!;
+    public DbSet<UserEncryptionKey> UserEncryptionKeys { get; set; }
+    public DbSet<ThreadEncryptionKey> ThreadEncryptionKeys { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,6 +49,50 @@ public class AppDbContext : DbContext
         {
             entity.HasIndex(e => new { e.UserId, e.IPAddress, e.DeviceInfo })
                 .IsUnique();
+        });
+        
+        // USER ENCRYPTION KEY CONFIGURATION
+        modelBuilder.Entity<UserEncryptionKey>(entity =>
+        {
+            entity.HasKey(k => k.Id);
+            
+            entity.Property(k => k.UserId).IsRequired();
+            entity.Property(k => k.PublicKey).IsRequired();
+            entity.Property(k => k.EncryptedPrivateKey).IsRequired();
+            entity.Property(k => k.PrivateKeySalt).IsRequired();
+            
+            // Unique index on UserId
+            entity.HasIndex(k => k.UserId).IsUnique();
+            
+            // Foreign key
+            entity.HasOne(k => k.User)
+                .WithMany()
+                .HasForeignKey(k => k.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        // THREAD ENCRYPTION KEY CONFIGURATION
+        modelBuilder.Entity<ThreadEncryptionKey>(entity =>
+        {
+            entity.HasKey(k => k.Id);
+            
+            entity.Property(k => k.ThreadId).IsRequired();
+            entity.Property(k => k.UserId).IsRequired();
+            entity.Property(k => k.EncryptedThreadKey).IsRequired();
+            
+            // Composite index
+            entity.HasIndex(k => new { k.ThreadId, k.UserId });
+            
+            // Foreign keys
+            entity.HasOne(k => k.Thread)
+                .WithMany()
+                .HasForeignKey(k => k.ThreadId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            entity.HasOne(k => k.User)
+                .WithMany()
+                .HasForeignKey(k => k.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // UserToken

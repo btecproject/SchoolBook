@@ -20,7 +20,7 @@ namespace SchoolBookPlatform.Services
         
         public async Task<ChatSegment> CreateSegment(int threadId, bool isProtected, string pin = null)
         {
-            Console.WriteLine($"🔨 CreateSegment START");
+            Console.WriteLine($" CreateSegment START");
             Console.WriteLine($"   ThreadId: {threadId}");
             Console.WriteLine($"   IsProtected: {isProtected}");
             Console.WriteLine($"   PIN provided: {(pin != null ? "YES" : "NO")}");
@@ -96,7 +96,7 @@ namespace SchoolBookPlatform.Services
                 throw new Exception($"CRITICAL: Segment {segment.Id} not found after save!");
             }
             
-            Console.WriteLine($"🔍 Reloaded from DB:");
+            Console.WriteLine($" Reloaded from DB:");
             Console.WriteLine($"   ID: {reloadedSegment.Id}");
             Console.WriteLine($"   IsProtected: {reloadedSegment.IsProtected}");
             Console.WriteLine($"   MessagesJson: '{reloadedSegment.MessagesJson}'");
