@@ -20,6 +20,13 @@ public class AppDbContext : DbContext
     public DbSet<Follower> Followers { get; set; }
     public DbSet<Following> Following { get; set; }
     public DbSet<RecoveryCode> RecoveryCodes { get; set; } = null!;
+    
+    // Post feature - DbSets
+    public DbSet<Post> Posts { get; set; } = null!;
+    public DbSet<PostComment> PostComments { get; set; } = null!;
+    public DbSet<PostVote> PostVotes { get; set; } = null!;
+    public DbSet<PostReport> PostReports { get; set; } = null!;
+    public DbSet<PostAttachment> PostAttachments { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -101,6 +108,50 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(f => f.FollowingId)
             .OnDelete(DeleteBehavior.NoAction);
+        
+        // Post feature - Entity configurations
+        // Post entity configuration
+        modelBuilder.Entity<Post>(entity =>
+        {
+            // Index cho UserId để query nhanh
+            entity.HasIndex(p => p.UserId);
+            // Composite index cho IsVisible và IsDeleted để filter nhanh
+            entity.HasIndex(p => new { p.IsVisible, p.IsDeleted });
+            // Giới hạn độ dài VisibleToRoles
+            entity.Property(p => p.VisibleToRoles).HasMaxLength(50);
+        });
+
+        // PostComment entity configuration
+        modelBuilder.Entity<PostComment>(entity =>
+        {
+            // Index cho PostId để query comments của post nhanh
+            entity.HasIndex(pc => pc.PostId);
+            // Index cho ParentCommentId để query replies nhanh
+            entity.HasIndex(pc => pc.ParentCommentId);
+            // Cấu hình relationship cho nested comments
+            entity.HasOne(pc => pc.ParentComment)
+                .WithMany(pc => pc.Replies)
+                .HasForeignKey(pc => pc.ParentCommentId)
+                .OnDelete(DeleteBehavior.NoAction); // Không cascade để tránh xóa nhầm
+        });
+
+        // PostVote entity configuration
+        modelBuilder.Entity<PostVote>(entity =>
+        {
+            // Composite key: PostId + UserId (mỗi user chỉ vote 1 lần cho 1 post)
+            entity.HasKey(pv => new { pv.PostId, pv.UserId });
+        });
+
+        // PostReport entity configuration
+        modelBuilder.Entity<PostReport>(entity =>
+        {
+            // Index cho PostId để query reports của post nhanh
+            entity.HasIndex(pr => pr.PostId);
+            // Index cho Status để filter reports theo trạng thái nhanh
+            entity.HasIndex(pr => pr.Status);
+            // Giới hạn độ dài Status
+            entity.Property(pr => pr.Status).HasMaxLength(20);
+        });
         
         //RecoveryCodes
         // modelBuilder.Entity<RecoveryCode>(entity =>

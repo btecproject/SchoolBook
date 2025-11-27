@@ -1,0 +1,167 @@
+@model SchoolBookPlatform.ViewModels.Post.PostListViewModel
+@{
+    ViewData["Title"] = "Danh sách bài đăng";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2>Bài đăng</h2>
+                <a asp-controller="Post" asp-action="Create" class="btn btn-primary">Đăng bài mới</a>
+            </div>
+
+            @* Hiển thị thông báo *@
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    @TempData["SuccessMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            @* Danh sách bài đăng *@
+            @if (Model.Posts.Any())
+            {
+                @foreach (var post in Model.Posts)
+                {
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title">
+                                        <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" class="text-decoration-none">
+                                            @post.Title
+                                        </a>
+                                    </h5>
+                                    <p class="card-text">@post.Content</p>
+                                    <small class="text-muted">
+                                        Đăng bởi: <strong>@post.AuthorName</strong> | 
+                                        @post.CreatedAt.ToString("g")
+                                        @if (!string.IsNullOrEmpty(post.VisibleToRoles) && post.VisibleToRoles != "All")
+                                        {
+                                            <span class="badge bg-info">@post.VisibleToRoles</span>
+                                        }
+                                    </small>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    @if (post.IsOwner)
+                                    {
+                                        <a asp-action="Edit" asp-route-id="@post.Id" class="btn btn-sm btn-primary">
+                                            Sửa
+                                        </a>
+                                    }
+                                    @if (post.CanDelete)
+                                    {
+                                        <form asp-action="Delete" asp-route-id="@post.Id" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-danger" 
+                                                    onclick="return confirm('Bạn có chắc muốn xóa bài đăng này?');">
+                                                Xóa
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </div>
+                            
+                            @* Hiển thị file đính kèm (nếu có) *@
+                            @if (post.Attachments.Any())
+                            {
+                                <div class="mt-2">
+                                    <small class="text-muted">File đính kèm:</small>
+                                    <div class="d-flex flex-wrap gap-2 mt-1">
+                                        @foreach (var attachment in post.Attachments.Take(4))
+                                        {
+                                            @if (attachment.IsImage)
+                                            {
+                                                <a href="@attachment.FilePath" target="_blank" class="text-decoration-none">
+                                                    <img src="@attachment.FilePath" class="rounded" 
+                                                         alt="@attachment.FileName" 
+                                                         style="max-height: 80px; max-width: 80px; object-fit: cover;" />
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">📄 @attachment.FileName</span>
+                                            }
+                                        }
+                                        @if (post.Attachments.Count > 4)
+                                        {
+                                            <span class="badge bg-info">+@(post.Attachments.Count - 4) file khác</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-outline-primary vote-btn" 
+                                        data-post-id="@post.Id" 
+                                        data-vote-type="true">
+                                    👍 <span class="upvote-count">@post.UpvoteCount</span>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger vote-btn" 
+                                        data-post-id="@post.Id" 
+                                        data-vote-type="false">
+                                    👎 <span class="downvote-count">@post.DownvoteCount</span>
+                                </button>
+                                <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" class="btn btn-sm btn-outline-secondary">
+                                    💬 @post.CommentCount
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    Chưa có bài đăng nào. Hãy <a asp-controller="Post" asp-action="Create">đăng bài đầu tiên</a>!
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@* Script cho vote (AJAX) *@
+@section Scripts {
+    <script>
+        document.querySelectorAll('.vote-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const postId = this.dataset.postId;
+                const isUpvote = this.dataset.voteType === 'true';
+                
+                try {
+                    const response = await fetch('/Post/Vote', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `postId=${postId}&isUpvote=${isUpvote}`
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        // Cập nhật số lượng vote
+                        const card = this.closest('.card');
+                        card.querySelector('.upvote-count').textContent = data.upvoteCount;
+                        card.querySelector('.downvote-count').textContent = data.downvoteCount;
+                    } else {
+                        alert(data.message || 'Có lỗi xảy ra');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi vote');
+                }
+            });
+        });
+    </script>
+}
+

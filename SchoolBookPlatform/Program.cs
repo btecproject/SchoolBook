@@ -32,6 +32,8 @@ public class Program
         builder.Services.AddScoped<TwoFactorService>();
         builder.Services.AddScoped<AvatarService>();
         builder.Services.AddScoped<RecoveryCodeService>();
+        // Post feature service
+        builder.Services.AddScoped<PostService>();
         builder.Services.AddSingleton<Cloudinary>(sp =>
         {
             var config = builder.Configuration.GetSection("Cloudinary");
@@ -87,6 +89,10 @@ public class Program
             
             options.AddPolicy("AdminOrHigher", policy =>
                 policy.RequireRole("HighAdmin", "Admin"));
+            
+            // Post feature policy: Moderator, Admin, HighAdmin có quyền xử lý bài đăng
+            options.AddPolicy("ModeratorOrHigher", policy =>
+                policy.RequireRole("HighAdmin", "Admin", "Moderator"));
         });
         
         var app = builder.Build();

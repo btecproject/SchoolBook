@@ -1,0 +1,251 @@
+@model SchoolBookPlatform.ViewModels.Post.PostDetailsViewModel
+@{
+    ViewData["Title"] = Model.Post.Title;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            @* Thông báo *@
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    @TempData["SuccessMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            @* Bài đăng *@
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h2 class="card-title">@Model.Post.Title</h2>
+                            <p class="card-text">@Model.Post.Content</p>
+                            <small class="text-muted">
+                                Đăng bởi: <strong>@Model.Post.AuthorName</strong> | 
+                                @Model.Post.CreatedAt.ToString("g")
+                                @if (Model.Post.CreatedAt != Model.Post.UpdatedAt && Model.Post.UpdatedAt.HasValue)
+                                {
+                                    <span> | Đã sửa: @Model.Post.UpdatedAt.Value.ToString("g")</span>
+                                }
+                            </small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            @if (Model.Post.IsOwner)
+                            {
+                                <a asp-action="Edit" asp-route-id="@Model.Post.Id" class="btn btn-sm btn-primary">
+                                    Sửa
+                                </a>
+                            }
+                            @if (Model.Post.CanDelete)
+                            {
+                                <form asp-action="Delete" asp-route-id="@Model.Post.Id" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-danger" 
+                                            onclick="return confirm('Bạn có chắc muốn xóa bài đăng này?');">
+                                        Xóa
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                    
+                    @* Hiển thị file đính kèm *@
+                    @if (Model.Post.Attachments.Any())
+                    {
+                        <div class="mt-3">
+                            <h6>File đính kèm:</h6>
+                            <div class="row">
+                                @foreach (var attachment in Model.Post.Attachments)
+                                {
+                                    <div class="col-md-3 mb-2">
+                                        @if (attachment.IsImage)
+                                        {
+                                            <a href="@attachment.FilePath" target="_blank">
+                                                <img src="@attachment.FilePath" class="img-fluid rounded" 
+                                                     alt="@attachment.FileName" 
+                                                     style="max-height: 200px; width: 100%; object-fit: cover; cursor: pointer;" />
+                                            </a>
+                                            <p class="small text-muted mt-1 text-truncate" title="@attachment.FileName">@attachment.FileName</p>
+                                        }
+                                        else
+                                        {
+                                            <div class="card">
+                                                <div class="card-body text-center p-3">
+                                                    <i class="bi bi-file-earmark" style="font-size: 3rem;"></i>
+                                                    <p class="small mb-1 text-truncate" title="@attachment.FileName">@attachment.FileName</p>
+                                                    <a href="@attachment.FilePath" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                        Tải xuống
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-primary vote-btn" 
+                                data-post-id="@Model.Post.Id" 
+                                data-vote-type="true">
+                            👍 <span class="upvote-count">@Model.Post.UpvoteCount</span>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger vote-btn" 
+                                data-post-id="@Model.Post.Id" 
+                                data-vote-type="false">
+                            👎 <span class="downvote-count">@Model.Post.DownvoteCount</span>
+                        </button>
+                        <span class="ms-2">💬 @Model.Post.CommentCount bình luận</span>
+                    </div>
+                </div>
+            </div>
+
+            @* Form báo cáo *@
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Báo cáo bài đăng</h5>
+                    <form asp-action="Report" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="postId" value="@Model.Post.Id" />
+                        <div class="mb-2">
+                            <textarea name="reason" class="form-control" rows="3" 
+                                      placeholder="Nhập lý do báo cáo..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-warning btn-sm">Gửi báo cáo</button>
+                    </form>
+                </div>
+            </div>
+
+            @* Danh sách comment *@
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Bình luận (@Model.Comments.Count)</h5>
+                    
+                    @* Form comment mới *@
+                    <div class="mb-3">
+                        <textarea id="commentContent" class="form-control" rows="3" 
+                                  placeholder="Viết bình luận..."></textarea>
+                        <button id="submitComment" class="btn btn-primary btn-sm mt-2" 
+                                data-post-id="@Model.Post.Id">
+                            Gửi bình luận
+                        </button>
+                    </div>
+
+                    <hr />
+
+                    @* Danh sách comment *@
+                    <div id="commentsList">
+                        @foreach (var comment in Model.Comments)
+                        {
+                            <div class="mb-3 comment-item" data-comment-id="@comment.Id">
+                                <div class="d-flex">
+                                    <div class="flex-grow-1">
+                                        <strong>@comment.AuthorName</strong>
+                                        <small class="text-muted ms-2">@comment.CreatedAt.ToString("g")</small>
+                                        <p class="mt-1 mb-1">@comment.Content</p>
+                                        
+                                        @* Replies *@
+                                        @if (comment.Replies.Any())
+                                        {
+                                            <div class="ms-4 mt-2">
+                                                @foreach (var reply in comment.Replies)
+                                                {
+                                                    <div class="mb-2">
+                                                        <strong>@reply.AuthorName</strong>
+                                                        <small class="text-muted ms-2">@reply.CreatedAt.ToString("g")</small>
+                                                        <p class="mt-1 mb-0">@reply.Content</p>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                                <hr />
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Vote functionality
+        document.querySelectorAll('.vote-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const postId = this.dataset.postId;
+                const isUpvote = this.dataset.voteType === 'true';
+                
+                try {
+                    const response = await fetch('/Post/Vote', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `postId=${postId}&isUpvote=${isUpvote}`
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        document.querySelector('.upvote-count').textContent = data.upvoteCount;
+                        document.querySelector('.downvote-count').textContent = data.downvoteCount;
+                    } else {
+                        alert(data.message || 'Có lỗi xảy ra');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi vote');
+                }
+            });
+        });
+
+        // Comment functionality
+        document.getElementById('submitComment')?.addEventListener('click', async function() {
+            const postId = this.dataset.postId;
+            const content = document.getElementById('commentContent').value.trim();
+            
+            if (!content) {
+                alert('Vui lòng nhập nội dung bình luận');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/Post/Comment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `postId=${postId}&content=${encodeURIComponent(content)}`
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    // Reload page to show new comment
+                    location.reload();
+                } else {
+                    alert(data.message || 'Có lỗi xảy ra');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra khi gửi bình luận');
+            }
+        });
+    </script>
+}
+
+
+
+

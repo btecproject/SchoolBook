@@ -1,0 +1,68 @@
+@model SchoolBookPlatform.ViewModels.Post.CreatePostViewModel
+@{
+    ViewData["Title"] = "Đăng bài mới";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h2>Đăng bài mới</h2>
+            <hr />
+
+            <form asp-action="Create" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                @* Tiêu đề *@
+                <div class="mb-3">
+                    <label asp-for="Title" class="form-label"></label>
+                    <input asp-for="Title" class="form-control" placeholder="Nhập tiêu đề bài đăng" />
+                    <span asp-validation-for="Title" class="text-danger"></span>
+                </div>
+
+                @* Nội dung *@
+                <div class="mb-3">
+                    <label asp-for="Content" class="form-label"></label>
+                    <textarea asp-for="Content" class="form-control" rows="10" placeholder="Nhập nội dung bài đăng"></textarea>
+                    <span asp-validation-for="Content" class="text-danger"></span>
+                </div>
+
+                @* Nhóm người xem *@
+                <div class="mb-3">
+                    <label asp-for="VisibleToRoles" class="form-label"></label>
+                    <select asp-for="VisibleToRoles" class="form-select">
+                        <option value="All">Tất cả mọi người</option>
+                        <option value="Student">Chỉ học sinh</option>
+                        <option value="Teacher">Chỉ giáo viên</option>
+                        <option value="Admin">Chỉ quản trị viên</option>
+                    </select>
+                    <span asp-validation-for="VisibleToRoles" class="text-danger"></span>
+                    <small class="form-text text-muted">Chọn nhóm người dùng được phép xem bài đăng này</small>
+                </div>
+
+                @* Upload file *@
+                <div class="mb-3">
+                    <label asp-for="Files" class="form-label"></label>
+                    <input asp-for="Files" type="file" class="form-control" multiple accept="image/*,video/*" />
+                    <span asp-validation-for="Files" class="text-danger"></span>
+                    <small class="form-text text-muted">
+                        Có thể chọn nhiều file. Định dạng: JPG, PNG, GIF, WEBP, MP4, MOV, AVI. Tối đa 10MB mỗi file.
+                    </small>
+                </div>
+
+                @* Buttons *@
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary">Đăng bài</button>
+                    <a asp-controller="Post" asp-action="Index" class="btn btn-secondary">Hủy</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
+

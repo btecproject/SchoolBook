@@ -1,0 +1,49 @@
+@model SchoolBookPlatform.ViewModels.Post.ModeratorDeleteViewModel
+@{
+    ViewData["Title"] = "Xóa bài đăng";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <h2>Xóa bài đăng</h2>
+            <hr />
+            <div class="alert alert-warning">
+                <strong>Lưu ý:</strong> Bạn đang thực hiện xóa bài đăng với tư cách Moderator/Admin. 
+                Hành động này sẽ đánh dấu bài đăng là đã xóa (soft delete).
+            </div>
+
+            <form asp-action="ModeratorDelete" asp-route-id="@Model.PostId" method="post">
+                @Html.AntiForgeryToken()
+
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <input type="hidden" asp-for="PostId" />
+
+                @* Lý do xóa *@
+                <div class="mb-3">
+                    <label asp-for="Reason" class="form-label"></label>
+                    <textarea asp-for="Reason" class="form-control" rows="5" 
+                              placeholder="Nhập lý do xóa bài đăng này..."></textarea>
+                    <span asp-validation-for="Reason" class="text-danger"></span>
+                    <small class="form-text text-muted">Lý do xóa sẽ được lưu lại để theo dõi.</small>
+                </div>
+
+                @* Buttons *@
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-danger" 
+                            onclick="return confirm('Bạn có chắc muốn xóa bài đăng này?');">
+                        Xác nhận xóa
+                    </button>
+                    <a asp-controller="Post" asp-action="Index" class="btn btn-secondary">Hủy</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
+

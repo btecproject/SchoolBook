@@ -10,7 +10,7 @@ CREATE TABLE Users (
                        TokenVersion INT DEFAULT 1,
                        IsActive BIT DEFAULT 1,
                        CreatedAt DATETIME DEFAULT GETUTCDATE(),
-                       UpdatedAt DATETIME NULL
+                       UpdatedAt DATETIME NULL	
 );
 
 CREATE TABLE Roles (
@@ -147,10 +147,94 @@ CREATE TABLE Following (
                                FOREIGN KEY (FollowingId) REFERENCES Users(Id) ON DELETE NO ACTION
 );
 
+
+-- Bảng Post
+CREATE TABLE Posts (
+                       Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                       UserId UNIQUEIDENTIFIER NOT NULL,
+                       Title NVARCHAR(300) NOT NULL,
+                       Content NVARCHAR(MAX) NULL,
+                       CreatedAt DATETIME DEFAULT GETUTCDATE(),
+                       UpdatedAt DATETIME NULL,
+                       IsDeleted BIT NOT NULL DEFAULT 0,
+                       IsVisible BIT NOT NULL DEFAULT 1,
+                       VisibleToRoles NVARCHAR(50)
+                        CHECK (VisibleToRoles IN ('Student', 'Teacher', 'Admin', 'All')),
+                       FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+);
+
+-- Bảng Post Comment
+CREATE TABLE PostComments (
+                              Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                              PostId UNIQUEIDENTIFIER NOT NULL,
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              Content NVARCHAR(MAX) NOT NULL,
+                              CreatedAt DATETIME DEFAULT GETUTCDATE(),
+                              ParentCommentId UNIQUEIDENTIFIER NULL,
+
+                              FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                              FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE NO ACTION,
+                              FOREIGN KEY (ParentCommentId) REFERENCES PostComments(Id) ON DELETE NO ACTION
+);
+
+
+CREATE INDEX IX_PostComments_PostId ON PostComments(PostId);
+CREATE INDEX IX_PostComments_ParentId ON PostComments(ParentCommentId);
+
+-- Bảng Post Attachments
+CREATE TABLE PostAttachments (
+                                 Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                                 PostId UNIQUEIDENTIFIER NOT NULL,
+                                 FileName NVARCHAR(255) NOT NULL,
+                                 FilePath NVARCHAR(500) NOT NULL,
+                                 FileSize INT NOT NULL,
+                                 UploadedAt DATETIME DEFAULT GETUTCDATE(),
+
+                                 FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE
+);
+
+CREATE INDEX IX_PostAttachments_PostId ON PostAttachments(PostId);
+
+-- Bảng Post Vote
+CREATE TABLE PostVotes (
+                           PostId UNIQUEIDENTIFIER NOT NULL,
+                           UserId UNIQUEIDENTIFIER NOT NULL,
+                           VoteType BIT NOT NULL CHECK (VoteType IN (0,1)),
+                           VotedAt DATETIME DEFAULT GETUTCDATE(),
+
+                           PRIMARY KEY (PostId, UserId),
+
+                           FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                           FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE NO ACTIOn
+);
+
+
+CREATE INDEX IX_Posts_UserId ON Posts(UserId);
+
+-- Bảng Post Report
+CREATE TABLE PostReports (
+                             Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                             PostId UNIQUEIDENTIFIER NOT NULL,
+                             ReportedBy UNIQUEIDENTIFIER NOT NULL,
+                             Reason NVARCHAR(500) NOT NULL,
+                             Status NVARCHAR(20) NOT NULL DEFAULT 'Pending'
+        CHECK (Status IN ('Pending', 'Approved', 'Rejected')),
+                             ReviewedBy UNIQUEIDENTIFIER NULL,
+                             ReviewedAt DATETIME NULL,
+                             CreatedAt DATETIME DEFAULT GETUTCDATE(),
+
+                             FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                             FOREIGN KEY (ReportedBy) REFERENCES Users(Id) ON DELETE NO ACTION,
+                             FOREIGN KEY (ReviewedBy) REFERENCES Users(Id) ON DELETE NO ACTION
+);
+
+CREATE INDEX IX_PostReports_PostId ON PostReports(PostId);
+
+
 -- Index để query nhanh
 CREATE NONCLUSTERED INDEX IX_Followers_FollowerId   ON Followers(FollowerId);
 CREATE NONCLUSTERED INDEX IX_Following_FollowingId ON Following(FollowingId);
-
+GO
 CREATE PROCEDURE usp_DeleteUser @userId UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -166,7 +250,7 @@ DELETE FROM Users WHERE Id = @userId;
 
 COMMIT TRAN;
 END
-
+GO
 
 ALTER TABLE UserRoles DROP CONSTRAINT FK__UserRoles__UserI__693CA210;
 ALTER TABLE UserRoles
@@ -177,7 +261,7 @@ ALTER TABLE OtpCodes DROP CONSTRAINT FK__OtpCodes__UserId__778AC167;
 ALTER TABLE OtpCodes
     ADD CONSTRAINT FK_OtpCodes_UserId
         FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE;
-        
+
 
 -----------------------------------Thêm Recovery Code-----------------------------------
 ALTER TABLE Users
@@ -200,5 +284,82 @@ CREATE TABLE RecoveryCodes (
 CREATE NONCLUSTERED INDEX IX_RecoveryCodes_UserId_IsUsed 
 ON RecoveryCodes (UserId, IsUsed) 
 INCLUDE (HashedCode);
-------------------------------------Thêm ABS-XYZ-----------------------------------------------
-Create table abc
+    
+------------------------------Update Post--------------------------------
+UPDATE Posts
+SET Title = 'Không có tiêu đề'
+WHERE Title IS NULL;
+
+UPDATE Posts
+SET Content = ''
+WHERE Content IS NULL;
+
+ALTER TABLE Posts ALTER COLUMN Id UNIQUEIDENTIFIER NOT NULL;
+ALTER TABLE Posts ALTER COLUMN UserId UNIQUEIDENTIFIER NOT NULL;
+ALTER TABLE Posts ALTER COLUMN Title NVARCHAR(300) NOT NULL;
+ALTER TABLE Posts ALTER COLUMN Content NVARCHAR(MAX) NOT NULL;
+
+-------------------------Thêm Delete Proc cho post-----------------------
+GO
+CREATE OR ALTER PROCEDURE DeleteUser
+    @UserId UNIQUEIDENTIFIER
+    AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- 1. Xoá comment con (reply)
+    ;WITH CommentTree AS (
+    SELECT Id
+    FROM PostComments
+    WHERE UserId = @UserId
+
+    UNION ALL
+
+    SELECT pc.Id
+    FROM PostComments pc
+             INNER JOIN CommentTree ct ON pc.ParentCommentId = ct.Id
+)
+DELETE FROM PostComments
+WHERE Id IN (SELECT Id FROM CommentTree);
+
+
+-- 2. Xoá comments của user trực tiếp
+DELETE FROM PostComments WHERE UserId = @UserId;
+
+
+-- 3. Xoá comment thuộc post mà user sở hữu
+DELETE FROM PostComments
+WHERE PostId IN (
+    SELECT Id FROM Posts WHERE UserId = @UserId
+);
+
+
+-- 4. Xoá vote comments
+DELETE FROM CommentVotes
+WHERE CommentId IN (
+    SELECT Id FROM PostComments WHERE UserId = @UserId
+);
+
+
+-- 5. Xoá vote posts
+DELETE FROM PostVotes
+WHERE PostId IN (
+    SELECT Id FROM Posts WHERE UserId = @UserId
+);
+
+
+-- 6. Xoá attachments của post
+DELETE FROM PostAttachments
+WHERE PostId IN (
+    SELECT Id FROM Posts WHERE UserId = @UserId
+);
+
+
+-- 7. Xoá posts
+DELETE FROM Posts WHERE UserId = @UserId;
+
+
+-- 8. Cuối cùng: xoá user
+DELETE FROM Users WHERE Id = @UserId;
+END;
+GO

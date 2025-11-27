@@ -1,0 +1,127 @@
+@model SchoolBookPlatform.ViewModels.Post.EditPostViewModel
+@{
+    ViewData["Title"] = "Sửa bài đăng";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h2>Sửa bài đăng</h2>
+            <hr />
+
+            @* Thông báo *@
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    @TempData["SuccessMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            <form asp-action="Edit" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="Id" />
+
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                @* Tiêu đề *@
+                <div class="mb-3">
+                    <label asp-for="Title" class="form-label"></label>
+                    <input asp-for="Title" class="form-control" placeholder="Nhập tiêu đề bài đăng" />
+                    <span asp-validation-for="Title" class="text-danger"></span>
+                </div>
+
+                @* Nội dung *@
+                <div class="mb-3">
+                    <label asp-for="Content" class="form-label"></label>
+                    <textarea asp-for="Content" class="form-control" rows="10" placeholder="Nhập nội dung bài đăng"></textarea>
+                    <span asp-validation-for="Content" class="text-danger"></span>
+                </div>
+
+                @* Nhóm người xem *@
+                <div class="mb-3">
+                    <label asp-for="VisibleToRoles" class="form-label"></label>
+                    <select asp-for="VisibleToRoles" class="form-select">
+                        <option value="All">Tất cả mọi người</option>
+                        <option value="Student">Chỉ học sinh</option>
+                        <option value="Teacher">Chỉ giáo viên</option>
+                        <option value="Admin">Chỉ quản trị viên</option>
+                    </select>
+                    <span asp-validation-for="VisibleToRoles" class="text-danger"></span>
+                    <small class="form-text text-muted">Chọn nhóm người dùng được phép xem bài đăng này</small>
+                </div>
+
+                @* File đính kèm hiện có *@
+                @if (Model.ExistingAttachments.Any())
+                {
+                    <div class="mb-3">
+                        <label class="form-label">File đính kèm hiện có</label>
+                        <div class="row">
+                            @foreach (var attachment in Model.ExistingAttachments)
+                            {
+                                <div class="col-md-4 mb-2">
+                                    <div class="card">
+                                        <div class="card-body p-2">
+                                            @if (attachment.IsImage)
+                                            {
+                                                <img src="@attachment.FilePath" class="img-fluid rounded mb-2" 
+                                                     alt="@attachment.FileName" style="max-height: 150px; width: 100%; object-fit: cover;" />
+                                            }
+                                            else
+                                            {
+                                                <div class="text-center p-3 bg-light rounded mb-2">
+                                                    <i class="bi bi-file-earmark" style="font-size: 3rem;"></i>
+                                                </div>
+                                            }
+                                            <p class="small mb-1 text-truncate" title="@attachment.FileName">@attachment.FileName</p>
+                                            <p class="small text-muted mb-2">@((attachment.FileSize / 1024.0).ToString("F2")) KB</p>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       name="AttachmentIdsToDelete" 
+                                                       value="@attachment.Id" 
+                                                       id="delete_@attachment.Id" />
+                                                <label class="form-check-label small" for="delete_@attachment.Id">
+                                                    Xóa file này
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @* Upload file mới *@
+                <div class="mb-3">
+                    <label asp-for="Files" class="form-label">Thêm ảnh/video mới</label>
+                    <input asp-for="Files" type="file" class="form-control" multiple accept="image/*,video/*" />
+                    <span asp-validation-for="Files" class="text-danger"></span>
+                    <small class="form-text text-muted">
+                        Có thể chọn nhiều file. Định dạng: JPG, PNG, GIF, WEBP, MP4, MOV, AVI. Tối đa 10MB mỗi file.
+                    </small>
+                </div>
+
+                @* Buttons *@
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                    <a asp-controller="Post" asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Hủy</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
+
