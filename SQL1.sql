@@ -200,3 +200,118 @@ CREATE TABLE RecoveryCodes (
 CREATE NONCLUSTERED INDEX IX_RecoveryCodes_UserId_IsUsed 
 ON RecoveryCodes (UserId, IsUsed) 
 INCLUDE (HashedCode);
+       
+------------------------------------Chat--------------------------------------------
+-- 1. Conversations (đoạn chat 1-1 hoặc nhóm)
+CREATE TABLE Conversations (
+                               Id            BIGINT IDENTITY(1,1) PRIMARY KEY,
+                               Type          TINYINT NOT NULL,           -- 0 = 1-1, 1 = Group
+                               Name          NVARCHAR(100) NULL,         -- NULL nếu 1-1, chỉ bắt nhập khi chat nhóm
+                               Avatar        NVARCHAR(500) NULL,
+                               CreatedAt     DATETIME2 DEFAULT GETUTCDATE(),
+                               CreatorId     NVARCHAR(450) NULL,         -- FK Users(Id)
+);
+
+-- 2. ConversationMembers (ai trong đoạn chat nào)
+CREATE TABLE ConversationMembers (
+                                     ConversationId BIGINT NOT NULL,
+                                     UserId         NVARCHAR(450) NOT NULL,
+                                     JoinedAt       DATETIME2 DEFAULT GETUTCDATE(),
+                                     Role           TINYINT DEFAULT 0,          -- 0=member, 1=Admin(chỉ có nếu là nhóm)
+                                     PRIMARY KEY (ConversationId, UserId),
+                                     FOREIGN KEY (ConversationId) REFERENCES Conversations(Id) ON DELETE CASCADE,
+                                     FOREIGN KEY (UserId) REFERENCES Users(Id)
+);
+
+-- 3. Messages (tin nhắn + attachment)
+CREATE TABLE Messages (
+                          Id            BIGINT IDENTITY(1,1) PRIMARY KEY,
+                          ConversationId BIGINT NOT NULL,
+                          SenderId      NVARCHAR(450) NOT NULL,
+                          MessageType   TINYINT NOT NULL,           -- 0=text, 1=image, 2=video, 3=file
+                          CipherText    NVARCHAR(MAX) NOT NULL,     -- nội dung hoặc URL đã E2EE
+                          PinExchange   NVARCHAR(MAX) NULL,         -- RSA encrypted PIN (chỉ lần đầu hoặc đổi PIN)
+                          ReplyToId     BIGINT NULL,                -- trích dẫn tin (trả lời)
+                          CreatedAt     DATETIME2 DEFAULT GETUTCDATE(),
+
+                          FOREIGN KEY (ConversationId) REFERENCES Conversations(Id) ON DELETE CASCADE,
+                          FOREIGN KEY (SenderId) REFERENCES AspNetUsers(Id),
+                          FOREIGN KEY (ReplyToId) REFERENCES Messages(Id),
+
+                          INDEX IX_Conv_Created (ConversationId, CreatedAt DESC),
+                          INDEX IX_Sender_Created (SenderId, CreatedAt DESC)
+);
+
+-- 6. Message Attachments - Metadata file từ Cloudinary
+CREATE TABLE MessageAttachments (
+                                    Id              UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                                    MessageId       BIGINT NOT NULL,
+                                    CloudinaryUrl   NVARCHAR(1000) NOT NULL,
+                                    ResourceType    NVARCHAR(20) NOT NULL,
+                                    Format          NVARCHAR(20) NOT NULL,
+                                    FileName        NVARCHAR(255) NULL,
+                                    UploadedAt      DATETIME2 DEFAULT SYSUTCDATETIME(),
+
+                                    CONSTRAINT FK_MessageAttachments_MessageId
+                                        FOREIGN KEY (MessageId) REFERENCES Messages(Id) ON DELETE CASCADE
+);
+
+
+
+-- 6. MessageNotifications (Chấm đỏ + sắp xếp danh sách chat) – Chỉ dùng cho UI hiện thông báo, không ảnh hưởng đến code
+CREATE TABLE MessageNotifications (
+                                      RecipientId   NVARCHAR(450) NOT NULL,
+                                      SenderId      NVARCHAR(450) NOT NULL,
+                                      UnreadCount   INT NOT NULL DEFAULT 1,
+                                      LastMessageId BIGINT NULL,
+                                      LastSentAt    DATETIME2 DEFAULT GETUTCDATE(),
+                                      PRIMARY KEY (RecipientId, SenderId),
+                                      FOREIGN KEY (LastMessageId) REFERENCES Messages(Id),
+                                      INDEX IX_Recipient_Unread (RecipientId, UnreadCount DESC)
+);
+
+-------------------------------------Mã Hóa--------------------------------------------------------
+
+-- 1. Bảng ChatUsers – bắt buộc phải có để kích hoạt tính năng chat
+-- Chỉ user có trong bảng này mới được tìm kiếm và chat
+CREATE TABLE ChatUsers (
+                           UserId        NVARCHAR(450) PRIMARY KEY,
+                           Username      NVARCHAR(256) NOT NULL,        -- trùng với AspNetUsers.UserName
+                           DisplayName   NVARCHAR(100) NOT NULL,        -- tên hiển thị trong chat
+                           PinCodeHash   NVARCHAR(256) NOT NULL,        -- SHA-256 của PIN (client băm trước khi gửi)
+                           CreatedAt     DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
+                           UpdatedAt     DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
+
+                           CONSTRAINT FK_ChatUsers_UserId
+                               FOREIGN KEY (UserId) REFERENCES AspNetUsers(Id) ON DELETE CASCADE,
+
+    -- Đảm bảo 1 user chỉ xuất hiện 1 lần
+                           UNIQUE (Username)
+);
+
+-- Index để tìm kiếm nhanh theo DisplayName hoặc Username
+CREATE INDEX IX_ChatUsers_Search ON ChatUsers (DisplayName);
+CREATE INDEX IX_ChatUsers_Username ON ChatUsers (Username);
+
+--------------------------------------------------------------------
+
+-- 2. Bảng UserRsaKeys – đúng theo mô tả của bạn
+-- Lưu PublicKey và PrivateKey đã được mã hóa AES bằng PIN (phía client)
+CREATE TABLE UserRsaKeys (
+                             UserId               NVARCHAR(450) PRIMARY KEY,
+                             PublicKey            NVARCHAR(MAX) NOT NULL,        -- PEM format
+                             PrivateKeyEncrypted  NVARCHAR(MAX) NOT NULL,        -- đã AES bằng PIN (client encrypt)
+                             CreatedAt            DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
+                             ExpiresAt            DATETIME2     NOT NULL,          -- 30 ngày
+                             IsActive             BIT           NOT NULL DEFAULT 1,
+
+                             CONSTRAINT FK_UserRsaKeys_UserId
+                                 FOREIGN KEY (UserId) REFERENCES AspNetUsers(Id) ON DELETE CASCADE,
+
+    -- Đảm bảo chỉ có 1 bản ghi active tại 1 thời điểm (nếu cần)
+                             CONSTRAINT UQ_UserRsaKeys_Active UNIQUE (UserId, IsActive) WHERE IsActive = 1
+);
+
+-- Index để kiểm tra key hết hạn nhanh
+CREATE INDEX IX_UserRsaKeys_ExpiresAt ON UserRsaKeys (ExpiresAt);
+CREATE INDEX IX_UserRsaKeys_IsActive ON UserRsaKeys (IsActive);
