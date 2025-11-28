@@ -145,6 +145,7 @@ namespace SchoolBookPlatform.Services
                 {
                     key.IsActive = false;
                 }
+                //Xóa Key bị !isActivê
                 var disabledKeys = await  db.UserRsaKeys.Where(k => !k.IsActive).ToListAsync();
                 db.UserRsaKeys.RemoveRange(disabledKeys);
                 // Tạo key mới
