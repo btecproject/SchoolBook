@@ -27,8 +27,8 @@ To run this project, create an `appsettings.json` file with the following conten
     "FromName": "...."
   },
    "Cloudinary": {
-    "CloudName": "dy7bdkzxo",
-    "ApiKey": "159196586959759",
-    "ApiSecret": "WkVbu7lmMRNN6n_EYQJL1wYAQiw"
+    "CloudName": "....",
+    "ApiKey": "....",
+    "ApiSecret": "...."
   }
 }
