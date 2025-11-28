@@ -23,7 +23,10 @@ public class AppDbContext : DbContext
     
     public DbSet<UserRsaKey> UserRsaKeys { get; set; }
     public DbSet<ChatUser> ChatUsers { get; set; }
-
+    public DbSet<Conversation> Conversations { get; set; }
+    public DbSet<ConversationMember> ConversationMembers { get; set; }
+    public DbSet<Message> Messages { get; set; }
+    public DbSet<MessageAttachment> MessageAttachments { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -105,16 +108,43 @@ public class AppDbContext : DbContext
             .HasForeignKey(f => f.FollowingId)
             .OnDelete(DeleteBehavior.NoAction);
         
-        //RecoveryCodes
-        // modelBuilder.Entity<RecoveryCode>(entity =>
-        // {
-        //     entity.HasIndex(e => new { e.UserId, e.IsUsed })
-        //         .HasDatabaseName("IX_RecoveryCodes_UserId_IsUsed")
-        //         .IncludeProperties(e => e.HashedCode); // Covering index siêu nhanh
-        //
-        //     entity.Property(e => e.HashedCode)
-        //         .IsRequired()
-        //         .HasMaxLength(255);
-        // });
+        // CHAT
+        // ConversationMember composite PK
+        modelBuilder.Entity<ConversationMember>()
+            .HasKey(cm => new { cm.ConversationId, cm.UserId });
+
+        // MessageNotification composite PK
+        modelBuilder.Entity<MessageNotification>()
+            .HasKey(mn => new { mn.RecipientId, mn.SenderId });
+
+        // Unique active RSA key per user
+        modelBuilder.Entity<UserRsaKey>()
+            .HasIndex(k => k.UserId)
+            .IsUnique()
+            .HasFilter("[IsActive] = 1");
+
+        // Các index khác theo schema
+        modelBuilder.Entity<Message>()
+            .HasIndex(m => new { m.ConversationId, m.CreatedAt });
+
+        modelBuilder.Entity<Message>()
+            .HasIndex(m => new { m.SenderId, m.CreatedAt });
+
+        modelBuilder.Entity<MessageNotification>()
+            .HasIndex(mn => new { mn.RecipientId, mn.UnreadCount });
+
+        modelBuilder.Entity<ChatUser>()
+            .HasIndex(cu => cu.DisplayName);
+
+        modelBuilder.Entity<ChatUser>()
+            .HasIndex(cu => cu.Username);
+
+        modelBuilder.Entity<UserRsaKey>()
+            .HasIndex(k => k.ExpiresAt);
+
+        modelBuilder.Entity<UserRsaKey>()
+            .HasIndex(k => k.IsActive);
+
+        base.OnModelCreating(modelBuilder);
     }
 }
