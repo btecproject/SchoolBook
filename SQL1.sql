@@ -187,7 +187,7 @@ SELECT @highAdminId, Id FROM Roles WHERE Name = 'HighAdmin';
 ------------------------------------Chat--------------------------------------------
 -- 1. Conversations (đoạn chat 1-1 hoặc nhóm)
 CREATE TABLE Conversations (
-                               Id            BIGINT IDENTITY(1,1) PRIMARY KEY,
+                               Id            UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
                                Type          TINYINT NOT NULL,           -- 0 = 1-1, 1 = Group
                                Name          NVARCHAR(100) NULL,         -- NULL nếu 1-1, chỉ bắt nhập khi chat nhóm
                                Avatar        NVARCHAR(500) NULL,
@@ -197,7 +197,7 @@ CREATE TABLE Conversations (
 
 -- 2. ConversationMembers (ai trong đoạn chat nào)
 CREATE TABLE ConversationMembers (
-                                     ConversationId BIGINT NOT NULL,
+                                     ConversationId UNIQUEIDENTIFIER NOT NULL,
                                      UserId			UNIQUEIDENTIFIER NOT NULL,
                                      JoinedAt       DATETIME2 DEFAULT GETUTCDATE(),
                                      Role           TINYINT DEFAULT 0,          -- 0=member, 1=Admin(chỉ có nếu là nhóm)
@@ -209,7 +209,7 @@ CREATE TABLE ConversationMembers (
 -- 3. Messages (tin nhắn + attachment)
 CREATE TABLE Messages (
                           Id            BIGINT IDENTITY(1,1) PRIMARY KEY,
-                          ConversationId BIGINT NOT NULL,
+                          ConversationId UNIQUEIDENTIFIER NOT NULL,
                           SenderId      UNIQUEIDENTIFIER NOT NULL,
                           MessageType   TINYINT NOT NULL,           -- 0=text, 1=image, 2=video, 3=file
                           CipherText    NVARCHAR(MAX) NOT NULL,     -- nội dung hoặc URL đã E2EE

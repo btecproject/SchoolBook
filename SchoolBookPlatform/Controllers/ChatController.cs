@@ -11,18 +11,33 @@ public class ChatController(
     ILogger<ChatController> logger) : Controller
 {
     [HttpGet]
-    public IActionResult Index()
+    public async Task<IActionResult> Index()
     {
-        return View();
+        var currentUser = await HttpContext.GetCurrentUserAsync(db);
+        if (currentUser == null)
+        {
+            return RedirectToAction("Login", "Authen");
+        }
+        if (await chatService.IsRegisterChatService(currentUser.Id) == false)
+        {
+            return RedirectToAction("RegisterChatUser");
+        }
+
+        if (TempData["PinCodeMatched"] != null && TempData["PinCodeMatched"]!.Equals("true"))
+        {
+            return View();
+        }
+        return RedirectToAction("PinCodeAuthen");
     }
 
-    // [HttpGet]
-    // public async Task<IActionResult> Index(string username)
-    // {
-    //     var targetUser = await db.GetUserWithProfileAsync(username);
-    //     if (targetUser == null) return NotFound();
-    //     var currentUser = await HttpContext.GetCurrentUserAsync(db);
-    //     if (currentUser == null) return Unauthorized();
-    //     var isOwner = currentUser.Id = targetUser!.Id;
-    // }
+    [HttpPost]
+    public IActionResult RegisterChatUser()
+    {
+        throw new NotImplementedException();
+    }
+
+    public IActionResult PinCodeAuthen()
+    {
+        throw new NotImplementedException();
+    }
 }

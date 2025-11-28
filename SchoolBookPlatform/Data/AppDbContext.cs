@@ -20,6 +20,9 @@ public class AppDbContext : DbContext
     public DbSet<Follower> Followers { get; set; }
     public DbSet<Following> Following { get; set; }
     public DbSet<RecoveryCode> RecoveryCodes { get; set; } = null!;
+    
+    public DbSet<UserRsaKey> UserRsaKeys { get; set; }
+    public DbSet<ChatUser> ChatUsers { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
