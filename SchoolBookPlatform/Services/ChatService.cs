@@ -235,7 +235,8 @@ namespace SchoolBookPlatform.Services
                 {
                     // Kiểm tra có PIN exchange chưa
                     var hasPinExchange = await db.Messages
-                        .AnyAsync(m => m.ConversationId == existingConv.Id && m.PinExchange != null);
+                        .Where(m => m.ConversationId == existingConv.Id)
+                        .AnyAsync(m => m.PinExchange != null);
 
                     return new ConversationResult
                     {

@@ -1,7 +1,12 @@
-﻿@{
+﻿@using System.Security.Claims
+@{
     ViewData["Title"] = "Thiết lập mã hóa";
 }
+@{
+    var userName = User.FindFirst(ClaimTypes.Name).Value;
+}
 <h2>Trang Chat/SetUpKeys</h2>
+<input id="thisUserName" type="hidden" value="@userName"/>
 
 <div class="container mt-5">
     <div class="row justify-content-center">
@@ -81,7 +86,7 @@
     <script>
         let retryCount = 0;
         const maxRetries = 3;
-
+        const ChatPin = "chatPin_"+document.getElementById("thisUserName").value;
         // Update progress bar
         function updateProgress(percent, message) {
             const progressBar = document.getElementById('progressBar');
@@ -111,7 +116,7 @@
                 updateProgress(10, 'Đang khởi tạo...');
 
                 // Get PIN from localStorage
-                const pin = localStorage.getItem('chatPin');
+                const pin = localStorage.getItem(ChatPin);
                 if (!pin) {
                     throw new Error('Không tìm thấy mã PIN. Vui lòng đăng ký lại.');
                 }

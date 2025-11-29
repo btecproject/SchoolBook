@@ -37,7 +37,7 @@
                             <label class="form-label fw-bold">
                                 <i class="bi bi-person"></i> Tài khoản
                             </label>
-                            <input type="text" class="form-control form-control-lg bg-light" 
+                            <input id="thisUserName" type="text" class="form-control form-control-lg bg-light" 
                                    value="@Model.Username" readonly />
                             <small class="text-muted">Tài khoản hiện tại của bạn</small>
                         </div>
@@ -307,7 +307,9 @@
 
         // Save PIN to localStorage
         function savePinToLocalStorage(pin) {
-            localStorage.setItem('chatPin', pin);
+            const userName = document.getElementById("thisUserName").value;
+            var keyName = 'pinCode_'+userName ;
+            localStorage.setItem(keyName, pin);
             console.log('PIN saved to localStorage');
         }
 

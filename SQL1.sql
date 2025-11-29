@@ -192,7 +192,7 @@ CREATE TABLE Conversations (
                                Name          NVARCHAR(100) NULL,         -- NULL nếu 1-1, chỉ bắt nhập khi chat nhóm
                                Avatar        NVARCHAR(500) NULL,
                                CreatedAt     DATETIME2 DEFAULT GETUTCDATE(),
-                               CreatorId     NVARCHAR(450) NULL,         -- FK Users(Id)
+                               CreatorId     UNIQUEIDENTIFIER NULL ,         -- FK Users(Id)
 );
 
 -- 2. ConversationMembers (ai trong đoạn chat nào)

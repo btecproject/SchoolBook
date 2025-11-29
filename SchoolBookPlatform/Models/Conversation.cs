@@ -10,7 +10,7 @@ public class Conversation
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public string? CreatorId { get; set; }
+    public Guid CreatorId { get; set; }
     
     
     // Navigation properties

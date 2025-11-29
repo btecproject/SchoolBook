@@ -3,44 +3,53 @@ ViewData["Title"] = "Chat";
 }
 
 @Html.AntiForgeryToken()
-<h2>Trang Chat/Index</h2>
+
+<!-- Auto Verify Loading Screen -->
+<div id="autoVerifyScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; align-items: center; justify-content: center;">
+    <div class="text-center">
+        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h5 class="fw-bold mb-2">Đang xác thực...</h5>
+        <p class="text-muted" id="autoVerifyMessage">Vui lòng đợi</p>
+    </div>
+</div>
+
 <div class="container-fluid vh-100 d-flex flex-column p-0">
     <div class="row g-0 flex-grow-1">
         <!-- Sidebar - User List -->
-        <div class="col-md-4 col-lg-3 border-end bg-light d-flex flex-column">
+        <div class="col-md-4 col-lg-3 border-end bg-white d-flex flex-column">
             <!-- Header -->
-            <div class="p-3 border-bottom bg-white">
-                <h5 class="mb-3">
-                    <i class="bi bi-chat-dots-fill text-primary"></i> Tin nhắn
-                </h5>
+            <div class="p-3 border-bottom">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="mb-0 fw-bold">Chat</h4>
+                    <button class="btn btn-sm btn-outline-danger" onclick="logoutFromChat()" title="Đăng xuất khỏi chat">
+                        <i class="bi bi-lock-fill"></i>
+                    </button>
+                </div>
 
                 <!-- Search Box -->
-                <div class="input-group">
-                    <span class="input-group-text bg-white border-end-0">
+                <div class="input-group search-box">
+                    <span class="input-group-text bg-light border-0">
                         <i class="bi bi-search"></i>
                     </span>
                     <input type="text"
                            id="searchUserInput"
-                           class="form-control border-start-0"
-                           placeholder="Tìm người dùng (username)..."
+                           class="form-control bg-light border-0"
+                           placeholder="Tìm kiếm trong Messenger"
                            autocomplete="off" />
-                    <button class="btn btn-outline-secondary" type="button" id="clearSearch" style="display: none;">
+                    <button class="btn btn-light border-0" type="button" id="clearSearch" style="display: none;">
                         <i class="bi bi-x-lg"></i>
                     </button>
                 </div>
-                <small class="text-muted">
-                    <i class="bi bi-info-circle"></i> Nhập tối thiểu 3 ký tự
-                </small>
             </div>
 
             <!-- Search Results -->
             <div id="searchResults" class="flex-grow-1 overflow-auto" style="display: none;">
-                <div class="p-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="text-muted mb-0">
-                            <i class="bi bi-search"></i> Kết quả tìm kiếm
-                        </h6>
-                        <span id="searchCount" class="badge bg-primary">0</span>
+                <div class="p-2">
+                    <div class="d-flex justify-content-between align-items-center px-2 mb-2">
+                        <h6 class="text-muted mb-0 small">Kết quả tìm kiếm</h6>
+                        <span id="searchCount" class="badge bg-primary rounded-pill">0</span>
                     </div>
                     <div id="searchResultsList"></div>
                 </div>
@@ -48,115 +57,107 @@ ViewData["Title"] = "Chat";
 
             <!-- Conversation List -->
             <div id="conversationList" class="flex-grow-1 overflow-auto">
-                <div class="p-3">
-                    <h6 class="text-muted mb-3">
-                        <i class="bi bi-chat-left-text"></i> Cuộc trò chuyện gần đây
-                    </h6>
-                    <div id="conversationsList">
-                        <!-- Conversations will be loaded here -->
-                        <div class="text-center text-muted py-5">
-                            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
-                            <p class="mt-2">Chưa có cuộc trò chuyện nào</p>
-                            <small>Tìm kiếm người dùng để bắt đầu chat</small>
-                        </div>
+                <div id="conversationsList">
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-chat-dots" style="font-size: 4rem; opacity: 0.3;"></i>
+                        <p class="mt-3 mb-1 fw-semibold">Chưa có cuộc trò chuyện</p>
+                        <small class="text-muted">Tìm kiếm để bắt đầu nhắn tin</small>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Chat Area -->
-        <div class="col-md-8 col-lg-9 d-flex flex-column">
+        <div class="col-md-8 col-lg-9 d-flex flex-column bg-light">
             <!-- Welcome Screen -->
-            <div id="welcomeScreen" class="flex-grow-1 d-flex align-items-center justify-content-center bg-light">
+            <div id="welcomeScreen" class="flex-grow-1 d-flex align-items-center justify-content-center">
                 <div class="text-center">
-                    <i class="bi bi-chat-heart-fill text-primary" style="font-size: 5rem;"></i>
-                    <h3 class="mt-4">Chào mừng đến với Chat</h3>
-                    <p class="text-muted">Tìm kiếm người dùng để bắt đầu trò chuyện</p>
-                    <div class="mt-4">
-                        <i class="bi bi-shield-lock-fill text-success me-2"></i>
-                        <small class="text-muted">Tin nhắn được mã hóa đầu cuối (E2EE)</small>
+                    <div class="welcome-icon mb-4">
+                        <i class="bi bi-chat-dots-fill"></i>
+                    </div>
+                    <h2 class="fw-bold mb-2">Messenger</h2>
+                    <p class="text-muted mb-4">Kết nối và trò chuyện với bạn bè một cách an toàn</p>
+                    <div class="d-flex gap-2 justify-content-center text-muted small">
+                        <span><i class="bi bi-shield-lock-fill text-success"></i> Mã hóa đầu cuối</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Chat Window (Hidden initially) -->
-            <div id="chatWindow" style="display: none;" class="d-flex flex-column flex-grow-1">
+            <!-- Chat Window -->
+            <div id="chatWindow" style="display: none;" class="d-flex flex-column flex-grow-1 bg-white">
                 <!-- Chat Header -->
-                <div class="p-3 border-bottom bg-white shadow-sm">
+                <div class="chat-header p-3 border-bottom bg-white">
                     <div class="d-flex align-items-center">
-                        <button id="backToList" class="btn btn-link text-dark d-md-none me-2">
-                            <i class="bi bi-arrow-left"></i>
-                        </button>
-                        <div class="flex-grow-1">
-                            <h6 class="mb-0" id="chatUsername">Username</h6>
-                            <small class="text-muted" id="chatDisplayName">Display Name</small>
+                        <div class="avatar-chat me-3">
+                            <div class="avatar-circle-chat">
+                                <i class="bi bi-person-fill"></i>
+                            </div>
                         </div>
-                        <div class="text-end">
-                            <span class="badge bg-success" id="encryptionStatus">
-                                <i class="bi bi-shield-check"></i> Mã hóa
-                            </span>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0 fw-semibold" id="chatDisplayName">Display Name</h6>
+                            <small class="text-muted" id="chatUsername"></small>
                         </div>
                     </div>
                 </div>
 
                 <!-- Messages Area -->
-                <div id="messagesArea" class="flex-grow-1 overflow-auto p-3 bg-chat">
-                    <div class="text-center text-muted py-3">
-                        <i class="bi bi-lock-fill"></i>
-                        <p class="small mb-0">Cuộc trò chuyện được mã hóa đầu cuối</p>
+                <div id="messagesArea" class="flex-grow-1 overflow-auto p-3">
+                    <div class="text-center text-muted py-4">
+                        <div class="avatar-large mb-3">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                        <h5 class="fw-semibold" id="welcomeName">Tên người dùng</h5>
+                        <p class="text-muted small">
+                            <i class="bi bi-lock-fill"></i> Tin nhắn được mã hóa đầu cuối
+                        </p>
                     </div>
-                    <!-- Messages will be loaded here -->
                 </div>
 
                 <!-- Message Input -->
-                <div class="p-3 border-top bg-white">
-                    <form id="messageForm" class="d-flex gap-2 align-items-end">
-                        <!-- File Upload Button -->
-                        <button type="button" class="btn btn-outline-secondary" id="attachFileBtn" title="Đính kèm file">
-                            <i class="bi bi-paperclip"></i>
-                        </button>
-                        <input type="file" id="fileInput" style="display: none;"
-                               accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" />
-
-                        <!-- File Preview -->
-                        <div id="filePreview" class="d-none flex-grow-1">
-                            <div class="card shadow-sm">
+                <div class="message-input-area p-3 border-top bg-white">
+                    <form id="messageForm">
+                        <div id="filePreview" class="d-none mb-2">
+                            <div class="card bg-light border-0">
                                 <div class="card-body p-2">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div class="d-flex align-items-center gap-2">
-                                            <i id="fileIcon" class="bi bi-file-earmark fs-4 text-primary"></i>
-                                            <div>
-                                                <div id="fileName" class="small fw-bold"></div>
-                                                <div id="fileSize" class="text-muted" style="font-size: 0.75rem;"></div>
-                                            </div>
+                                    <div class="d-flex align-items-center">
+                                        <i id="fileIcon" class="bi bi-file-earmark fs-3 text-primary me-2"></i>
+                                        <div class="flex-grow-1">
+                                            <div id="fileName" class="small fw-semibold"></div>
+                                            <div id="fileSize" class="text-muted" style="font-size: 0.75rem;"></div>
                                         </div>
                                         <button type="button" class="btn btn-sm btn-link text-danger" id="removeFileBtn">
                                             <i class="bi bi-x-lg"></i>
                                         </button>
                                     </div>
-                                    <!-- Upload Progress -->
-                                    <div id="uploadProgress" class="progress mt-2" style="height: 4px; display: none;">
-                                        <div class="progress-bar progress-bar-striped progress-bar-animated"
-                                             role="progressbar" style="width: 0%"></div>
+                                    <div id="uploadProgress" class="progress mt-2" style="height: 3px; display: none;">
+                                        <div class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Text Input -->
-                        <div id="textInputContainer" class="flex-grow-1">
-                            <input type="text"
-                                   id="messageInput"
-                                   class="form-control"
-                                   placeholder="Nhập tin nhắn..."
-                                   autocomplete="off"
-                                   disabled />
-                        </div>
+                        <div class="d-flex align-items-end gap-2">
+                            <div class="d-flex gap-1">
+                                <button type="button" class="btn btn-light rounded-circle p-2" id="attachFileBtn">
+                                    <i class="bi bi-plus-lg text-primary"></i>
+                                </button>
+                                <input type="file" id="fileInput" style="display: none;"
+                                       accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" />
+                            </div>
 
-                        <!-- Send Button -->
-                        <button type="submit" class="btn btn-primary" id="sendBtn" disabled>
-                            <i class="bi bi-send-fill"></i>
-                        </button>
+                            <div class="flex-grow-1">
+                                <input type="text"
+                                       id="messageInput"
+                                       class="form-control rounded-pill border-0 bg-light px-4"
+                                       placeholder="Aa"
+                                       autocomplete="off"
+                                       disabled />
+                            </div>
+
+                            <button type="submit" class="btn btn-primary rounded-circle p-2" id="sendBtn" disabled>
+                                <i class="bi bi-send-fill"></i>
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -165,14 +166,12 @@ ViewData["Title"] = "Chat";
 </div>
 
 <!-- Loading Modal -->
-<div class="modal fade" id="loadingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+<div class="modal fade" id="loadingModal" data-bs-backdrop="static" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content">
+        <div class="modal-content border-0 shadow">
             <div class="modal-body text-center py-4">
-                <div class="spinner-border text-primary mb-3" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mb-0" id="loadingMessage">Đang tải...</p>
+                <div class="spinner-border text-primary mb-3" role="status"></div>
+                <p class="mb-0 fw-semibold" id="loadingMessage">Đang tải...</p>
             </div>
         </div>
     </div>
@@ -183,28 +182,231 @@ ViewData["Title"] = "Chat";
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 <script>
+    // ===== GLOBAL VARIABLES =====
     let currentConversationId = null;
     let currentRecipientId = null;
     let currentRecipientPublicKey = null;
     let searchTimeout = null;
     let myPin = null;
+    let typingTimeout = null;
+    let connection = null;
+    let selectedFile = null;
 
-    // Get PIN from localStorage
+    // Lấy username hiện tại
+    const currentUsername = '@User.Identity.Name';
+
+    // ===== PIN MANAGEMENT =====
+
+    // Auto verify PIN khi load trang
+    async function autoVerifyPin() {
+        const storageKey = `pinCode_${currentUsername}`;
+        const savedPin = localStorage.getItem(storageKey);
+
+        console.log('Auto verifying PIN for user:', currentUsername);
+        console.log('Storage key:', storageKey);
+
+        if (!savedPin) {
+            console.log('No PIN in localStorage, redirecting to verify page');
+            document.getElementById('autoVerifyMessage').textContent = 'Chưa có mã PIN, đang chuyển hướng...';
+            setTimeout(() => {
+                window.location.href = '@Url.Action("VerifyPinCode", "Chat")';
+            }, 1000);
+            return false;
+        }
+
+        console.log('PIN found in localStorage, verifying with server...');
+        document.getElementById('autoVerifyMessage').textContent = 'Đang xác thực mã PIN...';
+
+        try {
+            // Hash PIN
+            const hashedPin = CryptoJS.SHA256(savedPin).toString();
+
+            // Verify với server
+            const response = await fetch('@Url.Action("VerifyPinCode", "Chat")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': getToken()
+                },
+                body: JSON.stringify(hashedPin)
+            });
+
+            if (!response.ok) {
+                throw new Error('Network error');
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log('Auto verify successful');
+                document.getElementById('autoVerifyMessage').textContent = 'Xác thực thành công!';
+
+                // Lưu PIN vào biến global
+                myPin = savedPin;
+
+                // Ẩn màn hình verify
+                setTimeout(() => {
+                    document.getElementById('autoVerifyScreen').style.display = 'none';
+                }, 500);
+
+                return true;
+            } else {
+                console.log('Auto verify failed, PIN might be changed');
+                document.getElementById('autoVerifyMessage').textContent = 'Mã PIN không hợp lệ, vui lòng nhập lại...';
+
+                // Xóa PIN cũ
+                localStorage.removeItem(storageKey);
+
+                setTimeout(() => {
+                    window.location.href = '@Url.Action("VerifyPinCode", "Chat")';
+                }, 1500);
+
+                return false;
+            }
+        } catch (error) {
+            console.error('Auto verify error:', error);
+            document.getElementById('autoVerifyMessage').textContent = 'Lỗi xác thực, đang thử lại...';
+
+            setTimeout(() => {
+                window.location.href = '@Url.Action("VerifyPinCode", "Chat")';
+            }, 1500);
+
+            return false;
+        }
+    }
+
+    // Kiểm tra PIN trong localStorage
+    function checkPinCodeStatus() {
+        const storageKey = `pinCode_${currentUsername}`;
+        const savedPin = localStorage.getItem(storageKey);
+
+        if (!savedPin) {
+            console.log('No PIN found, redirecting to verify page');
+            window.location.href = '@Url.Action("VerifyPinCode", "Chat")';
+            return false;
+        }
+
+        return true;
+    }
+
+    // Lấy PIN từ localStorage
     function getMyPin() {
         if (!myPin) {
-            myPin = localStorage.getItem('chatPin');
+            const storageKey = `pinCode_${currentUsername}`;
+            myPin = localStorage.getItem(storageKey);
+
             if (!myPin) {
-                alert('Không tìm thấy mã PIN. Vui lòng đăng ký lại.');
-                window.location.href = '@Url.Action("Register", "Chat")';
+                console.error('PIN not found in localStorage');
+                alert('Không tìm thấy mã PIN. Vui lòng xác thực lại.');
+                window.location.href = '@Url.Action("VerifyPinCode", "Chat")';
                 return null;
             }
         }
         return myPin;
     }
 
-    // Show/Hide loading modal
-    function showLoading(message = 'Đang tải...') {
-        document.getElementById('loadingMessage').textContent = message;
+    // Đăng xuất khỏi chat (xóa PIN)
+    function logoutFromChat() {
+        if (confirm('Bạn có chắc muốn đăng xuất khỏi chat? Bạn sẽ cần nhập lại mã PIN để truy cập.')) {
+            const storageKey = `pinCode_${currentUsername}`;
+            localStorage.removeItem(storageKey);
+            myPin = null;
+            window.location.href = '@Url.Action("VerifyPinCode", "Chat")';
+        }
+    }
+
+    // ===== SIGNALR =====
+
+    function handleReceiveMessage(message) {
+        console.log('Received message:', message);
+        if (message.conversationId !== currentConversationId) return;
+
+        const pin = getMyPin();
+        if (!pin) return;
+
+        try {
+            let decryptedContent = message.cipherText;
+            if (!message.pinExchange) {
+                decryptedContent = CryptoJS.AES.decrypt(message.cipherText, pin)
+                    .toString(CryptoJS.enc.Utf8) || '[Không thể giải mã]';
+            }
+
+            appendMessageToUI({
+                messageId: message.messageId,
+                senderId: message.senderId,
+                decryptedContent: message.pinExchange ? '[PIN Exchange]' : decryptedContent,
+                createdAt: message.createdAt,
+                isMine: false,
+                isPinExchange: !!message.pinExchange,
+                messageType: message.messageType
+            });
+        } catch (error) {
+            console.error('Error handling message:', error);
+        }
+    }
+
+    function handleReceivePinExchange(data) {
+        console.log('Received PIN exchange');
+        if (data.conversationId !== currentConversationId) return;
+
+        appendMessageToUI({
+            messageId: 0,
+            senderId: data.senderId,
+            decryptedContent: '[PIN Exchange]',
+            createdAt: data.createdAt,
+            isMine: false,
+            isPinExchange: true
+        });
+    }
+
+    function handleUserTyping(data) {
+        if (data.conversationId !== currentConversationId) return;
+        showTypingIndicator(data.username);
+    }
+
+    function handleUserStoppedTyping(data) {
+        if (data.conversationId !== currentConversationId) return;
+        hideTypingIndicator();
+    }
+
+    function handleError(message) {
+        console.error('SignalR error:', message);
+    }
+
+    async function initializeSignalR() {
+        connection = new signalR.HubConnectionBuilder()
+            .withUrl("/chatHub")
+            .withAutomaticReconnect()
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
+
+        connection.on("ReceiveMessage", handleReceiveMessage);
+        connection.on("ReceivePinExchange", handleReceivePinExchange);
+        connection.on("UserTyping", handleUserTyping);
+        connection.on("UserStoppedTyping", handleUserStoppedTyping);
+        connection.on("Error", handleError);
+
+        connection.onreconnecting(() => console.log('Reconnecting...'));
+        connection.onreconnected((id) => {
+            console.log('Reconnected:', id);
+            if (currentConversationId) {
+                connection.invoke("JoinConversation", currentConversationId);
+            }
+        });
+
+        try {
+            await connection.start();
+            console.log('SignalR connected');
+        } catch (error) {
+            console.error('SignalR error:', error);
+            setTimeout(() => initializeSignalR(), 5000);
+        }
+    }
+
+    // ===== UI HELPERS =====
+
+    function showLoading(msg = 'Đang tải...') {
+        document.getElementById('loadingMessage').textContent = msg;
         new bootstrap.Modal(document.getElementById('loadingModal')).show();
     }
 
@@ -213,31 +415,27 @@ ViewData["Title"] = "Chat";
         if (modal) modal.hide();
     }
 
-    // Search Users
+    function getToken() {
+        return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+    }
+
+    // ===== SEARCH =====
+
     document.getElementById('searchUserInput').addEventListener('input', function(e) {
-        const searchTerm = e.target.value.trim();
-        const clearBtn = document.getElementById('clearSearch');
+        const term = e.target.value.trim();
+        document.getElementById('clearSearch').style.display = term.length > 0 ? 'block' : 'none';
 
-        clearBtn.style.display = searchTerm.length > 0 ? 'block' : 'none';
+        if (searchTimeout) clearTimeout(searchTimeout);
 
-        // Clear previous timeout
-        if (searchTimeout) {
-            clearTimeout(searchTimeout);
-        }
-
-        if (searchTerm.length < 3) {
+        if (term.length < 3) {
             document.getElementById('searchResults').style.display = 'none';
             document.getElementById('conversationList').style.display = 'block';
             return;
         }
 
-        // Debounce search
-        searchTimeout = setTimeout(() => {
-            searchUsers(searchTerm);
-        }, 300);
+        searchTimeout = setTimeout(() => searchUsers(term), 300);
     });
 
-    // Clear search
     document.getElementById('clearSearch').addEventListener('click', function() {
         document.getElementById('searchUserInput').value = '';
         document.getElementById('searchResults').style.display = 'none';
@@ -245,24 +443,19 @@ ViewData["Title"] = "Chat";
         this.style.display = 'none';
     });
 
-    // Search Users API Call
-    async function searchUsers(searchTerm) {
+    async function searchUsers(term) {
         try {
-            const response = await fetch(`@Url.Action("SearchUsers", "Chat")?searchTerm=${encodeURIComponent(searchTerm)}`);
-
-            if (!response.ok) {
-                throw new Error('Search failed');
-            }
+            const response = await fetch(`@Url.Action("SearchUsers", "Chat")?searchTerm=${encodeURIComponent(term)}`);
+            if (!response.ok) throw new Error('Search failed');
 
             const users = await response.json();
             displaySearchResults(users);
         } catch (error) {
-            console.error('Error searching users:', error);
-            showToast('Lỗi khi tìm kiếm người dùng', 'error');
+            console.error('Error searching:', error);
+            alert('Lỗi khi tìm kiếm');
         }
     }
 
-    // Display Search Results
     function displaySearchResults(users) {
         const resultsDiv = document.getElementById('searchResultsList');
         const countBadge = document.getElementById('searchCount');
@@ -272,203 +465,232 @@ ViewData["Title"] = "Chat";
         document.getElementById('conversationList').style.display = 'none';
 
         if (users.length === 0) {
-            resultsDiv.innerHTML = `
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-person-x" style="font-size: 2rem;"></i>
-                        <p class="mt-2 mb-0">Không tìm thấy người dùng</p>
-                    </div>
-                `;
+            resultsDiv.innerHTML = '<div class="text-center py-4 text-muted">Không tìm thấy</div>';
             return;
         }
 
         resultsDiv.innerHTML = users.map(user => `
-                <div class="user-item p-3 border-bottom cursor-pointer hover-bg" 
-                     data-user-id="${user.userId}"
-                     data-username="${user.username}"
-                     data-displayname="${user.displayName}">
+                <div class="user-item" data-user-id="${user.userId}" 
+                     data-username="${user.username}" data-displayname="${user.displayName}">
                     <div class="d-flex align-items-center">
                         <div class="avatar-circle me-3">
                             <i class="bi bi-person-fill"></i>
                         </div>
                         <div class="flex-grow-1">
-                            <div class="fw-bold">${user.displayName}</div>
+                            <div class="fw-semibold">${user.displayName}</div>
                             <small class="text-muted">${user.username}</small>
                         </div>
-                        <i class="bi bi-chevron-right text-muted"></i>
                     </div>
                 </div>
             `).join('');
 
-        // Add click handlers
         resultsDiv.querySelectorAll('.user-item').forEach(item => {
             item.addEventListener('click', function() {
-                const userId = this.dataset.userId;
-                const username = this.dataset.username;
-                const displayName = this.dataset.displayname;
-                startChatWithUser(userId, username, displayName);
+                startChatWithUser(
+                    this.dataset.userId,
+                    this.dataset.username,
+                    this.dataset.displayname
+                );
             });
         });
     }
 
-    // Start Chat with User (updated with SignalR)
+    // ===== CHAT FUNCTIONS =====
+
     async function startChatWithUser(userId, username, displayName) {
-        showLoading('Đang khởi tạo cuộc trò chuyện...');
+        showLoading('Đang khởi tạo chat...');
 
         try {
-            // 1. Get recipient's public key
-            const keyResponse = await fetch(`@Url.Action("GetUserPublicKey", "Chat")?userId=${userId}`);
-            if (!keyResponse.ok) {
-                throw new Error('Không thể lấy public key');
-            }
-            const keyData = await keyResponse.json();
+            // 1. Lấy public key
+            const keyResp = await fetch(`@Url.Action("GetUserPublicKey", "Chat")?userId=${userId}`);
+            if (!keyResp.ok) throw new Error('Không lấy được public key');
+
+            const keyData = await keyResp.json();
+            if (!keyData.publicKey) throw new Error('Đối phương chưa có khóa RSA');
+
             currentRecipientPublicKey = keyData.publicKey;
 
-            // 2. Get or create conversation
-            const convResponse = await fetch(`@Url.Action("GetOrCreateConversation", "Chat")?recipientId=${userId}`, {
+            // 2. Lấy/tạo conversation
+            const convResp = await fetch(`@Url.Action("GetOrCreateConversation", "Chat")?recipientId=${userId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'RequestVerificationToken': getAntiForgeryToken()
+                    'RequestVerificationToken': getToken()
                 }
             });
+            if (!convResp.ok) throw new Error('Không tạo được đoạn chat');
 
-            if (!convResponse.ok) {
-                throw new Error('Không thể tạo conversation');
-            }
-
-            const convData = await convResponse.json();
+            const convData = await convResp.json();
             currentConversationId = convData.conversationId;
             currentRecipientId = userId;
 
-            // 3. Join SignalR conversation room
-            if (connection && connection.state === signalR.HubConnectionState.Connected) {
+            // 3. Join SignalR group
+            if (connection?.state === signalR.HubConnectionState.Connected) {
                 await connection.invoke("JoinConversation", currentConversationId);
             }
 
-            // 4. Load existing messages
-            await loadMessages(convData.conversationId);
-
-            // 5. Show chat window
+            // 4. Load tin nhắn + hiển thị giao diện
+            await loadMessages(currentConversationId);
             showChatWindow(username, displayName);
 
-            // 6. Check if we need to send PIN exchange
+            // 5. Chỉ gửi PIN exchange nếu thật sự cần
             if (convData.isNew || !convData.hasPinExchange) {
-                await sendPinExchangeViaSignalR();
+                await sendPinExchange();
             }
 
             hideLoading();
-        } catch (error) {
-            console.error('Error starting chat:', error);
+        }
+        catch (error) {
+            console.error('Lỗi mở chat:', error);
             hideLoading();
-            showToast('Không thể bắt đầu cuộc trò chuyện: ' + error.message, 'error');
+            alert('Không thể mở chat: ' + (error.message || 'Lỗi không xác định'));
         }
     }
 
-    // Send PIN Exchange via SignalR
-    async function sendPinExchangeViaSignalR() {
+    async function sendPinExchange() {
         const pin = getMyPin();
-        if (!pin || !connection) return;
+        if (!pin) throw new Error('Không tìm thấy mã PIN');
+        if (!connection) throw new Error('Chưa kết nối SignalR');
 
-        try {
-            // Encrypt PIN with recipient's public key
-            const encrypt = new JSEncrypt();
-            encrypt.setPublicKey(currentRecipientPublicKey);
-            const encryptedPin = encrypt.encrypt(pin);
+        const encrypt = new JSEncrypt();
+        encrypt.setPublicKey(currentRecipientPublicKey.trim());
+        const encryptedPin = encrypt.encrypt(pin);
 
-            if (!encryptedPin) {
-                throw new Error('Không thể mã hóa PIN');
-            }
-
-            // Send via SignalR
-            await connection.invoke("SendPinExchange", {
-                conversationId: currentConversationId,
-                recipientId: currentRecipientId,
-                encryptedPin: encryptedPin
-            });
-
-            console.log('PIN exchange sent successfully via SignalR');
-        } catch (error) {
-            console.error('Error sending PIN exchange:', error);
-            showToast('Không thể thiết lập mã hóa', 'error');
+        if (!encryptedPin) {
+            throw new Error('Mã hóa PIN thất bại – public key không hợp lệ');
         }
+
+        await connection.invoke("SendPinExchange", {
+            conversationId: currentConversationId,
+            recipientId: currentRecipientId,
+            encryptedPin: encryptedPin
+        });
+
+        console.log('PIN exchange sent successfully');
     }
 
-    // Load Messages
-    async function loadMessages(conversationId) {
+    async function loadMessages(convId) {
         try {
-            const response = await fetch(`@Url.Action("GetMessages", "Chat")?conversationId=${conversationId}&count=20`);
+            const resp = await fetch(`@Url.Action("GetMessages", "Chat")?conversationId=${convId}&count=20`);
+            if (!resp.ok) throw new Error('Load failed');
 
-            if (!response.ok) {
-                throw new Error('Failed to load messages');
-            }
-
-            const messages = await response.json();
+            const messages = await resp.json();
             displayMessages(messages);
         } catch (error) {
             console.error('Error loading messages:', error);
-            showToast('Không thể tải tin nhắn', 'error');
         }
     }
 
-    // Display Messages
     function displayMessages(messages) {
-        const messagesArea = document.getElementById('messagesArea');
+        const area = document.getElementById('messagesArea');
 
         if (messages.length === 0) {
-            messagesArea.innerHTML = `
-                    <div class="text-center text-muted py-3">
-                        <i class="bi bi-lock-fill"></i>
-                        <p class="small mb-0">Cuộc trò chuyện được mã hóa đầu cuối</p>
-                        <p class="small mb-0">Hãy bắt đầu trò chuyện!</p>
+            area.innerHTML = `
+                    <div class="text-center py-4 text-muted">
+                        <div class="avatar-large mb-3"><i class="bi bi-person-fill"></i></div>
+                        <p class="small"><i class="bi bi-lock-fill"></i> Mã hóa đầu cuối</p>
                     </div>
                 `;
             return;
         }
 
-        // Decrypt messages
         const pin = getMyPin();
-        const decryptedMessages = messages.map(msg => {
+        const decrypted = messages.map(msg => {
             if (msg.pinExchange) {
                 return { ...msg, decryptedContent: '[PIN Exchange]', isPinExchange: true };
             }
 
             try {
-                const decrypted = CryptoJS.AES.decrypt(msg.cipherText, pin).toString(CryptoJS.enc.Utf8);
-                return { ...msg, decryptedContent: decrypted || '[Không thể giải mã]' };
+                const dec = CryptoJS.AES.decrypt(msg.cipherText, pin).toString(CryptoJS.enc.Utf8);
+                return { ...msg, decryptedContent: dec || '[Không giải mã được]' };
             } catch {
-                return { ...msg, decryptedContent: '[Không thể giải mã]' };
+                return { ...msg, decryptedContent: '[Lỗi]' };
             }
         });
 
-        messagesArea.innerHTML = decryptedMessages.map(msg => `
-                <div class="message ${msg.isMine ? 'message-mine' : 'message-theirs'} mb-3">
+        area.innerHTML = decrypted.map(msg => `
+                <div class="message ${msg.isMine ? 'message-mine' : 'message-theirs'}">
                     <div class="message-bubble">
                         ${msg.isPinExchange ?
             '<small class="text-muted"><i class="bi bi-shield-lock"></i> Thiết lập mã hóa</small>' :
             msg.decryptedContent
         }
-                        <div class="message-time">
-                            ${new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                        </div>
+                    </div>
+                    <div class="message-time">
+                        ${new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                 </div>
             `).join('');
 
-        // Scroll to bottom
-        messagesArea.scrollTop = messagesArea.scrollHeight;
+        area.scrollTop = area.scrollHeight;
     }
 
-    // Show Chat Window
     function showChatWindow(username, displayName) {
         document.getElementById('welcomeScreen').style.display = 'none';
         document.getElementById('chatWindow').style.display = 'flex';
-        document.getElementById('chatUsername').textContent = `${username}`;
-        document.getElementById('chatDisplayName').textContent = displayName;
-        document.getElementById('messageInput').disabled = false;
-        document.getElementById('sendBtn').disabled = false;
+
+        const setText = (id, text) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        };
+
+        setText('chatUsername', username);
+        setText('chatDisplayName', displayName);
+        setText('welcomeName', displayName);
+
+        const input = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        if (input) input.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
     }
 
-    // Send Message (now using SignalR with file upload support)
+    function appendMessageToUI(msg) {
+        const area = document.getElementById('messagesArea');
+
+        const div = document.createElement('div');
+        div.className = `message ${msg.isMine ? 'message-mine' : 'message-theirs'}`;
+
+        const content = msg.isPinExchange ?
+            '<small class="text-muted"><i class="bi bi-shield-lock"></i> Thiết lập mã hóa</small>' :
+            msg.decryptedContent;
+
+        div.innerHTML = `
+                <div class="message-bubble">${content}</div>
+                <div class="message-time">
+                    ${new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                </div>
+            `;
+
+        area.appendChild(div);
+        area.scrollTop = area.scrollHeight;
+    }
+
+    function showTypingIndicator(username) {
+        const area = document.getElementById('messagesArea');
+        let indicator = document.getElementById('typingIndicator');
+
+        if (indicator) indicator.remove();
+
+        indicator = document.createElement('div');
+        indicator.id = 'typingIndicator';
+        indicator.className = 'message message-theirs';
+        indicator.innerHTML = `
+                <div class="message-bubble">
+                    <small class="text-muted"><i class="bi bi-three-dots"></i> ${username} đang nhập...</small>
+                </div>
+            `;
+
+        area.appendChild(indicator);
+        area.scrollTop = area.scrollHeight;
+    }
+
+    function hideTypingIndicator() {
+        const indicator = document.getElementById('typingIndicator');
+        if (indicator) indicator.remove();
+    }
+
+    // ===== MESSAGE SENDING =====
+
     document.getElementById('messageForm').addEventListener('submit', async function(e) {
         e.preventDefault();
 
@@ -478,390 +700,72 @@ ViewData["Title"] = "Chat";
         if (!pin) return;
 
         try {
-            // Check if sending file or text
-            if (selectedFile) {
-                await sendFileMessage(selectedFile, pin);
-            } else {
-                const input = document.getElementById('messageInput');
-                const message = input.value.trim();
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
 
-                if (!message) return;
+            if (!message) return;
 
-                // Encrypt message
-                const encrypted = CryptoJS.AES.encrypt(message, pin).toString();
+            const encrypted = CryptoJS.AES.encrypt(message, pin).toString();
 
-                // Send via SignalR
-                await connection.invoke("SendMessage", {
-                    conversationId: currentConversationId,
-                    cipherText: encrypted,
-                    messageType: 0 // Text
-                });
+            await connection.invoke("SendMessage", {
+                conversationId: currentConversationId,
+                cipherText: encrypted,
+                messageType: 0
+            });
 
-                // Clear input immediately
-                input.value = '';
-            }
-
-            // Stop typing indicator
+            input.value = '';
             await connection.invoke("UserStoppedTyping", currentConversationId);
-
         } catch (error) {
-            console.error('Error sending message:', error);
-            showToast('Không thể gửi tin nhắn', 'error');
+            console.error('Error sending:', error);
+            alert('Không gửi được tin nhắn');
         }
     });
 
-    // Send file message
-    async function sendFileMessage(file, pin) {
-        const progressDiv = document.getElementById('uploadProgress');
-        const progressBar = progressDiv.querySelector('.progress-bar');
-        const sendBtn = document.getElementById('sendBtn');
+    // ===== TYPING INDICATOR =====
 
-        try {
-            // Show progress
-            progressDiv.style.display = 'block';
-            progressBar.style.width = '10%';
-            sendBtn.disabled = true;
-
-            // Create FormData
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('conversationId', currentConversationId);
-
-            // Upload file via AJAX with progress
-            const xhr = new XMLHttpRequest();
-
-            xhr.upload.addEventListener('progress', function(e) {
-                if (e.lengthComputable) {
-                    const percentComplete = (e.loaded / e.total) * 90; // 0-90%
-                    progressBar.style.width = percentComplete + '%';
-                }
-            });
-
-            xhr.addEventListener('load', async function() {
-                if (xhr.status === 200) {
-                    progressBar.style.width = '100%';
-
-                    const response = JSON.parse(xhr.responseText);
-
-                    // Encrypt URL
-                    const encryptedUrl = CryptoJS.AES.encrypt(response.url, pin).toString();
-
-                    // Send message via SignalR with encrypted URL
-                    await connection.invoke("SendMessage", {
-                        conversationId: currentConversationId,
-                        cipherText: encryptedUrl,
-                        messageType: CloudinaryService.GetMessageType(file.name),
-                        attachmentUrl: response.url,
-                        fileName: response.fileName,
-                        fileSize: response.fileSize
-                    });
-
-                    // Reset
-                    selectedFile = null;
-                    document.getElementById('fileInput').value = '';
-                    hideFilePreview();
-                    sendBtn.disabled = false;
-                } else {
-                    throw new Error('Upload failed');
-                }
-            });
-
-            xhr.addEventListener('error', function() {
-                throw new Error('Network error during upload');
-            });
-
-            xhr.open('POST', '@Url.Action("UploadFile", "Chat")');
-            xhr.send(formData);
-
-        } catch (error) {
-            console.error('Error uploading file:', error);
-            showToast('Không thể upload file: ' + error.message, 'error');
-            progressDiv.style.display = 'none';
-            sendBtn.disabled = false;
-        }
-    }
-
-    // Typing indicator
     document.getElementById('messageInput').addEventListener('input', async function() {
         if (!currentConversationId || !connection) return;
 
-        // Clear previous timeout
-        if (typingTimeout) {
-            clearTimeout(typingTimeout);
-        }
+        if (typingTimeout) clearTimeout(typingTimeout);
 
-        // Send typing signal
         try {
             await connection.invoke("UserTyping", currentConversationId);
-        } catch (error) {
-            console.error('Error sending typing signal:', error);
+        } catch (e) {
+            console.error('Typing error:', e);
         }
 
-        // Stop typing after 2 seconds of no input
         typingTimeout = setTimeout(async () => {
             try {
                 await connection.invoke("UserStoppedTyping", currentConversationId);
-            } catch (error) {
-                console.error('Error sending stopped typing signal:', error);
+            } catch (e) {
+                console.error('Stop typing error:', e);
             }
         }, 2000);
     });
 
-    // Append message to UI (updated for file attachments)
-    function appendMessageToUI(msg) {
-        const messagesArea = document.getElementById('messagesArea');
+    // ===== INITIALIZATION =====
 
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${msg.isMine ? 'message-mine' : 'message-theirs'} mb-3`;
+    window.addEventListener('load', async () => {
+        // Auto verify PIN trước
+        const verifySuccess = await autoVerifyPin();
 
-        let content = '';
-
-        if (msg.isPinExchange) {
-            content = '<small class="text-muted"><i class="bi bi-shield-lock"></i> Thiết lập mã hóa</small>';
-        } else if (msg.messageType === 1 && msg.attachment) {
-            // Image
-            content = `
-                    <div class="attachment-image mb-2">
-                        <img src="${msg.attachment.url}" alt="${msg.attachment.fileName}" 
-                             class="img-fluid rounded" style="max-width: 300px; max-height: 300px; cursor: pointer;"
-                             onclick="window.open('${msg.attachment.url}', '_blank')">
-                    </div>
-                    <small class="text-muted d-block">${msg.attachment.fileName}</small>
-                `;
-        } else if (msg.messageType === 2 && msg.attachment) {
-            // Video
-            content = `
-                    <div class="attachment-video mb-2">
-                        <video controls class="rounded" style="max-width: 300px; max-height: 300px;">
-                            <source src="${msg.attachment.url}" type="video/mp4">
-                            Your browser does not support the video tag.
-                        </video>
-                    </div>
-                    <small class="text-muted d-block">${msg.attachment.fileName}</small>
-                `;
-        } else if (msg.messageType === 3 && msg.attachment) {
-            // File
-            content = `
-                    <a href="${msg.attachment.url}" target="_blank" class="text-decoration-none">
-                        <div class="attachment-file d-flex align-items-center gap-2 p-2 border rounded">
-                            <i class="${getFileIconClass(msg.attachment.fileName)} fs-3"></i>
-                            <div class="flex-grow-1">
-                                <div class="small fw-bold">${msg.attachment.fileName}</div>
-                                <div class="text-muted" style="font-size: 0.75rem;">${formatFileSize(msg.attachment.fileSize)}</div>
-                            </div>
-                            <i class="bi bi-download"></i>
-                        </div>
-                    </a>
-                `;
-        } else {
-            // Text
-            content = msg.decryptedContent;
+        if (!verifySuccess) {
+            // Nếu verify thất bại, sẽ tự động redirect
+            return;
         }
 
-        messageDiv.innerHTML = `
-                <div class="message-bubble">
-                    ${content}
-                    <div class="message-time">
-                        ${new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                </div>
-            `;
-
-        messagesArea.appendChild(messageDiv);
-        messagesArea.scrollTop = messagesArea.scrollHeight;
-    }
-
-    function getFileIconClass(fileName) {
-        const ext = fileName.split('.').pop().toLowerCase();
-        const iconMap = {
-            'pdf': 'bi-file-pdf-fill text-danger',
-            'doc': 'bi-file-word-fill text-primary',
-            'docx': 'bi-file-word-fill text-primary',
-            'xls': 'bi-file-excel-fill text-success',
-            'xlsx': 'bi-file-excel-fill text-success',
-            'ppt': 'bi-file-ppt-fill text-warning',
-            'pptx': 'bi-file-ppt-fill text-warning',
-            'zip': 'bi-file-zip-fill text-secondary',
-            'rar': 'bi-file-zip-fill text-secondary',
-            'txt': 'bi-file-text-fill text-info'
-        };
-        return iconMap[ext] || 'bi-file-earmark-fill text-secondary';
-    }
-
-    // Show typing indicator
-    function showTypingIndicator(username) {
-        const messagesArea = document.getElementById('messagesArea');
-
-        // Remove existing typing indicator
-        const existing = document.getElementById('typingIndicator');
-        if (existing) existing.remove();
-
-        const typingDiv = document.createElement('div');
-        typingDiv.id = 'typingIndicator';
-        typingDiv.className = 'message message-theirs mb-3';
-        typingDiv.innerHTML = `
-                <div class="message-bubble">
-                    <small class="text-muted">
-                        <i class="bi bi-three-dots"></i> ${username} đang nhập...
-                    </small>
-                </div>
-            `;
-
-        messagesArea.appendChild(typingDiv);
-        messagesArea.scrollTop = messagesArea.scrollHeight;
-    }
-
-    // Hide typing indicator
-    function hideTypingIndicator() {
-        const indicator = document.getElementById('typingIndicator');
-        if (indicator) indicator.remove();
-    }
-
-    // Mark messages as read
-    async function markMessagesAsRead(conversationId, lastMessageId) {
-        if (!connection) return;
-
-        try {
-            await connection.invoke("MarkMessagesAsRead", conversationId, lastMessageId);
-        } catch (error) {
-            console.error('Error marking messages as read:', error);
-        }
-    }
-
-    // Update user online status
-    function updateUserOnlineStatus(userId, isOnline) {
-        // Update UI to show online/offline status
-        const statusBadge = document.querySelector(`[data-user-id="${userId}"] .status-badge`);
-        if (statusBadge) {
-            statusBadge.className = `status-badge ${isOnline ? 'bg-success' : 'bg-secondary'}`;
-        }
-    }
-
-    // Play notification sound (optional)
-    function playNotificationSound() {
-        // You can add a notification sound here
-        // const audio = new Audio('/sounds/notification.mp3');
-        // audio.play().catch(e => console.log('Could not play sound:', e));
-    }
-
-    // Helper: Get AntiForgery Token
-    function getAntiForgeryToken() {
-        return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
-    }
-
-    // Helper: Show Toast
-    function showToast(message, type = 'info') {
-        // Simple alert for now - you can replace with a toast library
-        alert(message);
-    }
-
-    // Initialize on page load
-    window.addEventListener('load', async function() {
-        // Initialize SignalR connection
+        // Nếu verify thành công, khởi tạo SignalR
         await initializeSignalR();
     });
 
-    // Cleanup on page unload
-    window.addEventListener('beforeunload', async function() {
+    window.addEventListener('beforeunload', async () => {
         if (connection && currentConversationId) {
             try {
                 await connection.invoke("LeaveConversation", currentConversationId);
-            } catch (error) {
-                console.error('Error leaving conversation:', error);
+            } catch (e) {
+                console.error('Error leaving conversation:', e);
             }
         }
     });
 </script>
-}
-
-@section Styles {
-<style>
-    .vh-100 {
-        height: 100vh;
-    }
-
-    .cursor-pointer {
-        cursor: pointer;
-    }
-
-    .hover-bg:hover {
-        background-color: #f8f9fa;
-    }
-
-    .avatar-circle {
-        width: 45px;
-        height: 45px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 1.2rem;
-    }
-
-    .user-item {
-        transition: all 0.2s ease;
-    }
-
-    .user-item:hover {
-        transform: translateX(5px);
-    }
-
-    .bg-chat {
-        background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
-    }
-
-    .message {
-        display: flex;
-    }
-
-    .message-mine {
-        justify-content: flex-end;
-    }
-
-    .message-theirs {
-        justify-content: flex-start;
-    }
-
-    .message-bubble {
-        max-width: 70%;
-        padding: 10px 15px;
-        border-radius: 15px;
-        word-wrap: break-word;
-    }
-
-    .message-mine .message-bubble {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-bottom-right-radius: 5px;
-    }
-
-    .message-theirs .message-bubble {
-        background-color: #e9ecef;
-        color: #333;
-        border-bottom-left-radius: 5px;
-    }
-
-    .message-time {
-        font-size: 0.7rem;
-        margin-top: 5px;
-        opacity: 0.8;
-    }
-
-    #messagesArea {
-        background-image:
-            repeating-linear-gradient(
-                0deg,
-                rgba(0, 0, 0, 0.02),
-                rgba(0, 0, 0, 0.02) 1px,
-                transparent 1px,
-                transparent 40px
-            );
-    }
-
-    .border-end {
-        border-right: 2px solid #dee2e6 !important;
-    }
-</style>
 }

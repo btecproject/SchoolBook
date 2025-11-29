@@ -115,6 +115,7 @@ public class Program
             "{controller=Home}/{action=Index}");
         
         app.MapHub<ImportExcelHub>("/importExcelHub");
+        app.MapHub<ChatHub>("/chatHub");
         
         // Route cho TokenManager
         // app.MapControllerRoute(

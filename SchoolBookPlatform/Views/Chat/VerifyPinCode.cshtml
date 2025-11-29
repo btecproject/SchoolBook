@@ -1,0 +1,213 @@
+﻿@{
+ViewData["Title"] = "Xác thực mã PIN";
+Layout = "_Layout";
+}
+
+<div class="container-fluid vh-100 d-flex justify-content-center align-items-center bg-light">
+    <div class="card shadow-lg border-0" style="width: 400px;">
+        <div class="card-body p-4">
+            <div class="text-center mb-4">
+                <div class="mb-3">
+                    <i class="bi bi-lock-fill text-primary" style="font-size: 3rem;"></i>
+                </div>
+                <h3 class="fw-bold mb-2">Xác thực mã PIN</h3>
+                <p class="text-muted small">Nhập mã PIN để mở khóa tính năng chat</p>
+            </div>
+
+            <form id="pinForm">
+                <div class="mb-3">
+                    <label for="pinInput" class="form-label fw-semibold">Mã PIN</label>
+                    <div class="input-group">
+                        <input type="password"
+                               class="form-control form-control-lg"
+                               id="pinInput"
+                               placeholder="Nhập 6 số"
+                               maxlength="6"
+                               pattern="[0-9]{6}"
+                               required
+                               autocomplete="off">
+                        <button class="btn btn-outline-secondary"
+                                type="button"
+                                id="togglePin">
+                            <i class="bi bi-eye" id="togglePinIcon"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted">Mã PIN gồm 6 chữ số</small>
+                </div>
+
+                <div id="pinError" class="alert alert-danger d-none" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <span id="pinErrorMessage">Mã PIN không đúng</span>
+                </div>
+
+                <button type="submit"
+                        class="btn btn-primary w-100 btn-lg"
+                        id="verifyBtn">
+                    <span id="verifyBtnText">Xác nhận</span>
+                    <span id="verifyBtnSpinner" class="spinner-border spinner-border-sm d-none ms-2"></span>
+                </button>
+
+                <div class="text-center mt-3">
+                    <a href="@Url.Action("Logout", "Authen")" class="text-muted text-decoration-none small">
+                        <i class="bi bi-box-arrow-left me-1"></i>
+                        Đăng xuất
+                    </a>
+                </div>
+            </form>
+
+            <div class="mt-4 pt-3 border-top">
+                <p class="text-muted small mb-2">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Lưu ý:
+                </p>
+                <ul class="text-muted small mb-0">
+                    <li>Mỗi tài khoản có mã PIN riêng</li>
+                    <li>Mã PIN được lưu an toàn trên thiết bị</li>
+                    <li>Nếu quên PIN, bạn cần đăng ký lại chat</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script>
+    // Lấy username hiện tại từ server
+    const currentUsername = '@User.Identity.Name';
+
+    // Toggle hiện/ẩn PIN
+    document.getElementById('togglePin').addEventListener('click', function() {
+        const pinInput = document.getElementById('pinInput');
+        const icon = document.getElementById('togglePinIcon');
+
+        if (pinInput.type === 'password') {
+            pinInput.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            pinInput.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
+    });
+
+    // Xử lý form submit
+    document.getElementById('pinForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const pinInput = document.getElementById('pinInput');
+        const pinError = document.getElementById('pinError');
+        const verifyBtn = document.getElementById('verifyBtn');
+        const verifyBtnText = document.getElementById('verifyBtnText');
+        const verifyBtnSpinner = document.getElementById('verifyBtnSpinner');
+        const pinErrorMessage = document.getElementById('pinErrorMessage');
+
+        const pinValue = pinInput.value.trim();
+
+        // Validate độ dài PIN
+        if (pinValue.length !== 6) {
+            pinError.classList.remove('d-none');
+            pinErrorMessage.textContent = 'Mã PIN phải có đúng 6 chữ số';
+            pinInput.focus();
+            return;
+        }
+
+        // Validate chỉ chứa số
+        if (!/^\d{6}$/.test(pinValue)) {
+            pinError.classList.remove('d-none');
+            pinErrorMessage.textContent = 'Mã PIN chỉ được chứa số';
+            pinInput.focus();
+            return;
+        }
+
+        // Hiển thị loading
+        verifyBtn.disabled = true;
+        verifyBtnText.textContent = 'Đang xác thực...';
+        verifyBtnSpinner.classList.remove('d-none');
+        pinError.classList.add('d-none');
+
+        try {
+            // Hash PIN bằng SHA-256
+            const hashedPin = CryptoJS.SHA256(pinValue).toString();
+
+            console.log('Verifying PIN for user:', currentUsername);
+            console.log('Hashed PIN:', hashedPin);
+
+            // Gửi request verify
+            const response = await fetch('@Url.Action("VerifyPinCode", "Chat")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                },
+                body: JSON.stringify(hashedPin)
+            });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Lưu PIN vào localStorage với key là pinCode_{username}
+                const storageKey = `pinCode_${currentUsername}`;
+                localStorage.setItem(storageKey, pinValue);
+
+                console.log('PIN verified and saved to localStorage:', storageKey);
+
+                // Hiển thị thông báo thành công
+                verifyBtnText.textContent = 'Thành công!';
+                pinError.classList.add('d-none');
+
+                // Chuyển hướng đến trang chat sau 500ms
+                setTimeout(() => {
+                    window.location.href = '@Url.Action("Index", "Chat")';
+                }, 500);
+            } else {
+                // PIN sai
+                pinError.classList.remove('d-none');
+                pinErrorMessage.textContent = result.message || 'Mã PIN không đúng. Vui lòng thử lại.';
+                pinInput.value = '';
+                pinInput.focus();
+
+                // Reset button
+                verifyBtn.disabled = false;
+                verifyBtnText.textContent = 'Xác nhận';
+                verifyBtnSpinner.classList.add('d-none');
+            }
+        } catch (error) {
+            console.error('Error verifying PIN:', error);
+
+            pinError.classList.remove('d-none');
+            pinErrorMessage.textContent = 'Đã xảy ra lỗi. Vui lòng thử lại.';
+
+            // Reset button
+            verifyBtn.disabled = false;
+            verifyBtnText.textContent = 'Xác nhận';
+            verifyBtnSpinner.classList.add('d-none');
+        }
+    });
+
+    // Auto focus vào input khi trang load
+    window.addEventListener('load', function() {
+        document.getElementById('pinInput').focus();
+    });
+
+    // Xử lý paste - chỉ cho phép dán số
+    document.getElementById('pinInput').addEventListener('paste', function(e) {
+        e.preventDefault();
+        const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+        const numericText = pastedText.replace(/\D/g, '').substring(0, 6);
+        this.value = numericText;
+    });
+
+    // Chỉ cho phép nhập số
+    document.getElementById('pinInput').addEventListener('keypress', function(e) {
+        if (!/\d/.test(e.key) && e.key !== 'Enter') {
+            e.preventDefault();
+        }
+    });
+</script>
+}
