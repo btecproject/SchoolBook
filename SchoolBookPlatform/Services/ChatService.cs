@@ -146,7 +146,7 @@ namespace SchoolBookPlatform.Services
                     key.IsActive = false;
                 }
                 //Xóa Key bị !isActivê
-                var disabledKeys = await  db.UserRsaKeys.Where(k => !k.IsActive).ToListAsync();
+                var disabledKeys = await db.UserRsaKeys.Where(k => !k.IsActive).ToListAsync();
                 db.UserRsaKeys.RemoveRange(disabledKeys);
                 // Tạo key mới
                 var newKey = new UserRsaKey
@@ -191,8 +191,6 @@ namespace SchoolBookPlatform.Services
 
             return key;
         }
-        
-
 
         // Tìm kiếm ChatUser theo DisplayName hoặc Username
         public async Task<List<ChatUserSearchResult>> SearchChatUsersAsync(string searchTerm, Guid currentUserId)
@@ -211,7 +209,6 @@ namespace SchoolBookPlatform.Services
 
             return results;
         }
-
 
         // Get or Create Conversation (1-1)
         public async Task<ConversationResult> GetOrCreateConversationAsync(Guid userId1, Guid userId2)
@@ -233,16 +230,16 @@ namespace SchoolBookPlatform.Services
 
                 if (existingConv != null)
                 {
-                    // Kiểm tra có PIN exchange chưa
-                    var hasPinExchange = await db.Messages
-                        .Where(m => m.ConversationId == existingConv.Id)
+                    // ✅ FIX: Kiểm tra có PIN exchange CỦA TỪNG USER chưa
+                    var hasPinExchangeFromUser1 = await db.Messages
+                        .Where(m => m.ConversationId == existingConv.Id && m.SenderId == userId1)
                         .AnyAsync(m => m.PinExchange != null);
 
                     return new ConversationResult
                     {
                         ConversationId = existingConv.Id,
                         IsNew = false,
-                        HasPinExchange = hasPinExchange
+                        HasPinExchange = hasPinExchangeFromUser1  // ✅ Chỉ check PIN của user hiện tại
                     };
                 }
 
@@ -251,7 +248,8 @@ namespace SchoolBookPlatform.Services
                 {
                     Id = Guid.NewGuid(),
                     Type = 0, // 1-1
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    CreatorId = userId1,
                 };
 
                 db.Conversations.Add(newConv);
@@ -291,7 +289,6 @@ namespace SchoolBookPlatform.Services
                 throw;
             }
         }
-        
 
         // Send PIN Exchange Message
         public async Task<ServiceResult> SendPinExchangeMessageAsync(
@@ -328,7 +325,8 @@ namespace SchoolBookPlatform.Services
                 db.Messages.Add(message);
                 await db.SaveChangesAsync();
 
-                logger.LogInformation("PIN exchange message sent in conversation {ConvId}", conversationId);
+                logger.LogInformation("PIN exchange sent by user {UserId} in conversation {ConvId}", 
+                    senderId, conversationId);
 
                 return new ServiceResult
                 {
@@ -521,7 +519,6 @@ namespace SchoolBookPlatform.Services
                 return false;
             }
         }
-        
 
         // Upload file và update message
         public async Task<CloudinaryUploadResult> UploadFileAsync(
@@ -660,6 +657,5 @@ namespace SchoolBookPlatform.Services
                 return url; // Fallback
             }
         }
-        
     }
 }

@@ -12,6 +12,76 @@ namespace SchoolBookPlatform.Controllers
     public class ChatController(AppDbContext db, ChatService chatService, ILogger<ChatController> logger)
         : Controller
     {
+        // API: /Chat/GetCurrentUserInfo - Lấy thông tin user hiện tại
+        [HttpGet]
+        public async Task<IActionResult> GetCurrentUserInfo()
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            // Lấy thông tin ChatUser
+            var chatUser = await db.ChatUsers
+                .Where(cu => cu.UserId == currentUser.Id)
+                .Select(cu => new
+                {
+                    userId = cu.UserId,
+                    username = cu.Username,
+                    displayName = cu.DisplayName
+                })
+                .FirstOrDefaultAsync();
+
+            if (chatUser == null)
+            {
+                return NotFound(new { message = "ChatUser không tồn tại" });
+            }
+
+            return Ok(chatUser);
+        }
+        [HttpGet]
+        public async Task<IActionResult> GetMyPrivateKey()
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                var rsaKey = await db.UserRsaKeys
+                    .Where(k => k.UserId == currentUser.Id && k.IsActive)
+                    .Select(k => new
+                    {
+                        privateKeyEncrypted = k.PrivateKeyEncrypted,
+                        expiresAt = k.ExpiresAt
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (rsaKey == null)
+                {
+                    return NotFound(new { message = "Không tìm thấy khóa RSA hoặc khóa đã hết hạn" });
+                }
+
+                // Kiểm tra key có hết hạn không
+                if (rsaKey.expiresAt < DateTime.UtcNow)
+                {
+                    return BadRequest(new { message = "Khóa RSA đã hết hạn. Vui lòng tạo khóa mới." });
+                }
+
+                return Ok(new 
+                { 
+                    privateKeyEncrypted = rsaKey.privateKeyEncrypted 
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting private key for user {UserId}", currentUser.Id);
+                return StatusCode(500, new { message = "Lỗi khi lấy private key" });
+            }
+        }
         // GET: /Chat/Index - Kiểm tra và chuyển hướng
         public async Task<IActionResult> Index()
         {
