@@ -220,7 +220,9 @@ public class PostController : Controller
             // Xóa file từ Cloudinary trước
             foreach (var attachment in post.Attachments)
             {
-                await DeleteFileFromCloudinary(attachment.FilePath, id);
+                logger.LogInformation("DeleteFileFromCloudinary post attachment: {id}", post.Attachments.First(a => a.Id == attachment.Id));
+
+                await DeleteFileFromCloudinary(attachment.FilePath, post.Id);
             }
 
             _context.Posts.Remove(post);
@@ -238,7 +240,6 @@ public class PostController : Controller
     {
         try
         {
-            logger.LogInformation("DeleteFileFromCloudinary: {postId}", postId);
             // Extract public ID từ URL
             var uri = new Uri(fileUrl);
             var segments = uri.AbsolutePath.Split('/');
@@ -253,7 +254,7 @@ public class PostController : Controller
             {
                 ResourceType = ResourceType.Image // Cloudinary sẽ tự động detect loại resource
             };
-
+            
             var result = await _cloudinary.DestroyAsync(deleteParams);
         
             if (result.Error != null)
