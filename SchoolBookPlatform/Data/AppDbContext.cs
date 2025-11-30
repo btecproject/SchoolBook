@@ -27,6 +27,7 @@ public class AppDbContext : DbContext
     public DbSet<ConversationMember> ConversationMembers { get; set; }
     public DbSet<Message> Messages { get; set; }
     public DbSet<MessageAttachment> MessageAttachments { get; set; }
+    public DbSet<MessageNotification> MessageNotifications { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

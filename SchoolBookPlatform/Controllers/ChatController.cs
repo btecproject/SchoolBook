@@ -12,6 +12,35 @@ namespace SchoolBookPlatform.Controllers
     public class ChatController(AppDbContext db, ChatService chatService, ILogger<ChatController> logger)
         : Controller
     {
+        
+        [HttpGet]
+        public async Task<IActionResult> GetRecentContacts()
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null) return Unauthorized();
+
+            try
+            {
+                var contacts = await chatService.GetRecentContactsAsync(currentUser.Id);
+                return Ok(contacts);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting recent contacts");
+                return StatusCode(500, new { message = "Error loading contacts" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> MarkRead([FromBody] Guid senderId)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null) return Unauthorized();
+            
+            await chatService.MarkMessagesAsReadAsync(currentUser.Id, senderId);
+            return Ok();
+        }
+        
         // API: /Chat/GetCurrentUserInfo - Lấy thông tin user hiện tại
         [HttpGet]
         public async Task<IActionResult> GetCurrentUserInfo()

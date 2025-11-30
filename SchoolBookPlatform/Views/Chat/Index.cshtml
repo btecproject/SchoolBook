@@ -4,7 +4,6 @@ ViewData["Title"] = "Chat";
 
 @Html.AntiForgeryToken()
 
-<!-- Auto Verify Loading Screen -->
 <div id="autoVerifyScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; align-items: center; justify-content: center;">
     <div class="text-center">
         <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
@@ -17,9 +16,7 @@ ViewData["Title"] = "Chat";
 
 <div class="container-fluid vh-100 d-flex flex-column p-0">
     <div class="row g-0 flex-grow-1">
-        <!-- Sidebar - User List -->
         <div class="col-md-4 col-lg-3 border-end bg-white d-flex flex-column">
-            <!-- Header -->
             <div class="p-3 border-bottom">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4 class="mb-0 fw-bold">Chat</h4>
@@ -28,7 +25,6 @@ ViewData["Title"] = "Chat";
                     </button>
                 </div>
 
-                <!-- Search Box -->
                 <div class="input-group search-box">
                     <span class="input-group-text bg-light border-0">
                         <i class="bi bi-search"></i>
@@ -44,7 +40,6 @@ ViewData["Title"] = "Chat";
                 </div>
             </div>
 
-            <!-- Search Results -->
             <div id="searchResults" class="flex-grow-1 overflow-auto" style="display: none;">
                 <div class="p-2">
                     <div class="d-flex justify-content-between align-items-center px-2 mb-2">
@@ -55,25 +50,21 @@ ViewData["Title"] = "Chat";
                 </div>
             </div>
 
-            <!-- Conversation List -->
             <div id="conversationList" class="flex-grow-1 overflow-auto">
-                <div id="conversationsList">
-                    <div class="text-center text-muted py-5">
-                        <i class="bi bi-chat-dots" style="font-size: 4rem; opacity: 0.3;"></i>
-                        <p class="mt-3 mb-1 fw-semibold">Chưa có cuộc trò chuyện</p>
-                        <small class="text-muted">Tìm kiếm để bắt đầu nhắn tin</small>
+                <div id="contactsListContainer" class="p-2">
+                    <div class="text-center text-muted py-5" id="emptyContactsState">
+                        <i class="bi bi-chat-dots" style="font-size: 3rem; opacity: 0.3;"></i>
+                        <p class="mt-2 mb-0 small">Chưa có tin nhắn nào</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Chat Area -->
         <div class="col-md-8 col-lg-9 d-flex flex-column bg-light">
-            <!-- Welcome Screen -->
             <div id="welcomeScreen" class="flex-grow-1 d-flex align-items-center justify-content-center">
                 <div class="text-center">
                     <div class="welcome-icon mb-4">
-                        <i class="bi bi-chat-dots-fill"></i>
+                        <i class="bi bi-chat-dots-fill" style="font-size: 4rem; color: #cbd5e0;"></i>
                     </div>
                     <h2 class="fw-bold mb-2">Messenger</h2>
                     <p class="text-muted mb-4">Kết nối và trò chuyện với bạn bè một cách an toàn</p>
@@ -83,9 +74,7 @@ ViewData["Title"] = "Chat";
                 </div>
             </div>
 
-            <!-- Chat Window -->
             <div id="chatWindow" style="display: none;" class="d-flex flex-column flex-grow-1 bg-white">
-                <!-- Chat Header -->
                 <div class="chat-header p-3 border-bottom bg-white">
                     <div class="d-flex align-items-center">
                         <div class="avatar-chat me-3">
@@ -100,7 +89,6 @@ ViewData["Title"] = "Chat";
                     </div>
                 </div>
 
-                <!-- Messages Area -->
                 <div id="messagesArea" class="flex-grow-1 overflow-auto p-3">
                     <div class="text-center text-muted py-4">
                         <div class="avatar-large mb-3">
@@ -113,7 +101,6 @@ ViewData["Title"] = "Chat";
                     </div>
                 </div>
 
-                <!-- Message Input -->
                 <div class="message-input-area p-3 border-top bg-white">
                     <form id="messageForm">
                         <div id="filePreview" class="d-none mb-2">
@@ -136,23 +123,16 @@ ViewData["Title"] = "Chat";
                             </div>
                         </div>
 
-                        <div class="d-flex align-items-end gap-2">
-                            <div class="d-flex gap-1">
-                                <button type="button" class="btn btn-light rounded-circle p-2" id="attachFileBtn">
-                                    <i class="bi bi-plus-lg text-primary"></i>
-                                </button>
-                                <input type="file" id="fileInput" style="display: none;"
-                                       accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" />
-                            </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-light rounded-circle p-2" id="attachFileBtn">
+                                <i class="bi bi-paperclip text-primary fs-5"></i>
+                            </button>
+                            <input type="file" id="fileInput" class="d-none"
+                                   accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" />
 
-                            <div class="flex-grow-1">
-                                <input type="text"
-                                       id="messageInput"
-                                       class="form-control rounded-pill border-0 bg-light px-4"
-                                       placeholder="Aa"
-                                       autocomplete="off"
-                                       disabled />
-                            </div>
+                            <input type="text" id="messageInput"
+                                   class="form-control rounded-pill border-0 bg-light px-4 py-2"
+                                   placeholder="Aa" autocomplete="off" disabled />
 
                             <button type="submit" class="btn btn-primary rounded-circle p-2" id="sendBtn" disabled>
                                 <i class="bi bi-send-fill"></i>
@@ -165,7 +145,6 @@ ViewData["Title"] = "Chat";
     </div>
 </div>
 
-<!-- Loading Modal -->
 <div class="modal fade" id="loadingModal" data-bs-backdrop="static" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content border-0 shadow">
@@ -176,103 +155,180 @@ ViewData["Title"] = "Chat";
         </div>
     </div>
 </div>
-@section Styles
-{
-    <style>
-    .vh-100 {
-    height: 100vh;
+
+@section Styles {
+<style>
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
+
+    .vh-100 { height: 100vh; }
+    .border-end { border-right: 1px solid #dee2e6 !important; }
+
+    /* Contacts List Styles */
+    .contact-item {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 12px;
+        margin-bottom: 4px;
+        padding: 12px;
+        position: relative;
+        border: 1px solid transparent;
+    }
+    .contact-item:hover {
+        background-color: #f7fafc;
+        transform: translateY(-1px);
+    }
+    .contact-item.active {
+        background-color: #ebf4ff;
+        border-color: #bee3f8;
     }
 
-    .cursor-pointer {
-    cursor: pointer;
+    /* Avatar Styles */
+    .avatar-container {
+        width: 48px;
+        height: 48px;
+        flex-shrink: 0;
+        margin-right: 12px;
+        position: relative;
+    }
+    .avatar-img {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 1px solid #e2e8f0;
+    }
+    .avatar-text {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.2rem;
+        text-transform: uppercase;
+        box-shadow: 0 2px 4px rgba(118, 75, 162, 0.2);
     }
 
-    .hover-bg:hover {
-    background-color: #f8f9fa;
-    }
-
+    /* Search Result Avatar */
     .avatar-circle {
-    width: 45px;
-    height: 45px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 1.2rem;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+        font-weight: bold;
     }
 
-    .user-item {
-    transition: all 0.2s ease;
+    /* Text & Badges */
+    .last-msg-preview {
+        font-size: 0.85rem;
+        color: #718096;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 180px;
+        margin-top: 2px;
+    }
+    .unread-badge {
+        background-color: #ef4444;
+        color: white;
+        font-size: 0.7rem;
+        font-weight: bold;
+        padding: 2px 6px;
+        border-radius: 10px;
+        min-width: 18px;
+        text-align: center;
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+    }
+    .contact-time {
+        font-size: 0.7rem;
+        color: #a0aec0;
+        position: absolute;
+        top: 12px;
+        right: 12px;
     }
 
-    .user-item:hover {
-    transform: translateX(5px);
+    /* Chat Area */
+    #messagesArea {
+        background-color: #fdfdfd;
+        background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+        background-size: 20px 20px;
     }
-
-    .bg-chat {
-    background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
-    }
-
     .message {
-    display: flex;
+        display: flex;
+        margin-bottom: 12px;
+        animation: fadeIn 0.3s ease;
     }
-
-    .message-mine {
-    justify-content: flex-end;
-    }
-
-    .message-theirs {
-    justify-content: flex-start;
-    }
+    @@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
     .message-bubble {
-    max-width: 70%;
-    padding: 10px 15px;
-    border-radius: 15px;
-    word-wrap: break-word;
+        max-width: 70%;
+        padding: 10px 16px;
+        border-radius: 18px;
+        font-size: 0.95rem;
+        position: relative;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
+    .message-mine { justify-content: flex-end; }
+    .message-theirs { justify-content: flex-start; }
 
     .message-mine .message-bubble {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-bottom-right-radius: 5px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom-right-radius: 4px;
     }
-
     .message-theirs .message-bubble {
-    background-color: #e9ecef;
-    color: #333;
-    border-bottom-left-radius: 5px;
+        background-color: #fff;
+        color: #2d3748;
+        border: 1px solid #e2e8f0;
+        border-bottom-left-radius: 4px;
     }
+    .message-time { font-size: 0.7rem; color: #a0aec0; margin-top: 4px; margin-left: 5px; margin-right: 5px; }
 
-    .message-time {
-    font-size: 0.7rem;
-    margin-top: 5px;
-    opacity: 0.8;
+    /* Typing Animation */
+    .typing-dots {
+        display: inline-flex;
+        align-items: center;
+        height: 20px;
     }
-
-    #messagesArea {
-    background-image:
-    repeating-linear-gradient(
-    0deg,
-    rgba(0, 0, 0, 0.02),
-    rgba(0, 0, 0, 0.02) 1px,
-    transparent 1px,
-    transparent 40px
-    );
+    .typing-dots .dot {
+        width: 6px;
+        height: 6px;
+        background-color: #adb5bd;
+        border-radius: 50%;
+        margin: 0 2px;
+        animation: typingBounce 1.4s infinite ease-in-out both;
     }
+    .typing-dots .dot:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dots .dot:nth-child(2) { animation-delay: -0.16s; }
 
-    .border-end {
-    border-right: 2px solid #dee2e6 !important;
+    @@keyframes typingBounce {
+        0%, 80%, 100% { transform: scale(0); }
+        40% { transform: scale(1); }
     }
 </style>
 }
+
 @section Scripts {
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
-    <script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>
     // ===== GLOBAL VARIABLES =====
     let currentConversationId = null;
     let currentRecipientId = null;
@@ -288,319 +344,168 @@ ViewData["Title"] = "Chat";
 
     const currentUsername = '@User.Identity.Name';
 
-    // ===== PIN MANAGEMENT =====
-    async function autoVerifyPin() {
-        const storageKey = `pinCode_${currentUsername}`;
-        const savedPin = localStorage.getItem(storageKey);
-
-        console.log('Auto verifying PIN for user:', currentUsername);
-
-        if (!savedPin) {
-            console.log('No PIN in localStorage, redirecting to verify page');
-            document.getElementById('autoVerifyMessage').textContent = 'Chưa có mã PIN, đang chuyển hướng...';
-            setTimeout(() => {
-                window.location.href = '@Url.Action("VerifyPinCode", "Chat")';
-            }, 1000);
-            return false;
-        }
-
-        console.log('PIN found in localStorage, verifying with server...');
-        document.getElementById('autoVerifyMessage').textContent = 'Đang xác thực mã PIN...';
-
-        try {
-            const hashedPin = CryptoJS.SHA256(savedPin).toString();
-            const response = await fetch('@Url.Action("VerifyPinCode", "Chat")', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': getToken()
-                },
-                body: JSON.stringify(hashedPin)
-            });
-
-            if (!response.ok) throw new Error('Network error');
-            const result = await response.json();
-
-            if (result.success) {
-                console.log('Auto verify successful');
-                document.getElementById('autoVerifyMessage').textContent = 'Xác thực thành công!';
-                myPin = savedPin;
-                setTimeout(() => {
-                    document.getElementById('autoVerifyScreen').style.display = 'none';
-                }, 500);
-                return true;
-            } else {
-                console.log('Auto verify failed');
-                document.getElementById('autoVerifyMessage').textContent = 'Mã PIN không hợp lệ, vui lòng nhập lại...';
-                localStorage.removeItem(storageKey);
-                setTimeout(() => {
-                    window.location.href = '@Url.Action("VerifyPinCode", "Chat")';
-                }, 1500);
-                return false;
-            }
-        } catch (error) {
-            console.error('Auto verify error:', error);
-            document.getElementById('autoVerifyMessage').textContent = 'Lỗi xác thực, đang thử lại...';
-            setTimeout(() => {
-                window.location.href = '@Url.Action("VerifyPinCode", "Chat")';
-            }, 1500);
-            return false;
-        }
-    }
-
-    function getMyPin() {
-        if (!myPin) {
-            const storageKey = `pinCode_${currentUsername}`;
-            myPin = localStorage.getItem(storageKey);
-            if (!myPin) {
-                console.error('PIN not found in localStorage');
-                alert('Không tìm thấy mã PIN. Vui lòng xác thực lại.');
-                window.location.href = '@Url.Action("VerifyPinCode", "Chat")';
-                return null;
-            }
-        }
-        return myPin;
-    }
-
-    async function getMyPrivateKey() {
-        if (myPrivateKeyEncrypted) return myPrivateKeyEncrypted;
-
-        try {
-            const response = await fetch('@Url.Action("GetMyPrivateKey", "Chat")');
-            if (!response.ok) {
-                if (response.status === 404) {
-                    throw new Error('Không tìm thấy khóa RSA. Vui lòng thiết lập lại.');
-                }
-                throw new Error('Không thể lấy private key từ server');
-            }
-
-            const data = await response.json();
-            if (!data.privateKeyEncrypted) {
-                throw new Error('Private key không hợp lệ');
-            }
-
-            myPrivateKeyEncrypted = data.privateKeyEncrypted;
-            console.log('Private key loaded from server');
-            return myPrivateKeyEncrypted;
-        } catch (error) {
-            console.error('Error getting private key:', error);
-            alert(error.message || 'Không thể lấy private key');
-            return null;
-        }
-    }
-
-    // async function decryptAndCachePinExchange(encryptedPin, senderId) {
-    //     try {
-    //         console.log('🔍 decryptAndCachePinExchange called for senderId:', senderId);
-    //         console.log('🔍 currentUserId:', currentUserId);
-    //
-    //         if (senderId === currentUserId) {
-    //             console.log('⚠️ Skipping own PIN - cannot decrypt with own private key');
-    //             return null;
-    //         }
-    //
-    //         const myPrivateKeyEnc = await getMyPrivateKey();
-    //         if (!myPrivateKeyEnc) {
-    //             console.error('Private key not found');
-    //             return null;
-    //         }
-    //
-    //         const myPinLocal = getMyPin();
-    //         if (!myPinLocal) return null;
-    //
-    //         const myPrivateKeyDecrypted = CryptoJS.AES.decrypt(myPrivateKeyEnc, myPinLocal)
-    //             .toString(CryptoJS.enc.Utf8);
-    //
-    //         if (!myPrivateKeyDecrypted) {
-    //             console.error('Failed to decrypt private key - wrong PIN?');
-    //             return null;
-    //         }
-    //
-    //         const decrypt = new JSEncrypt();
-    //         decrypt.setPrivateKey(myPrivateKeyDecrypted);
-    //         const senderPin = decrypt.decrypt(encryptedPin);
-    //
-    //         if (!senderPin) {
-    //             console.error('Failed to decrypt sender PIN - key mismatch or malformed data');
-    //             return null;
-    //         }
-    //
-    //         recipientPinsCache.set(senderId, senderPin);
-    //         console.log('✅ Cached PIN for sender:', senderId);
-    //         return senderPin;
-    //     } catch (error) {
-    //         console.error('❌ Error decrypting PIN exchange:', error);
-    //         return null;
-    //     }
-    // }
-    // [SỬA LỖI] Hàm giải mã an toàn hơn
-    async function decryptAndCachePinExchange(encryptedPin, senderId) {
-        // Khai báo biến bên ngoài để dùng được trong cả try và catch
-        let decryptedBytes = null;
-
-        try {
-            console.log('🔍 decryptAndCachePinExchange called for senderId:', senderId);
-
-            if (senderId === currentUserId) return null;
-
-            const myPrivateKeyEnc = await getMyPrivateKey();
-            if (!myPrivateKeyEnc) {
-                console.error("❌ Không lấy được Private Key đã mã hóa");
-                return null;
-            }
-
-            const myPinLocal = getMyPin();
-            if (!myPinLocal) {
-                console.error("❌ Không tìm thấy PIN local");
-                return null;
-            }
-
-            // 1. Giải mã ra dạng WordArray (bytes)
-            // Nếu PIN sai, bước này chưa lỗi ngay mà sẽ trả về bytes rác
-            decryptedBytes = CryptoJS.AES.decrypt(myPrivateKeyEnc, myPinLocal);
-
-            // 2. Thử convert sang chuỗi UTF-8
-            let myPrivateKeyDecrypted;
-            try {
-                // Bước này sẽ throw lỗi nếu bytes là rác (do sai PIN/Key cũ)
-                myPrivateKeyDecrypted = decryptedBytes.toString(CryptoJS.enc.Utf8);
-            } catch (e) {
-                throw new Error("UTF8_PARSE_ERROR"); // Ném lỗi để catch bên dưới bắt được
-            }
-
-            if (!myPrivateKeyDecrypted) {
-                throw new Error("EMPTY_KEY_AFTER_DECRYPT");
-            }
-
-            const decrypt = new JSEncrypt();
-            decrypt.setPrivateKey(myPrivateKeyDecrypted);
-            const senderPin = decrypt.decrypt(encryptedPin);
-
-            if (!senderPin) {
-                console.error('Failed to decrypt sender PIN - key mismatch');
-                return null;
-            }
-
-            recipientPinsCache.set(senderId, senderPin);
-            console.log('✅ Cached PIN for sender:', senderId);
-            return senderPin;
-
-        } catch (error) {
-            console.error("❌ Lỗi trong quá trình giải mã:", error);
-
-            // Kiểm tra xem lỗi có phải do sai PIN/Key không để redirect
-            // Nếu lỗi là UTF8_PARSE_ERROR hoặc decryptedBytes tồn tại nhưng không convert được
-            if (error.message === "UTF8_PARSE_ERROR" || (decryptedBytes && decryptedBytes.sigBytes > 0)) {
-                console.error("❌ MÃ PIN KHÔNG KHỚP VỚI PRIVATE KEY");
-
-                // Tắt modal trước khi hiện alert để tránh bị treo overlay
-                hideLoading();
-
-                alert("⚠️ Cảnh báo bảo mật:\nMã PIN hiện tại không khớp với Khóa bảo mật.\nHệ thống sẽ chuyển bạn đến trang thiết lập lại khóa.");
-                window.location.href = '@Url.Action("SetupKeys", "Chat")';
-            }
-
-            return null;
-        }
-    }
-    async function findAndDecryptPinExchange(messages) {
-        console.log('=== 🔍 findAndDecryptPinExchange DEBUG ===');
-        console.log('Current User ID:', currentUserId);
-        console.log('Total messages:', messages.length);
-
-        const allPinExchanges = messages.filter(m => m.pinExchange);
-        console.log('All PIN exchanges found:', allPinExchanges.length);
-
-        allPinExchanges.forEach(msg => {
-            console.log(`  📨 PIN from: ${msg.senderId}, isMine: ${msg.isMine}`);
-        });
-
-        const pinExchanges = messages.filter(m => {
-            const isNotMine = !m.isMine;
-            const hasPinExchange = !!m.pinExchange;
-            const isNotMyUserId = m.senderId !== currentUserId;
-
-            console.log(`🔎 Check message from ${m.senderId}: isNotMine=${isNotMine}, hasPinExchange=${hasPinExchange}, isNotMyUserId=${isNotMyUserId}`);
-
-            return isNotMine && hasPinExchange && isNotMyUserId;
-        });
-
-        console.log('PIN exchanges to decrypt:', pinExchanges.length);
-
-        for (const msg of pinExchanges) {
-            if (!recipientPinsCache.has(msg.senderId)) {
-                console.log('🔓 Attempting to decrypt PIN from:', msg.senderId);
-                const decryptedPin = await decryptAndCachePinExchange(msg.pinExchange, msg.senderId);
-                if (decryptedPin) {
-                    console.log('✅ Successfully decrypted PIN from sender:', msg.senderId);
-                } else {
-                    console.warn('❌ Failed to decrypt PIN from sender:', msg.senderId);
-                }
-            } else {
-                console.log('✓ PIN already cached for sender:', msg.senderId);
-            }
-        }
-        console.log('=== END DEBUG ===');
-    }
-
-    function logoutFromChat() {
-        if (confirm('Bạn có chắc muốn đăng xuất khỏi chat? Bạn sẽ cần nhập lại mã PIN để truy cập.')) {
-            const storageKey = `pinCode_${currentUsername}`;
-            localStorage.removeItem(storageKey);
-            myPin = null;
-            myPrivateKeyEncrypted = null;
-            recipientPinsCache.clear();
-            window.location.href = '@Url.Action("VerifyPinCode", "Chat")';
-        }
-    }
-
-    function showLoading(msg = 'Đang tải...') {
-        document.getElementById('loadingMessage').textContent = msg;
-        new bootstrap.Modal(document.getElementById('loadingModal')).show();
-    }
-
-    // function hideLoading() {
-    //     const modal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
-    //     if (modal) modal.hide();
-    // }
-    function hideLoading() {
-        const modalEl = document.getElementById('loadingModal');
-
-        // 1. Thử tắt theo cách chuẩn của Bootstrap
-        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-        if (modalInstance) {
-            modalInstance.hide();
-        }
-
-        // 2. FORCE: Xóa thủ công các class và element gây kẹt
-        setTimeout(() => {
-            // Xóa class modal-open ở body (nguyên nhân chính khiến không scroll được)
-            document.body.classList.remove('modal-open');
-            document.body.style.removeProperty('padding-right');
-            document.body.style.removeProperty('overflow');
-
-            // Ẩn modal bằng CSS
-            modalEl.classList.remove('show');
-            modalEl.style.display = 'none';
-            modalEl.setAttribute('aria-hidden', 'true');
-            modalEl.removeAttribute('aria-modal');
-            modalEl.removeAttribute('role');
-
-            // Xóa tất cả các backdrop còn sót lại trong DOM
-            const backdrops = document.querySelectorAll('.modal-backdrop');
-            backdrops.forEach(backdrop => backdrop.remove());
-        }, 300); // Đợi một chút cho animation
-    }
-
+    // ===== PIN & AUTH =====
     function getToken() {
         return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
     }
 
-    // ===== SEARCH =====
+    async function autoVerifyPin() {
+        const storageKey = `pinCode_${currentUsername}`;
+        const savedPin = localStorage.getItem(storageKey);
+        if (!savedPin) {
+            document.getElementById('autoVerifyMessage').textContent = 'Chưa có mã PIN...';
+            setTimeout(() => window.location.href = '@Url.Action("VerifyPinCode", "Chat")', 1000);
+            return false;
+        }
+        document.getElementById('autoVerifyMessage').textContent = 'Đang xác thực...';
+        try {
+            const hashedPin = CryptoJS.SHA256(savedPin).toString();
+            const response = await fetch('@Url.Action("VerifyPinCode", "Chat")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+                body: JSON.stringify(hashedPin)
+            });
+            if (response.ok && (await response.json()).success) {
+                myPin = savedPin;
+                setTimeout(() => document.getElementById('autoVerifyScreen').style.display = 'none', 500);
+                return true;
+            }
+        } catch (e) {}
+        document.getElementById('autoVerifyMessage').textContent = 'Lỗi xác thực...';
+        setTimeout(() => window.location.href = '@Url.Action("VerifyPinCode", "Chat")', 1500);
+        return false;
+    }
+
+    function getMyPin() { return myPin; }
+
+    async function getMyPrivateKey() {
+        if (myPrivateKeyEncrypted) return myPrivateKeyEncrypted;
+        try {
+            const resp = await fetch('@Url.Action("GetMyPrivateKey", "Chat")');
+            if (resp.ok) return myPrivateKeyEncrypted = (await resp.json()).privateKeyEncrypted;
+        } catch (e) {}
+        return null;
+    }
+
+    async function loadCurrentUserInfo() {
+        try {
+            const resp = await fetch('@Url.Action("GetCurrentUserInfo", "Chat")');
+            if (resp.ok) {
+                currentUserId = (await resp.json()).userId;
+                return true;
+            }
+        } catch (e) {}
+        return false;
+    }
+
+    // ===== UI HELPERS =====
+    let loadingModalInstance = null;
+    function showLoading(msg = 'Đang tải...') {
+        const el = document.getElementById('loadingModal');
+        document.getElementById('loadingMessage').textContent = msg;
+        if (!loadingModalInstance) loadingModalInstance = new bootstrap.Modal(el, { backdrop: 'static', keyboard: false });
+        loadingModalInstance.show();
+    }
+    function hideLoading() {
+        if (loadingModalInstance) loadingModalInstance.hide();
+        // Fallback cleanup
+        setTimeout(() => {
+            const modalEl = document.getElementById('loadingModal');
+            if(modalEl) {
+                modalEl.classList.remove('show');
+                modalEl.style.display = 'none';
+                modalEl.removeAttribute('aria-hidden'); // Cleanup attribute
+                modalEl.removeAttribute('role'); // Cleanup attribute
+            }
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('padding-right');
+            document.body.style.removeProperty('overflow');
+        }, 300);
+    }
+
+    function scrollToBottom(smooth = true) {
+        const area = document.getElementById('messagesArea');
+        if (!area) return;
+
+        // Auto-scroll logic: only if near bottom or forced
+        const isNearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 150;
+
+        if (isNearBottom || !smooth) {
+            area.scrollTo({
+                top: area.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            });
+        }
+    }
+
+    // ===== RECENT CONTACTS LOGIC (MỚI - SỬA LỖI NULL) =====
+    async function loadRecentContacts() {
+        try {
+            const response = await fetch('@Url.Action("GetRecentContacts", "Chat")');
+            if (!response.ok) return;
+            const contacts = await response.json();
+            renderContacts(contacts);
+        } catch (error) { console.error("Error loading contacts:", error); }
+    }
+
+    function renderContacts(contacts) {
+        const container = document.getElementById('contactsListContainer');
+        if (!container) return;
+
+        // Sort: Mới nhất lên đầu
+        contacts.sort((a, b) => new Date(b.lastSentAt) - new Date(a.lastSentAt));
+
+        if (contacts.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-5" id="emptyContactsState">
+                    <i class="bi bi-chat-dots" style="font-size: 3rem; opacity: 0.3;"></i>
+                    <p class="mt-2 mb-0 small">Chưa có tin nhắn nào</p>
+                </div>`;
+            return;
+        }
+
+        const html = contacts.map(c => {
+            const date = new Date(c.lastSentAt);
+            const timeStr = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+            // Avatar logic
+            let avatarHtml;
+            if (c.avatarUrl && c.avatarUrl.trim() !== "") {
+                avatarHtml = `<img src="${c.avatarUrl}" class="avatar-img" alt="${c.displayName}">`;
+            } else {
+                const initial = c.displayName ? c.displayName.charAt(0).toUpperCase() : "?";
+                avatarHtml = `<div class="avatar-text">${initial}</div>`;
+            }
+
+            let previewText = c.lastMessagePreview || (c.unreadCount > 0 ? "Tin nhắn mới" : "Tin nhắn được bảo mật");
+            const previewClass = c.unreadCount > 0 ? "fw-bold text-dark" : "text-muted";
+            const isActive = currentRecipientId === c.userId ? 'active' : '';
+            const unreadBadge = c.unreadCount > 0 ? `<div class="unread-badge">${c.unreadCount}</div>` : '';
+
+            return `
+                <div class="contact-item d-flex align-items-center ${isActive}" 
+                     id="contact-${c.userId}"
+                     onclick="startChatWithUser('${c.userId}', '${c.username}', '${c.displayName}')">
+                    <div class="avatar-container">${avatarHtml}</div>
+                    <div class="flex-grow-1 overflow-hidden" style="min-width: 0;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 fw-semibold text-truncate">${c.displayName}</h6>
+                        </div>
+                        <div class="last-msg-preview ${previewClass} text-truncate">${previewText}</div>
+                    </div>
+                    ${unreadBadge}
+                    <div class="contact-time">${timeStr}</div>
+                </div>
+            `;
+        }).join('');
+        container.innerHTML = html;
+    }
+
+    // ===== SEARCH LOGIC =====
     document.getElementById('searchUserInput').addEventListener('input', function(e) {
         const term = e.target.value.trim();
         document.getElementById('clearSearch').style.display = term.length > 0 ? 'block' : 'none';
-
         if (searchTimeout) clearTimeout(searchTimeout);
 
         if (term.length < 3) {
@@ -608,7 +513,6 @@ ViewData["Title"] = "Chat";
             document.getElementById('conversationList').style.display = 'block';
             return;
         }
-
         searchTimeout = setTimeout(() => searchUsers(term), 300);
     });
 
@@ -622,20 +526,13 @@ ViewData["Title"] = "Chat";
     async function searchUsers(term) {
         try {
             const response = await fetch(`@Url.Action("SearchUsers", "Chat")?searchTerm=${encodeURIComponent(term)}`);
-            if (!response.ok) throw new Error('Search failed');
-            const users = await response.json();
-            displaySearchResults(users);
-        } catch (error) {
-            console.error('Error searching:', error);
-            alert('Lỗi khi tìm kiếm');
-        }
+            if (response.ok) displaySearchResults(await response.json());
+        } catch (e) {}
     }
 
     function displaySearchResults(users) {
         const resultsDiv = document.getElementById('searchResultsList');
-        const countBadge = document.getElementById('searchCount');
-
-        countBadge.textContent = users.length;
+        document.getElementById('searchCount').textContent = users.length;
         document.getElementById('searchResults').style.display = 'block';
         document.getElementById('conversationList').style.display = 'none';
 
@@ -645,197 +542,200 @@ ViewData["Title"] = "Chat";
         }
 
         resultsDiv.innerHTML = users.map(user => `
-            <div class="user-item" data-user-id="${user.userId}" 
-                 data-username="${user.username}" data-displayname="${user.displayName}">
-                <div class="d-flex align-items-center">
-                    <div class="avatar-circle me-3">
-                        <i class="bi bi-person-fill"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <div class="fw-semibold">${user.displayName}</div>
-                        <small class="text-muted">${user.username}</small>
-                    </div>
+            <div class="user-item d-flex align-items-center mb-2 p-2 rounded cursor-pointer hover-bg" 
+                 onclick="startChatWithUser('${user.userId}', '${user.username}', '${user.displayName}')">
+                <div class="avatar-circle me-3">${user.displayName.charAt(0).toUpperCase()}</div>
+                <div>
+                    <div class="fw-semibold">${user.displayName}</div>
+                    <small class="text-muted">${user.username}</small>
                 </div>
             </div>
         `).join('');
-
-        resultsDiv.querySelectorAll('.user-item').forEach(item => {
-            item.addEventListener('click', function() {
-                startChatWithUser(
-                    this.dataset.userId,
-                    this.dataset.username,
-                    this.dataset.displayname
-                );
-            });
-        });
     }
 
-    // ===== CHAT FUNCTIONS =====
+    // ===== DECRYPT LOGIC (Simplified) =====
+    async function decryptAndCachePinExchange(encryptedPin, senderId) {
+        try {
+            const myPrivateKeyEnc = await getMyPrivateKey();
+            const myPinLocal = getMyPin();
+            if (!myPrivateKeyEnc || !myPinLocal) return null;
+
+            const decryptedBytes = CryptoJS.AES.decrypt(myPrivateKeyEnc, myPinLocal);
+            let myPrivateKeyDecrypted;
+            try { myPrivateKeyDecrypted = decryptedBytes.toString(CryptoJS.enc.Utf8); }
+            catch (e) { throw new Error("UTF8_PARSE_ERROR"); }
+
+            if (!myPrivateKeyDecrypted) throw new Error("EMPTY_KEY");
+
+            const decrypt = new JSEncrypt();
+            decrypt.setPrivateKey(myPrivateKeyDecrypted);
+            const senderPin = decrypt.decrypt(encryptedPin);
+
+            if (senderPin) {
+                recipientPinsCache.set(senderId.toLowerCase(), senderPin);
+                return senderPin;
+            }
+        } catch (e) {
+            if (e.message === "UTF8_PARSE_ERROR") {
+                hideLoading();
+                alert("Mã PIN không khớp Private Key. Vui lòng tạo lại khóa.");
+                window.location.href = '@Url.Action("SetupKeys", "Chat")';
+            }
+        }
+        return null;
+    }
+
+    // Tìm và giải mã RSA từ danh sách tin nhắn
+    async function findKeyViaRSA(messages, partnerId) {
+        const pinExchanges = messages.filter(m => m.pinExchange && !m.isMine && m.senderId === partnerId);
+        pinExchanges.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        for (const msg of pinExchanges) {
+            const pin = await decryptAndCachePinExchange(msg.pinExchange, msg.senderId);
+            if (pin) return pin;
+        }
+        return null;
+    }
+
+    // ===== MAIN CHAT FUNCTIONS =====
     async function startChatWithUser(userId, username, displayName) {
-        if (!currentUserId) {
-            console.error('❌ currentUserId not loaded yet!');
-            alert('Vui lòng đợi một chút và thử lại');
-            return;
+        if (!currentUserId) return;
+
+        // UI Update (Optimistic)
+        document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
+        const activeItem = document.getElementById(`contact-${userId}`);
+        if(activeItem) {
+            activeItem.classList.add('active');
+            const badge = activeItem.querySelector('.unread-badge');
+            if(badge) badge.remove();
         }
 
-        showLoading('Đang khởi tạo chat...');
+        showLoading('Đang tải chat...');
 
         try {
-            console.log('=== 🚀 START CHAT DEBUG ===');
-            console.log('Opening chat with userId:', userId);
-            console.log('Current userId:', currentUserId);
+            // 1. Mark Read
+            await markAsRead(userId);
 
+            // 2. Get Public Key & Conv
             const keyResp = await fetch(`@Url.Action("GetUserPublicKey", "Chat")?userId=${userId}`);
-            if (!keyResp.ok) throw new Error('Không lấy được public key');
-
-            const keyData = await keyResp.json();
-            if (!keyData.publicKey) throw new Error('Đối phương chưa có khóa RSA');
-
-            currentRecipientPublicKey = keyData.publicKey;
+            if (keyResp.ok) currentRecipientPublicKey = (await keyResp.json()).publicKey;
 
             const convResp = await fetch(`@Url.Action("GetOrCreateConversation", "Chat")?recipientId=${userId}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': getToken()
-                }
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() }
             });
-            if (!convResp.ok) throw new Error('Không tạo được đoạn chat');
-
             const convData = await convResp.json();
             currentConversationId = convData.conversationId;
             currentRecipientId = userId;
-
-            console.log('Conversation ID:', currentConversationId);
-            console.log('IsNew:', convData.isNew, 'HasPinExchange:', convData.hasPinExchange);
 
             if (connection?.state === signalR.HubConnectionState.Connected) {
                 await connection.invoke("JoinConversation", currentConversationId);
             }
 
+            // 3. Load & Decrypt
             const messages = await loadMessagesAndReturn(currentConversationId);
-            console.log('Loaded messages:', messages.length);
+            let cachedKey = recipientPinsCache.get(userId.toLowerCase());
 
-            if (messages && messages.length > 0) {
-                try {
-                    await findAndDecryptPinExchange(messages);
-                } catch (decryptError) {
-                    console.error('Error in findAndDecryptPinExchange:', decryptError);
-                }
+            if (!cachedKey) {
+                await findKeyViaRSA(messages, userId);
             }
 
             displayMessages(messages);
             showChatWindow(username, displayName);
 
-            if (convData.isNew || !convData.hasPinExchange) {
-                console.log('Sending PIN exchange to recipient');
+            // Auto scroll bottom
+            setTimeout(() => scrollToBottom(false), 100);
+
+            // 4. Self-healing
+            cachedKey = recipientPinsCache.get(userId.toLowerCase());
+            if ((!cachedKey || convData.isNew || !convData.hasPinExchange) && currentRecipientPublicKey) {
+                console.log("🔄 Sending initial PIN Exchange...");
                 await sendPinExchange();
-            } else {
-                console.log('PIN exchange already sent, skipping');
             }
 
-            console.log('=== ✅ CHAT OPENED SUCCESSFULLY ===');
-        }
-        catch (error) {
-            console.error('❌ Error opening chat:', error);
-            alert('Không thể mở chat: ' + (error.message || 'Lỗi không xác định'));
-        }
-        finally {
-            console.log('Hiding loading modal');
-            hideLoading();
-        }
+        } catch (e) { console.error(e); }
+        finally { hideLoading(); }
+    }
+
+    async function markAsRead(senderId) {
+        try {
+            await fetch('@Url.Action("MarkRead", "Chat")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+                body: JSON.stringify(senderId)
+            });
+            loadRecentContacts(); // Reload sidebar quietly
+        } catch(e) {}
     }
 
     async function sendPinExchange() {
         const pin = getMyPin();
-        if (!pin) throw new Error('Không tìm thấy mã PIN');
-        if (!connection) throw new Error('Chưa kết nối SignalR');
+        if (!pin || !connection) return;
+
+        try {
+            const resp = await fetch(`@Url.Action("GetUserPublicKey", "Chat")?userId=${currentRecipientId}`);
+            if (resp.ok) currentRecipientPublicKey = (await resp.json()).publicKey;
+        } catch(e) {}
+
+        if (!currentRecipientPublicKey) return;
 
         const encrypt = new JSEncrypt();
         encrypt.setPublicKey(currentRecipientPublicKey.trim());
         const encryptedPin = encrypt.encrypt(pin);
 
-        if (!encryptedPin) {
-            throw new Error('Mã hóa PIN thất bại – public key không hợp lệ');
+        if(encryptedPin) {
+            await connection.invoke("SendPinExchange", {
+                conversationId: currentConversationId,
+                recipientId: currentRecipientId,
+                encryptedPin: encryptedPin
+            });
         }
-
-        await connection.invoke("SendPinExchange", {
-            conversationId: currentConversationId,
-            recipientId: currentRecipientId,
-            encryptedPin: encryptedPin
-        });
-
-        console.log('PIN exchange sent successfully');
     }
 
     async function loadMessagesAndReturn(convId) {
         try {
             const resp = await fetch(`@Url.Action("GetMessages", "Chat")?conversationId=${convId}&count=20`);
-            if (!resp.ok) throw new Error('Load failed');
-            const messages = await resp.json();
-            return messages;
-        } catch (error) {
-            console.error('Error loading messages:', error);
-            return [];
-        }
+            return resp.ok ? await resp.json() : [];
+        } catch { return []; }
     }
 
     function displayMessages(messages) {
         const area = document.getElementById('messagesArea');
+        area.innerHTML = '';
 
-        if (!messages || messages.length === 0) {
-            area.innerHTML = `
-                <div class="text-center py-4 text-muted">
-                    <div class="avatar-large mb-3"><i class="bi bi-person-fill"></i></div>
-                    <p class="small"><i class="bi bi-lock-fill"></i> Mã hóa đầu cuối</p>
-                </div>
-            `;
+        if (!messages.length) {
+            area.innerHTML = '<div class="text-center py-4 text-muted"><p>Chưa có tin nhắn</p></div>';
             return;
         }
 
         const myPinLocal = getMyPin();
 
-        const decrypted = messages.map(msg => {
-            if (msg.pinExchange) {
-                return { ...msg, decryptedContent: '[PIN Exchange]', isPinExchange: true };
-            }
+        const html = messages.map(msg => {
+            let content = msg.pinExchange ? '[Hệ thống: Đã cập nhật khóa]' : msg.cipherText;
 
-            try {
-                let pinToUse;
-
-                if (msg.isMine) {
-                    pinToUse = myPinLocal;
-                } else {
-                    pinToUse = recipientPinsCache.get(msg.senderId);
-
-                    if (!pinToUse) {
-                        console.warn('No PIN found for sender:', msg.senderId);
-                        return { ...msg, decryptedContent: '[Chưa có khóa để giải mã]' };
+            if (!msg.pinExchange) {
+                try {
+                    let pinToUse = msg.isMine ? myPinLocal : recipientPinsCache.get(msg.senderId.toLowerCase());
+                    if (pinToUse) {
+                        content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8) || '[Lỗi giải mã]';
+                    } else {
+                        content = '[Chưa có khóa]';
                     }
-                }
-
-                const dec = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
-                return { ...msg, decryptedContent: dec || '[Không giải mã được]' };
-            } catch (error) {
-                console.error('Decrypt error:', error);
-                return { ...msg, decryptedContent: '[Lỗi giải mã]' };
+                } catch { content = '[Lỗi dữ liệu]'; }
             }
-        });
 
-        area.innerHTML = decrypted.map(msg => `
-            <div class="message ${msg.isMine ? 'message-mine' : 'message-theirs'}">
-                <div class="message-bubble">
-                    ${msg.isPinExchange ?
-            '<small class="text-muted"><i class="bi bi-shield-lock"></i> Thiết lập mã hóa</small>' :
-            msg.decryptedContent
-        }
-                </div>
-                <div class="message-time">
-                    ${new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                </div>
-            </div>
-        `).join('');
+            const bubbleClass = msg.isMine ? 'message-mine' : 'message-theirs';
+            const time = new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
+            return `
+                <div class="message ${bubbleClass}">
+                    <div class="message-bubble">${content}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+            `;
+        }).join('');
+
+        area.innerHTML = html;
         area.scrollTop = area.scrollHeight;
     }
 
@@ -843,269 +743,157 @@ ViewData["Title"] = "Chat";
         document.getElementById('welcomeScreen').style.display = 'none';
         document.getElementById('chatWindow').style.display = 'flex';
 
-        const setText = (id, text) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = text;
-        };
+        const elDisplayName = document.getElementById('chatDisplayName');
+        if(elDisplayName) elDisplayName.textContent = displayName;
 
-        setText('chatUsername', username);
-        setText('chatDisplayName', displayName);
-        setText('welcomeName', displayName);
+        const elUsername = document.getElementById('chatUsername');
+        if(elUsername) elUsername.textContent = username;
+
+        const elWelcome = document.getElementById('welcomeName');
+        if(elWelcome) elWelcome.textContent = displayName;
 
         const input = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-        if (input) input.disabled = false;
-        if (sendBtn) sendBtn.disabled = false;
+        const btn = document.getElementById('sendBtn');
+        if(input) { input.disabled = false; input.focus(); }
+        if(btn) btn.disabled = false;
     }
 
-    function appendMessageToUI(msg) {
+    // ===== UI HELPERS (TYPING) =====
+    function showTypingIndicator() {
         const area = document.getElementById('messagesArea');
+        if (document.getElementById('typingIndicator')) return;
+
         const div = document.createElement('div');
-        div.className = `message ${msg.isMine ? 'message-mine' : 'message-theirs'}`;
-
-        const content = msg.isPinExchange ?
-            '<small class="text-muted"><i class="bi bi-shield-lock"></i> Thiết lập mã hóa</small>' :
-            msg.decryptedContent;
-
+        div.id = 'typingIndicator';
+        div.className = 'message message-theirs';
         div.innerHTML = `
-            <div class="message-bubble">${content}</div>
-            <div class="message-time">
-                ${new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-            </div>
-        `;
-
+            <div class="message-bubble bg-light text-secondary">
+                <div class="typing-dots">
+                    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                </div>
+            </div>`;
         area.appendChild(div);
         area.scrollTop = area.scrollHeight;
     }
 
-    function showTypingIndicator(username) {
-        const area = document.getElementById('messagesArea');
-        let indicator = document.getElementById('typingIndicator');
-        if (indicator) indicator.remove();
-
-        indicator = document.createElement('div');
-        indicator.id = 'typingIndicator';
-        indicator.className = 'message message-theirs';
-        indicator.innerHTML = `
-            <div class="message-bubble">
-                <small class="text-muted"><i class="bi bi-three-dots"></i> ${username} đang nhập...</small>
-            </div>
-        `;
-
-        area.appendChild(indicator);
-        area.scrollTop = area.scrollHeight;
-    }
-
     function hideTypingIndicator() {
-        const indicator = document.getElementById('typingIndicator');
-        if (indicator) indicator.remove();
+        const el = document.getElementById('typingIndicator');
+        if (el) el.remove();
     }
 
-    // ===== SIGNALR =====
-    function handleReceiveMessage(message) {
-        console.log('Received message:', message);
-        if (message.conversationId !== currentConversationId) return;
+    // ===== HELPER: APPEND MESSAGE (SMOOTH UX) =====
+    async function appendSingleMessageToUI(msg) {
+        let content = msg.cipherText;
 
-        try {
-            let decryptedContent = message.cipherText;
-            let pinToUse;
-
-            if (message.pinExchange) {
-                decryptedContent = '[PIN Exchange]';
-            } else {
-                if (message.senderId === currentUserId) {
-                    pinToUse = getMyPin();
-                } else {
-                    pinToUse = recipientPinsCache.get(message.senderId);
-                }
-
-                if (pinToUse) {
-                    decryptedContent = CryptoJS.AES.decrypt(message.cipherText, pinToUse)
-                        .toString(CryptoJS.enc.Utf8) || '[Không thể giải mã]';
-                } else {
-                    decryptedContent = '[Chưa có khóa để giải mã]';
-                }
-            }
-
-            appendMessageToUI({
-                messageId: message.messageId,
-                senderId: message.senderId,
-                decryptedContent: decryptedContent,
-                createdAt: message.createdAt,
-                isMine: false,
-                isPinExchange: !!message.pinExchange,
-                messageType: message.messageType
-            });
-        } catch (error) {
-            console.error('Error handling message:', error);
-        }
-    }
-
-    async function handleReceivePinExchange(data) {
-        console.log('Received PIN exchange from:', data.senderId);
-        if (data.conversationId !== currentConversationId) return;
-
-        if (data.senderId === currentUserId) {
-            console.log('Ignoring own PIN exchange');
-            return;
-        }
-
-        const senderPin = await decryptAndCachePinExchange(data.encryptedPin, data.senderId);
-
-        if (senderPin) {
-            console.log('Successfully decrypted and cached PIN from', data.senderId);
-            const messages = await loadMessagesAndReturn(currentConversationId);
-            displayMessages(messages);
-        } else {
-            console.error('Failed to decrypt PIN exchange from', data.senderId);
-        }
-
-        appendMessageToUI({
-            messageId: 0,
-            senderId: data.senderId,
-            decryptedContent: '[PIN Exchange]',
-            createdAt: data.createdAt,
-            isMine: false,
-            isPinExchange: true
-        });
-    }
-
-    function handleUserTyping(data) {
-        if (data.conversationId !== currentConversationId) return;
-        showTypingIndicator(data.username);
-    }
-
-    function handleUserStoppedTyping(data) {
-        if (data.conversationId !== currentConversationId) return;
-        hideTypingIndicator();
-    }
-
-    function handleError(message) {
-        console.error('SignalR error:', message);
-    }
-
-    async function initializeSignalR() {
-        connection = new signalR.HubConnectionBuilder()
-            .withUrl("/chatHub")
-            .withAutomaticReconnect()
-            .configureLogging(signalR.LogLevel.Information)
-            .build();
-
-        connection.on("ReceiveMessage", handleReceiveMessage);
-        connection.on("ReceivePinExchange", handleReceivePinExchange);
-        connection.on("UserTyping", handleUserTyping);
-        connection.on("UserStoppedTyping", handleUserStoppedTyping);
-        connection.on("Error", handleError);
-
-        connection.onreconnecting(() => console.log('Reconnecting...'));
-        connection.onreconnected((id) => {
-            console.log('Reconnected:', id);
-            if (currentConversationId) {
-                connection.invoke("JoinConversation", currentConversationId);
-            }
-        });
-
-        try {
-            await connection.start();
-            console.log('SignalR connected');
-        } catch (error) {
-            console.error('SignalR error:', error);
-            setTimeout(() => initializeSignalR(), 5000);
-        }
-    }
-
-    // ===== MESSAGE SENDING =====
-    document.getElementById('messageForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-
-        if (!currentConversationId || !connection) return;
-
-        const pin = getMyPin();
-        if (!pin) return;
-
-        try {
-            const input = document.getElementById('messageInput');
-            const message = input.value.trim();
-
-            if (!message) return;
-
-            const encrypted = CryptoJS.AES.encrypt(message, pin).toString();
-
-            await connection.invoke("SendMessage", {
-                conversationId: currentConversationId,
-                cipherText: encrypted,
-                messageType: 0
-            });
-
-            input.value = '';
-            await connection.invoke("UserStoppedTyping", currentConversationId);
-        } catch (error) {
-            console.error('Error sending:', error);
-            alert('Không gửi được tin nhắn');
-        }
-    });
-
-    // ===== TYPING INDICATOR =====
-    document.getElementById('messageInput').addEventListener('input', async function() {
-        if (!currentConversationId || !connection) return;
-
-        if (typingTimeout) clearTimeout(typingTimeout);
-
-        try {
-            await connection.invoke("UserTyping", currentConversationId);
-        } catch (e) {
-            console.error('Typing error:', e);
-        }
-
-        typingTimeout = setTimeout(async () => {
+        if (!msg.pinExchange) {
             try {
-                await connection.invoke("UserStoppedTyping", currentConversationId);
-            } catch (e) {
-                console.error('Stop typing error:', e);
+                let pinToUse = msg.senderId === currentUserId ? getMyPin() : recipientPinsCache.get(msg.senderId.toLowerCase());
+                if (pinToUse) {
+                    content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
+                } else {
+                    // Fallback: reload keys
+                    content = '[Đang tải khóa...]';
+                    findKeyViaRSA([msg], msg.senderId).then(k => {
+                        if(k) loadMessagesAndReturn(currentConversationId).then(displayMessages);
+                    });
+                }
+            } catch (e) { content = '[Lỗi giải mã]'; }
+        } else {
+            content = '[Hệ thống: Đã cập nhật khóa]';
+        }
+
+        const area = document.getElementById('messagesArea');
+        const div = document.createElement('div');
+        div.className = `message ${msg.senderId === currentUserId ? 'message-mine' : 'message-theirs'}`;
+        div.innerHTML = `
+            <div class="message-bubble">${content}</div>
+            <div class="message-time">${new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
+        `;
+        area.appendChild(div);
+
+        // Remove typing indicator if exists
+        hideTypingIndicator();
+        scrollToBottom(true);
+    }
+
+    // ===== SIGNALR EVENTS =====
+    async function initializeSignalR() {
+        connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").withAutomaticReconnect().build();
+
+        connection.on("ReceiveMessage", async (msg) => {
+            if (msg.senderId !== currentUserId) await loadRecentContacts();
+
+            if (msg.conversationId === currentConversationId) {
+                await appendSingleMessageToUI(msg);
+                markAsRead(msg.senderId);
             }
+        });
+
+        connection.on("ReceivePinExchange", async (data) => {
+            if (data.senderId === currentUserId) return;
+            const senderPin = await decryptAndCachePinExchange(data.encryptedPin, data.senderId);
+
+            if (senderPin) {
+                const key = `hs_${data.conversationId}_${data.senderId}`;
+                if (!sessionStorage.getItem(key)) {
+                    sessionStorage.setItem(key, "1");
+                    setTimeout(() => sendPinExchange(), 500);
+                }
+                if (data.conversationId === currentConversationId) {
+                    const msgs = await loadMessagesAndReturn(currentConversationId);
+                    displayMessages(msgs);
+                }
+            }
+        });
+
+        connection.on("UserTyping", (data) => {
+            if (data.conversationId === currentConversationId && data.userId !== currentUserId) showTypingIndicator();
+        });
+
+        connection.on("UserStoppedTyping", (data) => {
+            if (data.conversationId === currentConversationId && data.userId !== currentUserId) hideTypingIndicator();
+        });
+
+        try { await connection.start(); console.log("SignalR Connected"); } catch(e) {}
+    }
+
+    // ===== SENDING =====
+    document.getElementById('messageInput').addEventListener('input', () => {
+        if (!currentConversationId || !connection) return;
+        if (typingTimeout) clearTimeout(typingTimeout);
+        connection.invoke("UserTyping", currentConversationId).catch(console.error);
+        typingTimeout = setTimeout(() => {
+            connection.invoke("UserStoppedTyping", currentConversationId).catch(console.error);
         }, 2000);
     });
 
-    // ===== LOAD USER INFO =====
-    async function loadCurrentUserInfo() {
-        try {
-            const response = await fetch('@Url.Action("GetCurrentUserInfo", "Chat")');
-            if (!response.ok) throw new Error('Failed to load user info');
+    document.getElementById('messageForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        if (!currentConversationId || !connection) return;
 
-            const userInfo = await response.json();
-            currentUserId = userInfo.userId;
+        const input = document.getElementById('messageInput');
+        const text = input.value.trim();
+        if (!text) return;
 
-            console.log('Current user ID:', currentUserId);
-            return true;
-        } catch (error) {
-            console.error('Error loading user info:', error);
-            return false;
-        }
-    }
+        const pin = getMyPin();
+        const encrypted = CryptoJS.AES.encrypt(text, pin).toString();
 
-    // ===== INITIALIZATION =====
-    window.addEventListener('load', async () => {
-        const verifySuccess = await autoVerifyPin();
-        if (!verifySuccess) return;
+        await connection.invoke("SendMessage", {
+            conversationId: currentConversationId,
+            cipherText: encrypted,
+            messageType: 0
+        });
 
-        const userInfoLoaded = await loadCurrentUserInfo();
-        if (!userInfoLoaded) {
-            alert('Không thể tải thông tin người dùng');
-            return;
-        }
-
-        await initializeSignalR();
+        input.value = '';
+        await loadRecentContacts();
     });
 
-    window.addEventListener('beforeunload', async () => {
-        if (connection && currentConversationId) {
-            try {
-                await connection.invoke("LeaveConversation", currentConversationId);
-            } catch (e) {
-                console.error('Error leaving conversation:', e);
-            }
+    // ===== INIT =====
+    window.addEventListener('load', async () => {
+        if (await autoVerifyPin() && await loadCurrentUserInfo()) {
+            await initializeSignalR();
+            await loadRecentContacts();
         }
     });
 </script>
 }
-
