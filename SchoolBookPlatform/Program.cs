@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Hubs;
 using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
 
@@ -23,6 +24,7 @@ public class Program
         // Services
         builder.Services.AddHttpClient();
         builder.Services.AddHttpContextAccessor();
+        builder.Services.AddSignalR();
         builder.Services.AddScoped<TokenService>();
         builder.Services.AddScoped<FaceService>();
         builder.Services.AddScoped<OtpService>();
@@ -32,6 +34,8 @@ public class Program
         builder.Services.AddScoped<TwoFactorService>();
         builder.Services.AddScoped<AvatarService>();
         builder.Services.AddScoped<RecoveryCodeService>();
+        // Post feature service
+        builder.Services.AddScoped<PostService>();
         builder.Services.AddSingleton<Cloudinary>(sp =>
         {
             var config = builder.Configuration.GetSection("Cloudinary");
@@ -87,6 +91,10 @@ public class Program
             
             options.AddPolicy("AdminOrHigher", policy =>
                 policy.RequireRole("HighAdmin", "Admin"));
+            
+            // Post feature policy: Moderator, Admin, HighAdmin có quyền xử lý bài đăng
+            options.AddPolicy("ModeratorOrHigher", policy =>
+                policy.RequireRole("HighAdmin", "Admin", "Moderator"));
         });
         
         var app = builder.Build();
@@ -102,85 +110,22 @@ public class Program
         app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();
-
+        
         app.MapStaticAssets();
 
-        app.MapPost("/api/posts/{id}/delete", async (Guid id, HttpContext context, AppDbContext dbContext) =>
-        {
-            try
-            {
-                if (!context.User.Identity?.IsAuthenticated ?? false)
-                {
-                    return Results.Json(new { success = false, message = "Chưa đăng nhập" }, statusCode: 401);
-                }
-
-                var post = await dbContext.Posts
-                    .FirstOrDefaultAsync(p => p.Id == id);
-
-                if (post == null)
-                {
-                    return Results.Json(new { success = false, message = "Bài viết không tồn tại." });
-                }
-
-                var currentUserId = GetCurrentUserId(context.User);
-                var isAdmin = context.User.IsInRole("Admin") || context.User.IsInRole("HighAdmin");
-        
-                if (post.UserId != currentUserId && !isAdmin)
-                {
-                    return Results.Json(new { success = false, message = "Bạn không có quyền xóa bài viết này." });
-                }
-
-                dbContext.Posts.Remove(post);
-                await dbContext.SaveChangesAsync();
-
-                return Results.Json(new { success = true, message = "Bài viết và tất cả dữ liệu liên quan đã được xóa thành công." });
-            }
-            catch (Exception ex)
-            {
-                app.Logger.LogError(ex, "Lỗi khi xóa bài viết {PostId}", id);
-                return Results.Json(new { success = false, message = "Có lỗi xảy ra khi xóa bài viết." });
-            }
-        }).RequireAuthorization();
-
-        // Route mặc định: Feeds/Home → Trang chủ feed
+        // Route mặc định: Home/Index → Chào mừng
         app.MapControllerRoute(
             "default",
-            "{controller=Feeds}/{action=Home}/{id?}");
-
-        app.MapGet("/debug/routes", (IEnumerable<EndpointDataSource> endpointSources) =>
-        {
-            var endpoints = endpointSources.SelectMany(es => es.Endpoints);
-            return Results.Json(endpoints.Select(e =>
-            {
-                var route = (e as RouteEndpoint)?.RoutePattern.RawText ?? "N/A";
-                var methods = e.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? new List<string>();
-                return new
-                {
-                    Route = route,
-                    Methods = string.Join(", ", methods),
-                    DisplayName = e.DisplayName
-                };
-            }));
-        });
+            "{controller=Home}/{action=Index}");
+        
+        app.MapHub<ImportExcelHub>("/importExcelHub");
+        
+        // Route cho TokenManager
+        // app.MapControllerRoute(
+        //     "tokenmanager",
+        //     "TokenManager/{action=Index}/{id?}",
+        //     new { controller = "TokenManager" });
 
         app.Run();
-    }
-
-    // Helper method để lấy UserId
-    private static Guid GetCurrentUserId(System.Security.Claims.ClaimsPrincipal user)
-    {
-        var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (Guid.TryParse(userIdClaim, out Guid userId))
-        {
-            return userId;
-        }
-        
-        userIdClaim = user.FindFirst("UserId")?.Value;
-        if (Guid.TryParse(userIdClaim, out userId))
-        {
-            return userId;
-        }
-        
-        return Guid.Empty;
     }
 }

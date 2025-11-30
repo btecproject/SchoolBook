@@ -1,33 +1,42 @@
-﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
 
-namespace SchoolBookPlatform.Models.ViewModels
+namespace SchoolBookPlatform.ViewModels.Post;
+
+/// <summary>
+/// ViewModel cho form tạo bài đăng mới
+/// </summary>
+public class CreatePostViewModel
 {
-    public class CreatePostViewModel
-    {
-        [Required(ErrorMessage = "Tiêu đề là bắt buộc")]
-        [MaxLength(300, ErrorMessage = "Tiêu đề không được vượt quá 300 ký tự")]
-        [Display(Name = "Tiêu đề")]
-        public string? Title { get; set; }
+    /// <summary>
+    /// Tiêu đề bài đăng (bắt buộc, tối đa 300 ký tự)
+    /// </summary>
+    [Required(ErrorMessage = "Tiêu đề không được để trống")]
+    [MaxLength(300, ErrorMessage = "Tiêu đề không được quá 300 ký tự")]
+    [Display(Name = "Tiêu đề")]
+    public string Title { get; set; } = string.Empty;
 
-        [Display(Name = "Nội dung")]
-        public string? Content { get; set; }
+    /// <summary>
+    /// Nội dung bài đăng (bắt buộc)
+    /// </summary>
+    [Required(ErrorMessage = "Nội dung không được để trống")]
+    [Display(Name = "Nội dung")]
+    public string Content { get; set; } = string.Empty;
 
-        [Display(Name = "Hiển thị cho")]
-        public string VisibleToRoles { get; set; } = "All";
+    /// <summary>
+    /// Nhóm người dùng được phép xem bài đăng
+    /// Giá trị: 'Student', 'Teacher', 'Admin', 'All' (mặc định: 'All')
+    /// </summary>
+    [Display(Name = "Hiển thị cho")]
+    public string VisibleToRoles { get; set; } = "All";
 
-        [Display(Name = "Tệp đính kèm")]
-        public List<IFormFile> Attachments { get; set; } = new List<IFormFile>();
-
-        // Options for VisibleToRoles dropdown
-        public Dictionary<string, string> VisibleToOptions { get; } = new Dictionary<string, string>
-        {
-            { "All", "Tất cả mọi người" },
-            { "Student", "Học sinh" },
-            { "Teacher", "Giáo viên" },
-            { "Admin", "Quản trị viên" }
-        };
-    }
+    /// <summary>
+    /// Danh sách file đính kèm (ảnh/video) - không bắt buộc
+    /// </summary>
+    [Display(Name = "Thêm ảnh/video")]
+    public List<IFormFile>? Files { get; set; }
 }
+
+
+
+

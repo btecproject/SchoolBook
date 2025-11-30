@@ -74,4 +74,15 @@ public class AvatarService(
         }
         return true;
     }
+
+    public string GetAvatar(User user)
+    {
+        if (user.UserProfile != null && !string.IsNullOrEmpty(user.UserProfile.AvatarUrl))
+        {
+            logger.LogInformation($"Avatar Service: Get Avatar Success for: {user.Username}: " + user.UserProfile.AvatarUrl);
+            return user.UserProfile.AvatarUrl;
+        }
+        logger.LogInformation("Avatar Service: Get Avatar Failed for: "+user.Username + ": "+ user.UserProfile?.AvatarUrl);
+        return "/images/avatars/default.png";
+    }
 }

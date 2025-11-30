@@ -25,5 +25,10 @@ To run this project, create an `appsettings.json` file with the following conten
     "ApiKey": "....",
     "FromEmail": "....",
     "FromName": "...."
+  },
+   "Cloudinary": {
+    "CloudName": "....",
+    "ApiKey": "....",
+    "ApiSecret": "...."
   }
 }

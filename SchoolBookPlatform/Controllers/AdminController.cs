@@ -1,9 +1,14 @@
+using System.Globalization;
 using System.Security.Claims;
+using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Hubs;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
@@ -19,7 +24,7 @@ public class AdminController(
     AppDbContext db,
     UserManagementService userManagementService,
     IConfiguration config,
-    AvatarService  avatarService,
+    AvatarService avatarService,
     ILogger<AdminController> logger)
     : Controller
 {
@@ -38,12 +43,279 @@ public class AdminController(
             Roles = u.UserRoles?.Select(ur => ur.Role.Name).ToList() ?? new List<string>(),
             IsActive = u.IsActive,
             FaceRegistered = u.FaceRegistered,
-            CreatedAt = u.CreatedAt
+            CreatedAt = u.CreatedAt,
+            AvatarUrl = avatarService.GetAvatar(u)
         }).ToList();
 
         return View(viewModels);
     }
 
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
+    [FromServices] IHubContext<ImportExcelHub> hubContext)
+{
+    logger.LogInformation("START IMPORT");
+    
+    try
+    {
+        if (excelFile == null || excelFile.Length == 0)
+        {
+            logger.LogWarning("Không có file được upload");
+            return Json(new { success = false, message = "Vui lòng chọn file Excel" });
+        }
+
+        logger.LogInformation("File nhận được: {FileName}, Size: {Size} bytes", excelFile.FileName, excelFile.Length);
+
+        if (Path.GetExtension(excelFile.FileName) != ".xlsx")
+        {
+            return Json(new { success = false, message = "Chỉ hỗ trợ file .xlsx" });
+        }
+
+        var user = await HttpContext.GetCurrentUserAsync(db);
+        if (user == null)
+        {
+            logger.LogWarning("User không tồn tại");
+            return Json(new { success = false, message = "Vui lòng đăng nhập!" });
+        }
+
+        logger.LogInformation("User {UserId} đang import", user.Id);
+
+        var roles = await db.GetUserRolesAsync(user.Id);
+        if (!roles.Contains("HighAdmin") && !roles.Contains("Admin"))
+        {
+            logger.LogWarning("User {UserId} không có quyền import", user.Id);
+            return Json(new { success = false, message = "Không có quyền!" });
+        }
+
+        int successCount = 0;
+        int totalProcessed = 0;
+
+        using var stream = new MemoryStream();
+        await excelFile.CopyToAsync(stream);
+        using var package = new OfficeOpenXml.ExcelPackage(stream);
+        var ws = package.Workbook.Worksheets.First();
+        
+        if (ws.Dimension == null)
+        {
+            logger.LogWarning("File Excel trống");
+            return Json(new { success = false, message = "File Excel trống hoặc không hợp lệ." });
+        }
+
+        int rowCount = ws.Dimension.Rows;
+        int colCount = ws.Dimension.Columns;
+        
+        logger.LogInformation("File có {RowCount} dòng, {ColCount} cột", rowCount, colCount);
+
+        var headerRow = ws.Cells[1, 1, 1, colCount];
+        var colMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        //Đọc header
+        foreach (var cell in headerRow)
+        {
+            var header = cell.Text?.Trim();
+            if (string.IsNullOrEmpty(header)) continue;
+            
+            logger.LogInformation("Header cột {Col}: '{Header}'", cell.Start.Column, header);
+            
+            var normalized = header.RemoveDiacritics().ToLower().Replace(" ", "");
+            logger.LogInformation("Test normalize: Số điện thoại: "+ "Số điện thoại".RemoveDiacritics().ToLower().Replace(" ",""));
+            
+            if (normalized.Contains("ten") || normalized.Contains("hovaten") || normalized.Contains("fullname"))
+                colMap["FullName"] = cell.Start.Column;
+            if (normalized.Contains("ma") && (normalized.Contains("sinh vien")
+                                              || normalized.Contains("sv")
+                                              || normalized.Contains("mssv"))
+                                                || normalized.Contains("masinhvien"))
+                colMap["StudentCode"] = cell.Start.Column;
+            if (normalized.Contains("email") || normalized.Contains("mail"))
+                colMap["Email"] = cell.Start.Column;
+            if (normalized.Contains("phone") 
+                || normalized.Contains("dienthoai") 
+                || normalized.Contains("sodienthoai")
+                || normalized.Contains("sođienthoai")
+                || normalized.Contains("sdt")
+                || (normalized.Contains("dien") && normalized.Contains("thoai")) 
+                || (normalized.Contains("so") && (normalized.Contains("dien") || 
+                                                  normalized.Contains("dt"))))
+            {
+                colMap["Phone"] = cell.Start.Column;
+                logger.LogInformation("  → Mapped to Phone");
+            }
+        }
+
+        logger.LogInformation("Đã map {Count} cột: {Cols}", colMap.Count, string.Join(", ", colMap.Keys));
+
+        //Kiểm tra cột bắt buộc
+        if (!colMap.ContainsKey("FullName") || !colMap.ContainsKey("StudentCode") || !colMap.ContainsKey("Email")
+            || !colMap.ContainsKey("Phone"))
+        {
+            var missing = new List<string>();
+            if (!colMap.ContainsKey("FullName")) missing.Add("Họ và tên");
+            if (!colMap.ContainsKey("StudentCode")) missing.Add("Mã sinh viên");
+            if (!colMap.ContainsKey("Email")) missing.Add("Email");
+            if (!colMap.ContainsKey("Phone")) missing.Add("Phone");
+            
+            logger.LogWarning("Thiếu cột: {Missing}", string.Join(", ", missing));
+            return Json(new { success = false, message = $"Không tìm thấy cột bắt buộc: {string.Join(", ", missing)}" });
+        }
+
+        //Lấy role Student
+        var studentRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == "Student");
+        logger.LogInformation("Student Role ID: {RoleId}", studentRole?.Id);
+        
+        //Xử lý từng dòng
+        for (int row = 2; row <= rowCount; row++)
+        {
+            totalProcessed++;
+            
+            var fullName = ws.Cells[row, colMap["FullName"]].GetValue<string>()?.Trim();
+            var studentCode = ws.Cells[row, colMap["StudentCode"]].GetValue<string>()?.Trim();
+            var email = ws.Cells[row, colMap["Email"]].GetValue<string>()?.Trim();
+            var phone = colMap.ContainsKey("Phone") 
+                ? ws.Cells[row, colMap["Phone"]].Value?.ToString()?.Trim() 
+                : null;
+
+            logger.LogInformation("Row {Row}: {FullName} - {StudentCode} - {Email}", row, fullName, studentCode, email);
+
+            if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(studentCode) || string.IsNullOrWhiteSpace(email))
+            {
+                logger.LogWarning("Row {Row}: Bỏ qua vì thiếu dữ liệu", row);
+                continue;
+            }
+
+            var username = GenerateUsername(fullName, studentCode);
+            logger.LogInformation("Generated username: {Username}", username);
+            
+            if (await db.Users.AnyAsync(u => u.Username == username))
+            {
+                logger.LogWarning("Username {Username} đã tồn tại", username);
+                continue;
+            }
+            
+            if (!string.IsNullOrEmpty(email) && await db.Users.AnyAsync(u => u.Email == email))
+            {
+                logger.LogWarning("Email {Email} đã tồn tại", email);
+                continue;
+            }
+            
+            if (!string.IsNullOrEmpty(phone) && await db.Users.AnyAsync(u => u.PhoneNumber == phone))
+            {
+                logger.LogWarning("Phone {Phone} đã tồn tại", phone);
+                continue;
+            }
+
+            var password = GenerateRandomPassword(12);
+            var newUser = new User
+            {
+                Id = Guid.NewGuid(),
+                Username = username,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                Email = email,
+                PhoneNumber = phone,
+                MustChangePassword = true,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            db.Users.Add(newUser);
+
+            if (studentRole != null)
+            {
+                db.UserRoles.Add(new UserRole { UserId = newUser.Id, RoleId = studentRole.Id });
+            }
+
+            await db.SaveChangesAsync();
+            successCount++;
+            
+            logger.LogInformation("Đã tạo user {Username} (#{Count})", username, successCount);
+            
+            if (!string.IsNullOrEmpty(email))
+            {
+                _ = SendLoginInfoToEmail(email, username, password);
+            }
+
+            // Realtime progress qua SignalR
+            logger.LogInformation("Gửi SignalR progress: {Current}/{Total}", totalProcessed, rowCount - 1);
+            await hubContext.Clients.All.SendAsync("ImportProgress", new
+            {
+                Current = totalProcessed,
+                Total = rowCount - 1,
+                Success = successCount,
+                Username = username,
+                Email = email ?? ""
+            });
+        }
+
+        logger.LogInformation("KẾT THÚC IMPORT: {Success}/{Total}", successCount, totalProcessed);
+
+        return Json(new
+        {
+            success = true,
+            count = successCount,
+            message = $"Import thành công {successCount} tài khoản!"
+        });
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "LỖI IMPORT: {Message}", ex.Message);
+        return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
+    }
+}
+
+
+    // Helper: Tạo username từ tên + mã SV
+    private string GenerateUsername(string fullName, string studentCode)
+    {
+        var cleanName = fullName.RemoveDiacritics().Trim();
+        var parts = cleanName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+            return studentCode.ToLowerInvariant();
+
+        // Tên chính (từ cuối cùng): Vinh → vinh
+        var lastName = parts.Last();
+            
+        var middleName = string.Concat(parts.Take(parts.Length - 1).Select(p => p[0]));
+
+        // Ghép lại: vinh + nt + bh01523 → vinhntbh01523
+        var username = $"{lastName}{middleName}{studentCode}".ToLowerInvariant();
+
+        // Loại bỏ mọi ký tự không phải chữ cái hoặc số
+        return Regex.Replace(username, @"[^a-z0-9]", "");
+    }
+
+    // Helper: Tạo mật khẩu ngẫu nhiên
+    private string GenerateRandomPassword(int length = 12)
+    {
+        const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";   
+        const string lower = "abcdefghijkmnpqrstuvwxyz";    
+        const string digits = "23456789";                 
+        const string special = "!@#$%^&*_-+=";
+
+        var random = new Random();
+        var password = new char[length];
+        var chars = new List<char>();
+        
+        password[0] = upper[random.Next(upper.Length)];
+        password[1] = lower[random.Next(lower.Length)];
+        password[2] = digits[random.Next(digits.Length)];
+        password[3] = special[random.Next(special.Length)];
+        
+        var allChars = upper + lower + digits + special;
+        for (int i = 4; i < length; i++)
+        {
+            password[i] = allChars[random.Next(allChars.Length)];
+        }
+        
+        for (int i = password.Length - 1; i > 0; i--)
+        {
+            int j = random.Next(0, i + 1);
+            (password[i], password[j]) = (password[j], password[i]);
+        }
+
+        return new string(password);
+    }
+    
     // GET: Users/Create
     public async Task<IActionResult> Create()
     {
@@ -237,7 +509,7 @@ public class AdminController(
             throw new InvalidOperationException($"SendGrid lỗi: {response.StatusCode}");
         }
 
-        logger.LogInformation("Email OTP gửi thành công đến {Email}",email);
+        logger.LogInformation("Email Login Info gửi thành công đến {Email}",email);
     }
     
     // GET: Users/Edit
@@ -295,7 +567,7 @@ public class AdminController(
 
         return View(viewModel);
     }
-
+    
     // POST: Users/Edit/5
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -496,7 +768,7 @@ public class AdminController(
                 .FirstOrDefaultAsync(u => u.Id == id);
             if (user == null)
             {
-                TempData["ErrorMessage"] = "Không tìm thấy user.";
+                TempData["ErrorMessage"] = "Không tìm thấy user.";               
                 return RedirectToAction(nameof(Index));
             }
 
@@ -733,3 +1005,22 @@ public class RevokeTokensRequest
     public Guid Id { get; set; }
 }
 
+public static class StringExtensions
+{
+    public static string RemoveDiacritics(this string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return text;
+
+        var normalizedString = text.Normalize(NormalizationForm.FormD);
+        var stringBuilder = new StringBuilder();
+
+        foreach (var c in normalizedString)
+        {
+            var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+            if (unicodeCategory != UnicodeCategory.NonSpacingMark)
+                stringBuilder.Append(c);
+        }
+
+        return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
+    }
+}

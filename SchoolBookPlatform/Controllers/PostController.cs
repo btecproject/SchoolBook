@@ -1,289 +1,502 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
-using SchoolBookPlatform.Models;
-using SchoolBookPlatform.Models.ViewModels;
-using Microsoft.AspNetCore.Hosting;
-using System.IO;
-using CloudinaryDotNet;
-using CloudinaryDotNet.Actions;
+using SchoolBookPlatform.Manager;
+using SchoolBookPlatform.Services;
+using SchoolBookPlatform.ViewModels.Post;
 
 namespace SchoolBookPlatform.Controllers;
 
+/// <summary>
+/// Controller xử lý các request liên quan đến bài đăng
+/// Bao gồm: xem, tạo, xóa, vote, comment, report
+/// </summary>
 [Authorize]
-public class PostController : Controller
+public class PostController(
+    PostService postService,
+    AppDbContext db,
+    ILogger<PostController> logger) : Controller
 {
-    private readonly ILogger<PostController> logger;
-    private readonly AppDbContext _context;
-    private readonly IWebHostEnvironment _webHostEnvironment;
-    private readonly Cloudinary _cloudinary;
+    /// <summary>
+    /// Lấy ID của user hiện tại từ Claims
+    /// </summary>
+    private Guid GetCurrentUserId() => 
+        Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public PostController(AppDbContext context, IWebHostEnvironment webHostEnvironment, IConfiguration configuration, ILogger<PostController> _logger)
+    /// <summary>
+    /// GET: Post/Index
+    /// Hiển thị danh sách bài đăng (có phân trang)
+    /// </summary>
+    /// <param name="page">Số trang (bắt đầu từ 1)</param>
+    /// <param name="pageSize">Số bài đăng mỗi trang</param>
+    /// <returns>View danh sách bài đăng</returns>
+    public async Task<IActionResult> Index(int page = 1, int pageSize = 20)
     {
-        logger = _logger;
-        _context = context;
-        _webHostEnvironment = webHostEnvironment;
-        
-        // Khởi tạo Cloudinary
-        var cloudinaryConfig = configuration.GetSection("Cloudinary");
-        var account = new Account(
-            cloudinaryConfig["CloudName"],
-            cloudinaryConfig["ApiKey"],
-            cloudinaryConfig["ApiSecret"]
-        );
-        _cloudinary = new Cloudinary(account);
+        var userId = GetCurrentUserId();
+        var posts = await postService.GetVisiblePostsAsync(userId, page, pageSize);
+
+        var viewModel = new PostListViewModel
+        {
+            Posts = posts.Select(p => new PostViewModel
+            {
+                Id = p.Id,
+                Title = p.Title,
+                Content = p.Content,
+                AuthorName = p.User.Username,
+                AuthorAvatar = p.User.UserProfile?.AvatarUrl,
+                CreatedAt = p.CreatedAt,
+                UpdatedAt = p.UpdatedAt,
+                UpvoteCount = p.Votes.Count(v => v.VoteType),
+                DownvoteCount = p.Votes.Count(v => !v.VoteType),
+                CommentCount = p.Comments.Count,
+                IsDeleted = p.IsDeleted,
+                IsVisible = p.IsVisible,
+                VisibleToRoles = p.VisibleToRoles,
+                IsOwner = p.UserId == userId,
+                CanDelete = p.UserId == userId, // User chỉ xóa được bài của mình (trừ Admin/Moderator)
+                Attachments = p.Attachments.Select(a => new AttachmentViewModel
+                {
+                    Id = a.Id,
+                    FileName = a.FileName,
+                    FilePath = a.FilePath,
+                    FileSize = a.FileSize,
+                    UploadedAt = a.UploadedAt
+                }).ToList()
+            }).ToList(),
+            CurrentPage = page,
+            PageSize = pageSize
+        };
+
+        return View(viewModel);
     }
 
-    // GET: Hiển thị form tạo post
+    /// <summary>
+    /// GET: Post/Create
+    /// Hiển thị form tạo bài đăng mới
+    /// </summary>
+    /// <returns>View form tạo bài đăng</returns>
     public IActionResult Create()
     {
-        var viewModel = new CreatePostViewModel();
-        return View(viewModel);
+        return View(new CreatePostViewModel());
     }
 
-    // POST: Tạo post mới
+    /// <summary>
+    /// POST: Post/Create
+    /// Xử lý tạo bài đăng mới
+    /// </summary>
+    /// <param name="model">Dữ liệu từ form</param>
+    /// <returns>Redirect về Index nếu thành công, trả về View với lỗi nếu thất bại</returns>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CreatePostViewModel viewModel)
+    public async Task<IActionResult> Create(CreatePostViewModel model)
     {
-        if (ModelState.IsValid)
+        if (!ModelState.IsValid)
         {
-            try
-            {
-                // Tạo post mới
-                var post = new Post
-                {
-                    Id = Guid.NewGuid(),
-                    Title = viewModel.Title,
-                    Content = viewModel.Content,
-                    VisibleToRoles = viewModel.VisibleToRoles,
-                    UserId = GetCurrentUserId(),
-                    CreatedAt = DateTime.UtcNow,
-                    IsVisible = true,
-                    IsDeleted = false
-                };
-
-                _context.Posts.Add(post);
-
-                // Xử lý file đính kèm nếu có
-                if (viewModel.Attachments != null && viewModel.Attachments.Any())
-                {
-                    await HandlePostAttachments(post, viewModel.Attachments);
-                }
-
-                await _context.SaveChangesAsync();
-
-                TempData["SuccessMessage"] = "Bài viết đã được tạo thành công!";
-                return RedirectToAction("Home", "Feeds");
-            }
-            catch (Exception ex)
-            {
-                ModelState.AddModelError("", "Có lỗi xảy ra khi tạo bài viết: " + ex.Message);
-            }
+            return View(model);
         }
 
-        // Nếu có lỗi, trả về view với model
-        return View(viewModel);
-    }
+        var userId = GetCurrentUserId();
+        var post = await postService.CreatePostAsync(
+            userId, 
+            model.Title, 
+            model.Content, 
+            model.VisibleToRoles,
+            model.Files);
 
-    private async Task HandlePostAttachments(Post post, List<IFormFile> attachments)
-    {
-        foreach (var file in attachments)
+        if (post == null)
         {
-            if (file.Length > 0)
-            {
-                // Tạo public ID unique cho Cloudinary
-                var publicId = $"SchoolBook/Post/{post.Id}/PostAttachment/{Guid.NewGuid()}";
-
-                // Xác định resource type
-                var resourceType = GetResourceType(file);
-                
-                UploadResult uploadResult;
-
-                if (resourceType == ResourceType.Video || resourceType == ResourceType.Raw)
-                {
-                    // Upload video hoặc file raw
-                    var uploadParams = new RawUploadParams()
-                    {
-                        File = new FileDescription(file.FileName, file.OpenReadStream()),
-                        PublicId = publicId,
-                        Folder = $"SchoolBook/Post/{post.Id}/PostAttachment",
-                        Overwrite = false
-                    };
-
-                    uploadResult = await _cloudinary.UploadAsync(uploadParams);
-                }
-                else
-                {
-                    // Upload image (mặc định)
-                    var uploadParams = new ImageUploadParams()
-                    {
-                        File = new FileDescription(file.FileName, file.OpenReadStream()),
-                        PublicId = publicId,
-                        Folder = $"SchoolBook/Post/{post.Id}/PostAttachment",
-                        Overwrite = false
-                    };
-
-                    uploadResult = await _cloudinary.UploadAsync(uploadParams);
-                }
-
-                if (uploadResult.Error != null)
-                {
-                    throw new Exception($"Lỗi upload file lên Cloudinary: {uploadResult.Error.Message}");
-                }
-
-                // Tạo post attachment với URL từ Cloudinary
-                var attachment = new PostAttachment
-                {
-                    Id = Guid.NewGuid(),
-                    PostId = post.Id,
-                    FileName = file.FileName,
-                    FilePath = uploadResult.SecureUrl.ToString(), // Sử dụng Secure URL
-                    FileSize = (int)file.Length,
-                    UploadedAt = DateTime.UtcNow
-                };
-
-                _context.PostAttachments.Add(attachment);
-            }
+            ModelState.AddModelError("", "Không thể tạo bài đăng.");
+            return View(model);
         }
-    }
-    
-    private ResourceType GetResourceType(IFormFile file)
-    {
-        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-    
-        // Định nghĩa các extension cho video
-        var videoExtensions = new[] { ".mp4", ".avi", ".mov", ".wmv", ".mkv", ".flv", ".webm" };
-    
-        // Định nghĩa các extension cho raw files (document, etc.)
-        var rawExtensions = new[] { ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".rar" };
-    
-        if (videoExtensions.Contains(extension))
-            return ResourceType.Video;
-        else if (rawExtensions.Contains(extension))
-            return ResourceType.Raw;
-        else
-            return ResourceType.Image; // Mặc định là image
+
+        TempData["SuccessMessage"] = "Đăng bài thành công!";
+        return RedirectToAction(nameof(Index));
     }
 
-    // Các action khác giữ nguyên...
-    public async Task<IActionResult> Index()
-    {
-        var posts = await _context.Posts
-            .Include(p => p.User)
-            .Where(p => !p.IsDeleted && p.IsVisible)
-            .OrderByDescending(p => p.CreatedAt)
-            .ToListAsync();
-        return View(posts);
-    }
-
+    /// <summary>
+    /// GET: Post/Details/{id}
+    /// Hiển thị chi tiết bài đăng và danh sách comment
+    /// </summary>
+    /// <param name="id">ID của bài đăng</param>
+    /// <returns>View chi tiết bài đăng</returns>
     public async Task<IActionResult> Details(Guid id)
     {
-        var post = await _context.Posts
+        var userId = GetCurrentUserId();
+        
+        // Kiểm tra quyền xem bài đăng
+        if (!await postService.CanViewPostAsync(userId, id))
+        {
+            TempData["ErrorMessage"] = "Bạn không có quyền xem bài đăng này.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var post = await db.Posts
             .Include(p => p.User)
+                .ThenInclude(u => u.UserProfile)
             .Include(p => p.Comments)
-            .Include(p => p.Attachments)
+                .ThenInclude(c => c.User)
+                    .ThenInclude(u => u.UserProfile)
             .Include(p => p.Votes)
-            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted && p.IsVisible);
-        if (post == null) return NotFound();
-        return View(post);
+            .Include(p => p.Attachments)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (post == null)
+        {
+            return NotFound();
+        }
+
+        // Kiểm tra quyền xóa (Owner hoặc Admin/Moderator)
+        var userRoles = await db.GetUserRolesAsync(userId);
+        var isAdmin = userRoles.Contains("HighAdmin") || 
+                     userRoles.Contains("Admin") || 
+                     userRoles.Contains("Moderator");
+
+        var viewModel = new PostDetailsViewModel
+        {
+            Post = new PostViewModel
+            {
+                Id = post.Id,
+                Title = post.Title,
+                Content = post.Content,
+                AuthorName = post.User.Username,
+                AuthorAvatar = post.User.UserProfile?.AvatarUrl,
+                CreatedAt = post.CreatedAt,
+                UpdatedAt = post.UpdatedAt,
+                UpvoteCount = post.Votes.Count(v => v.VoteType),
+                DownvoteCount = post.Votes.Count(v => !v.VoteType),
+                CommentCount = post.Comments.Count,
+                IsDeleted = post.IsDeleted,
+                IsVisible = post.IsVisible,
+                VisibleToRoles = post.VisibleToRoles,
+                IsOwner = post.UserId == userId,
+                CanDelete = post.UserId == userId || isAdmin,
+                Attachments = post.Attachments.Select(a => new AttachmentViewModel
+                {
+                    Id = a.Id,
+                    FileName = a.FileName,
+                    FilePath = a.FilePath,
+                    FileSize = a.FileSize,
+                    UploadedAt = a.UploadedAt
+                }).ToList()
+            },
+            Comments = post.Comments
+                .Where(c => c.ParentCommentId == null) // Chỉ lấy comment gốc
+                .OrderByDescending(c => c.CreatedAt)
+                .Select(c => new CommentViewModel
+                {
+                    Id = c.Id,
+                    Content = c.Content,
+                    AuthorName = c.User.Username,
+                    AuthorAvatar = c.User.UserProfile?.AvatarUrl,
+                    CreatedAt = c.CreatedAt,
+                    Replies = c.Replies
+                        .OrderBy(r => r.CreatedAt)
+                        .Select(r => new CommentViewModel
+                        {
+                            Id = r.Id,
+                            Content = r.Content,
+                            AuthorName = r.User.Username,
+                            AuthorAvatar = r.User.UserProfile?.AvatarUrl,
+                            CreatedAt = r.CreatedAt
+                        }).ToList()
+                }).ToList()
+        };
+
+        return View(viewModel);
     }
 
+    /// <summary>
+    /// GET: Post/Edit/{id}
+    /// Hiển thị form sửa bài đăng
+    /// </summary>
+    /// <param name="id">ID của bài đăng cần sửa</param>
+    /// <returns>View form sửa bài đăng</returns>
+    public async Task<IActionResult> Edit(Guid id)
+    {
+        var userId = GetCurrentUserId();
+        var post = await db.Posts
+            .Include(p => p.Attachments)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (post == null)
+        {
+            return NotFound();
+        }
+
+        var userRoles = await db.GetUserRolesAsync(userId);
+        var isAdmin = userRoles.Contains("HighAdmin") || 
+                     userRoles.Contains("Admin") || 
+                     userRoles.Contains("Moderator");
+
+        // Kiểm tra quyền: chỉ owner hoặc admin/mod mới được sửa
+        if (post.UserId != userId && !isAdmin)
+        {
+            TempData["ErrorMessage"] = "Bạn không có quyền sửa bài đăng này.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var viewModel = new EditPostViewModel
+        {
+            Id = post.Id,
+            Title = post.Title,
+            Content = post.Content,
+            VisibleToRoles = post.VisibleToRoles ?? "All",
+            ExistingAttachments = post.Attachments.Select(a => new AttachmentViewModel
+            {
+                Id = a.Id,
+                FileName = a.FileName,
+                FilePath = a.FilePath,
+                FileSize = a.FileSize,
+                UploadedAt = a.UploadedAt
+            }).ToList()
+        };
+
+        return View(viewModel);
+    }
+
+    /// <summary>
+    /// POST: Post/Edit/{id}
+    /// Xử lý sửa bài đăng
+    /// </summary>
+    /// <param name="id">ID của bài đăng cần sửa</param>
+    /// <param name="model">Dữ liệu từ form</param>
+    /// <returns>Redirect về Details nếu thành công, trả về View với lỗi nếu thất bại</returns>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Route("Post/Delete/{id}")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Edit(Guid id, EditPostViewModel model)
     {
-        try
+        if (id != model.Id)
         {
-            var post = await _context.Posts
+            return NotFound();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            // Load lại existing attachments nếu có lỗi
+            var post = await db.Posts
                 .Include(p => p.Attachments)
                 .FirstOrDefaultAsync(p => p.Id == id);
-
-            if (post == null)
+            
+            if (post != null)
             {
-                return Json(new { success = false, message = "Bài viết không tồn tại." });
+                model.ExistingAttachments = post.Attachments.Select(a => new AttachmentViewModel
+                {
+                    Id = a.Id,
+                    FileName = a.FileName,
+                    FilePath = a.FilePath,
+                    FileSize = a.FileSize,
+                    UploadedAt = a.UploadedAt
+                }).ToList();
             }
-
-            var currentUserId = GetCurrentUserId();
-            var isAdmin = User.IsInRole("Admin") || User.IsInRole("HighAdmin");
-        
-            if (post.UserId != currentUserId && !isAdmin)
-            {
-                return Json(new { success = false, message = "Bạn không có quyền xóa bài viết này." });
-            }
-
-            // Xóa file từ Cloudinary trước
-            foreach (var attachment in post.Attachments)
-            {
-                logger.LogInformation("DeleteFileFromCloudinary post attachment: {id}", post.Attachments.First(a => a.Id == attachment.Id));
-
-                await DeleteFileFromCloudinary(attachment.FilePath, post.Id);
-            }
-
-            _context.Posts.Remove(post);
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = "Bài viết và tất cả dữ liệu liên quan đã được xóa thành công." });
+            
+            return View(model);
         }
-        catch (Exception ex)
+
+        var userId = GetCurrentUserId();
+        var postUpdated = await postService.UpdatePostAsync(
+            userId,
+            id,
+            model.Title,
+            model.Content,
+            model.VisibleToRoles,
+            model.Files,
+            model.AttachmentIdsToDelete);
+
+        if (postUpdated == null)
         {
-            return Json(new { success = false, message = "Có lỗi xảy ra khi xóa bài viết: " + ex.Message });
+            ModelState.AddModelError("", "Không thể sửa bài đăng này. Bạn có thể không có quyền hoặc bài đăng không tồn tại.");
+            
+            // Load lại existing attachments
+            var post = await db.Posts
+                .Include(p => p.Attachments)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            
+            if (post != null)
+            {
+                model.ExistingAttachments = post.Attachments.Select(a => new AttachmentViewModel
+                {
+                    Id = a.Id,
+                    FileName = a.FileName,
+                    FilePath = a.FilePath,
+                    FileSize = a.FileSize,
+                    UploadedAt = a.UploadedAt
+                }).ToList();
+            }
+            
+            return View(model);
         }
+
+        TempData["SuccessMessage"] = "Sửa bài đăng thành công!";
+        return RedirectToAction(nameof(Details), new { id });
     }
 
-    private async Task DeleteFileFromCloudinary(string fileUrl, Guid postId)
+    /// <summary>
+    /// POST: Post/Delete/{id}
+    /// Xóa bài đăng (soft delete cho user thường, hard delete cho HighAdmin)
+    /// </summary>
+    /// <param name="id">ID của bài đăng cần xóa</param>
+    /// <returns>Redirect về Index</returns>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(Guid id)
     {
-        try
-        {
-            // Extract public ID từ URL
-            var uri = new Uri(fileUrl);
-            var segments = uri.AbsolutePath.Split('/');
-            var publicIdWithExtension = segments.Last();
-            var publicId = Path.GetFileNameWithoutExtension(publicIdWithExtension);
-            
-        
-            // Tìm full public id với folder
-            var fullPublicId = $"SchoolBook/Post/{postId}/PostAttachment/{publicId}";
+        var userId = GetCurrentUserId();
+        var userRoles = await db.GetUserRolesAsync(userId);
+        var isHighAdmin = userRoles.Contains("HighAdmin");
 
-            var deleteParams = new DeletionParams(fullPublicId)
-            {
-                ResourceType = ResourceType.Image // Cloudinary sẽ tự động detect loại resource
-            };
-            
-            var result = await _cloudinary.DestroyAsync(deleteParams);
-        
-            if (result.Error != null)
-            {
-                // Log lỗi nhưng không throw exception để không ảnh hưởng đến flow chính
-                Console.WriteLine($"Lỗi xóa file từ Cloudinary: {result.Error.Message}");
-            }
-        }
-        catch (Exception ex)
+        var success = await postService.DeletePostAsync(userId, id, hardDelete: isHighAdmin);
+
+        if (!success)
         {
-            // Log lỗi nhưng không throw exception
-            Console.WriteLine($"Lỗi khi xóa file từ Cloudinary: {ex.Message}");
+            TempData["ErrorMessage"] = "Không thể xóa bài đăng này.";
+            return RedirectToAction(nameof(Index));
         }
+
+        TempData["SuccessMessage"] = "Xóa bài đăng thành công!";
+        return RedirectToAction(nameof(Index));
     }
 
-    private Guid GetCurrentUserId()
+    /// <summary>
+    /// POST: Post/Vote
+    /// Vote bài đăng (upvote hoặc downvote) - AJAX endpoint
+    /// </summary>
+    /// <param name="postId">ID của bài đăng</param>
+    /// <param name="isUpvote">True nếu upvote, False nếu downvote</param>
+    /// <returns>JSON response với số lượng vote</returns>
+    [HttpPost]
+    public async Task<IActionResult> Vote(Guid postId, bool isUpvote)
     {
-        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (Guid.TryParse(userIdClaim, out Guid userId))
+        var userId = GetCurrentUserId();
+        var success = await postService.VotePostAsync(userId, postId, isUpvote);
+
+        if (!success)
         {
-            return userId;
+            return Json(new { success = false, message = "Không thể vote bài đăng này." });
         }
-        
-        userIdClaim = User.FindFirst("UserId")?.Value;
-        if (Guid.TryParse(userIdClaim, out userId))
+
+        // Lấy lại số lượng vote mới nhất
+        var post = await db.Posts
+            .Include(p => p.Votes)
+            .FirstOrDefaultAsync(p => p.Id == postId);
+
+        return Json(new
         {
-            return userId;
+            success = true,
+            upvoteCount = post?.Votes.Count(v => v.VoteType) ?? 0,
+            downvoteCount = post?.Votes.Count(v => !v.VoteType) ?? 0
+        });
+    }
+
+    /// <summary>
+    /// POST: Post/Comment
+    /// Tạo comment mới cho bài đăng - AJAX endpoint
+    /// </summary>
+    /// <param name="postId">ID của bài đăng</param>
+    /// <param name="content">Nội dung comment</param>
+    /// <param name="parentCommentId">ID của comment cha (nếu là reply), null nếu là comment gốc</param>
+    /// <returns>JSON response với thông tin comment mới</returns>
+    [HttpPost]
+    public async Task<IActionResult> Comment(Guid postId, string content, Guid? parentCommentId = null)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return Json(new { success = false, message = "Nội dung comment không được để trống." });
         }
-        
-        return Guid.Empty;
+
+        var userId = GetCurrentUserId();
+        var comment = await postService.CreateCommentAsync(userId, postId, content, parentCommentId);
+
+        if (comment == null)
+        {
+            return Json(new { success = false, message = "Không thể tạo comment." });
+        }
+
+        return Json(new
+        {
+            success = true,
+            comment = new
+            {
+                id = comment.Id,
+                content = comment.Content,
+                authorName = comment.User.Username,
+                authorAvatar = comment.User.UserProfile?.AvatarUrl,
+                createdAt = comment.CreatedAt.ToString("g")
+            }
+        });
+    }
+
+    /// <summary>
+    /// POST: Post/Report
+    /// Tạo báo cáo về bài đăng
+    /// </summary>
+    /// <param name="postId">ID của bài đăng bị báo cáo</param>
+    /// <param name="reason">Lý do báo cáo</param>
+    /// <returns>Redirect về Details</returns>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Report(Guid postId, string reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            TempData["ErrorMessage"] = "Vui lòng nhập lý do báo cáo.";
+            return RedirectToAction(nameof(Details), new { id = postId });
+        }
+
+        var userId = GetCurrentUserId();
+        var report = await postService.CreateReportAsync(userId, postId, reason);
+
+        if (report == null)
+        {
+            TempData["ErrorMessage"] = "Không thể tạo báo cáo.";
+            return RedirectToAction(nameof(Details), new { id = postId });
+        }
+
+        TempData["SuccessMessage"] = "Báo cáo đã được gửi thành công!";
+        return RedirectToAction(nameof(Details), new { id = postId });
+    }
+
+    /// <summary>
+    /// GET: Post/ModeratorDelete/{id}
+    /// Hiển thị form Moderator xóa bài đăng
+    /// </summary>
+    /// <param name="id">ID của bài đăng cần xóa</param>
+    /// <returns>View form xóa</returns>
+    [Authorize(Policy = "ModeratorOrHigher")]
+    public IActionResult ModeratorDelete(Guid id)
+    {
+        return View(new ModeratorDeleteViewModel { PostId = id });
+    }
+
+    /// <summary>
+    /// POST: Post/ModeratorDelete/{id}
+    /// Xử lý Moderator xóa bài đăng
+    /// </summary>
+    /// <param name="id">ID của bài đăng cần xóa</param>
+    /// <param name="model">Dữ liệu từ form (lý do xóa)</param>
+    /// <returns>Redirect về Index nếu thành công</returns>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = "ModeratorOrHigher")]
+    public async Task<IActionResult> ModeratorDelete(Guid id, ModeratorDeleteViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var moderatorId = GetCurrentUserId();
+        var success = await postService.ModeratorDeletePostAsync(moderatorId, id, model.Reason);
+
+        if (!success)
+        {
+            TempData["ErrorMessage"] = "Không thể xóa bài đăng này.";
+            return View(model);
+        }
+
+        TempData["SuccessMessage"] = "Đã xóa bài đăng thành công!";
+        return RedirectToAction(nameof(Index));
     }
 }
+

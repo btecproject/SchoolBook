@@ -10,7 +10,7 @@ CREATE TABLE Users (
                        TokenVersion INT DEFAULT 1,
                        IsActive BIT DEFAULT 1,
                        CreatedAt DATETIME DEFAULT GETUTCDATE(),
-                       UpdatedAt DATETIME NULL
+                       UpdatedAt DATETIME NULL	
 );
 
 CREATE TABLE Roles (
@@ -234,7 +234,7 @@ CREATE INDEX IX_PostReports_PostId ON PostReports(PostId);
 -- Index để query nhanh
 CREATE NONCLUSTERED INDEX IX_Followers_FollowerId   ON Followers(FollowerId);
 CREATE NONCLUSTERED INDEX IX_Following_FollowingId ON Following(FollowingId);
-
+GO
 CREATE PROCEDURE usp_DeleteUser @userId UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -250,7 +250,7 @@ DELETE FROM Users WHERE Id = @userId;
 
 COMMIT TRAN;
 END
-
+GO
 
 ALTER TABLE UserRoles DROP CONSTRAINT FK__UserRoles__UserI__693CA210;
 ALTER TABLE UserRoles
@@ -300,6 +300,7 @@ ALTER TABLE Posts ALTER COLUMN Title NVARCHAR(300) NOT NULL;
 ALTER TABLE Posts ALTER COLUMN Content NVARCHAR(MAX) NOT NULL;
 
 -------------------------Thêm Delete Proc cho post-----------------------
+GO
 CREATE OR ALTER PROCEDURE DeleteUser
     @UserId UNIQUEIDENTIFIER
     AS

@@ -49,8 +49,8 @@ public class OtpService
         try
         {
             await SendOtpAsync(user, type, code);
-            _logger.LogInformation("Gửi OTP thành công cho {EmailOrPhone} qua {Type}",
-                type == "Email" ? user.Email : user.PhoneNumber, type);
+            _logger.LogInformation("Gửi OTP {code} thành công cho {EmailOrPhone} qua {Type}",
+               code, type == "Email" ? user.Email : user.PhoneNumber, type);
         }
         catch (Exception ex)
         {

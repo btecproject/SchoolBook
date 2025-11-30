@@ -1,45 +1,89 @@
-using CloudinaryDotNet;
+﻿using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
+using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Models;
 
 namespace SchoolBookPlatform.Services;
 
-public class CloudinaryService
+public class CloudinaryUploadResult
 {
-    private readonly Cloudinary _cloudinary;
+    public bool Status { get; set; } = false; // true: success, false: failed
+    public string? Url { get; set; }
+    public string? ResourceType { get; set; }
+    public string? Format { get; set; }
+    public string? FileName { get; set; }
+    public DateTime? UploadedAt { get; set; }
+}
+public class CloudinaryService(
+    AppDbContext db,
+    Cloudinary cloudinary,
+    ILogger<CloudinaryService> logger
+    )
+{
+    private const string SERVICE_NAME = "cloudinary: ";
 
-    public CloudinaryService(IConfiguration config)
+    public async Task<CloudinaryUploadResult> UploadMessageAttachmentAsync(IFormFile file, Guid userId,Guid conversationId, Guid messageId)
     {
-        var cloud = config["Cloudinary:CloudName"];
-        var key = config["Cloudinary:ApiKey"];
-        var secret = config["Cloudinary:ApiSecret"];
-        var account = new Account(cloud, key, secret);
-        _cloudinary = new Cloudinary(account);
-    }
-
-    public async Task<string> UploadImageAsync(IFormFile file)
-    {
-        await using var stream = file.OpenReadStream();
-        var uploadParams = new ImageUploadParams()
+        var uploadParam = new RawUploadParams()
         {
-            File = new FileDescription(file.FileName, stream),
-            Folder = "SchoolBook" // Lưu gọn theo thư mục trên Cloudinary
+            Overwrite = false,
+            UniqueFilename = false,
+            Folder = "schoolbook",
+            PublicId = $"messages/{userId}/{conversationId}/{messageId}",
+            UseFilename = true
         };
-        var uploadResult = await _cloudinary.UploadAsync(uploadParams);
-        return uploadResult.SecureUrl.ToString();
-    }
-
-    // Phương thức xóa: Sử dụng DeletionParams cho xóa một tài nguyên duy nhất
-    public async Task<DeletionResult> DeleteImageAsync(string publicId)
-    {
-        if (string.IsNullOrEmpty(publicId))
-            return null!; // hoặc throw exception
-
-        var deleteParams = new DeletionParams(publicId)
+        try
         {
-            ResourceType = ResourceType.Image
-        };
-        var result = await _cloudinary.DestroyAsync(deleteParams);
-        return result;
+            var uploadResult = await cloudinary.UploadAsync(uploadParam);
+
+            return new CloudinaryUploadResult()
+            {
+                Status = true,
+                Url = uploadResult.SecureUrl.ToString(),
+                ResourceType = uploadResult.ResourceType,
+                Format = uploadResult.Format,
+                FileName = uploadResult.DisplayName,
+                UploadedAt = DateTime.UtcNow
+            };
+        }
+        catch (Exception e)
+        {
+            logger.LogError(SERVICE_NAME + e.Message);
+            return new CloudinaryUploadResult()
+            {
+                Status = false,
+                Url = null,
+                ResourceType = null,
+                Format = null,
+                FileName = null,
+                UploadedAt = null
+            };
+        }
     }
 
+    public async Task<bool> DeleteMessageAttachmentAsync(Guid userId, Guid conversationId, Guid messageId)
+    {
+        string publicId = $"messages/{userId}/{conversationId}/{messageId}";
+        var deleteParam = new DeletionParams(publicId)
+        {
+            ResourceType = ResourceType.Auto
+        };
+        try
+        {
+            var deleteResult = await cloudinary.DestroyAsync(deleteParam);
+            if (deleteResult.Result == "ok")
+            {
+                logger.LogInformation(SERVICE_NAME+"Deleted message attachment");
+                return true;
+            }
+            logger.LogInformation(SERVICE_NAME +"Error :" + deleteResult.Result);
+            logger.LogError(SERVICE_NAME + "Error : " + deleteResult.Error);
+            return false;
+        }
+        catch(Exception e)
+        {
+            logger.LogError(SERVICE_NAME + e.Message);
+        }
+        return true;
+    }
 }
