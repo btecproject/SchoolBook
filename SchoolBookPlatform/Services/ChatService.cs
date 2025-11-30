@@ -12,88 +12,83 @@ namespace SchoolBookPlatform.Services
         ILogger<ChatService> logger,
         CloudinaryService cloudinaryService)
     {
-        // Trong ChatService.cs
-
-// 1. Lấy danh sách liên hệ gần đây
-      // Trong ChatService.cs
-
-public async Task<List<ContactDto>> GetRecentContactsAsync(Guid currentUserId)
-{
-    // 1. Lấy tất cả Conversation mà user tham gia
-    var conversationIds = await db.ConversationMembers
-        .Where(cm => cm.UserId == currentUserId)
-        .Select(cm => cm.ConversationId)
-        .ToListAsync();
-
-    if (!conversationIds.Any()) return new List<ContactDto>();
-
-    // 2. Lấy tin nhắn cuối cùng (Dùng EF Core Window Function hoặc GroupBy tối ưu)
-    var lastMessages = await db.Messages
-        .Where(m => conversationIds.Contains(m.ConversationId))
-        .GroupBy(m => m.ConversationId)
-        .Select(g => g.OrderByDescending(m => m.CreatedAt).FirstOrDefault())
-        .ToListAsync();
-
-    // 3. Lấy thông tin đối phương (Partner)
-    var partners = await db.ConversationMembers
-        .Where(cm => conversationIds.Contains(cm.ConversationId) && cm.UserId != currentUserId)
-        .Select(cm => new { cm.ConversationId, cm.UserId })
-        .ToListAsync();
-
-    // 4. Lấy số lượng tin chưa đọc
-    var unreadCounts = await db.MessageNotifications
-        .Where(mn => mn.RecipientId == currentUserId)
-        .ToDictionaryAsync(mn => mn.SenderId, mn => mn.UnreadCount);
-
-    // 5. Lấy User Profile (Avatar + Name)
-    var partnerIds = partners.Select(p => p.UserId).Distinct().ToList();
-    
-    var users = await db.Users
-        .Where(u => partnerIds.Contains(u.Id))
-        .Select(u => new 
-        { 
-            u.Id, 
-            u.Username,
-            DisplayName = db.ChatUsers.FirstOrDefault(cu => cu.UserId == u.Id).DisplayName ?? u.Username,
-            AvatarUrl = db.UserProfiles.FirstOrDefault(up => up.UserId == u.Id).AvatarUrl 
-        })
-        .ToDictionaryAsync(u => u.Id);
-
-    var result = new List<ContactDto>();
-
-    foreach (var msg in lastMessages)
+    public async Task<List<ContactDto>> GetRecentContactsAsync(Guid currentUserId)
     {
-        if (msg == null) continue;
+        // 1. Lấy tất cả Conversation mà user tham gia
+        var conversationIds = await db.ConversationMembers
+            .Where(cm => cm.UserId == currentUserId)
+            .Select(cm => cm.ConversationId)
+            .ToListAsync();
 
-        var partner = partners.FirstOrDefault(p => p.ConversationId == msg.ConversationId);
-        if (partner == null) continue; // Trường hợp chat 1 mình hoặc lỗi dữ liệu
+        if (!conversationIds.Any()) return new List<ContactDto>();
 
-        if (users.TryGetValue(partner.UserId, out var userInfo))
+        // 2. Lấy tin nhắn cuối cùng (Dùng EF Core Window Function hoặc GroupBy tối ưu)
+        var lastMessages = await db.Messages
+            .Where(m => conversationIds.Contains(m.ConversationId))
+            .GroupBy(m => m.ConversationId)
+            .Select(g => g.OrderByDescending(m => m.CreatedAt).FirstOrDefault())
+            .ToListAsync();
+
+        // 3. Lấy thông tin đối phương (Partner)
+        var partners = await db.ConversationMembers
+            .Where(cm => conversationIds.Contains(cm.ConversationId) && cm.UserId != currentUserId)
+            .Select(cm => new { cm.ConversationId, cm.UserId })
+            .ToListAsync();
+
+        // 4. Lấy số lượng tin chưa đọc
+        var unreadCounts = await db.MessageNotifications
+            .Where(mn => mn.RecipientId == currentUserId)
+            .ToDictionaryAsync(mn => mn.SenderId, mn => mn.UnreadCount);
+
+        // 5. Lấy User Profile (Avatar + Name)
+        var partnerIds = partners.Select(p => p.UserId).Distinct().ToList();
+        
+        var users = await db.Users
+            .Where(u => partnerIds.Contains(u.Id))
+            .Select(u => new 
+            { 
+                u.Id, 
+                u.Username,
+                DisplayName = db.ChatUsers.FirstOrDefault(cu => cu.UserId == u.Id).DisplayName ?? u.Username,
+                AvatarUrl = db.UserProfiles.FirstOrDefault(up => up.UserId == u.Id).AvatarUrl 
+            })
+            .ToDictionaryAsync(u => u.Id);
+
+        var result = new List<ContactDto>();
+
+        foreach (var msg in lastMessages)
         {
-            string prefix = msg.SenderId == currentUserId ? "Bạn: " : "";
-            string preview = msg.MessageType == 0 
-                ? (msg.PinExchange != null ? "Tin nhắn bảo mật" : "Tin nhắn văn bản")
-                : "Đã gửi tệp đính kèm";
+            if (msg == null) continue;
 
-            // Nếu tin nhắn văn bản, cố gắng cắt ngắn nếu quá dài (Optional)
-            // Lưu ý: CipherText ở đây là mã hóa, nên cắt chuỗi mã hóa không có ý nghĩa lắm về mặt hiển thị
-            // Nhưng cứ để nguyên để client giải mã hoặc hiển thị text placeholder.
+            var partner = partners.FirstOrDefault(p => p.ConversationId == msg.ConversationId);
+            if (partner == null) continue; // Trường hợp chat 1 mình hoặc lỗi dữ liệu
 
-            result.Add(new ContactDto
+            if (users.TryGetValue(partner.UserId, out var userInfo))
             {
-                UserId = partner.UserId,
-                Username = userInfo.Username,
-                DisplayName = userInfo.DisplayName,
-                AvatarUrl = userInfo.AvatarUrl ?? "",
-                UnreadCount = unreadCounts.ContainsKey(partner.UserId) ? unreadCounts[partner.UserId] : 0,
-                LastSentAt = msg.CreatedAt,
-                LastMessagePreview = prefix + preview
-            });
-        }
-    }
+                string prefix = msg.SenderId == currentUserId ? "Bạn: " : "";
+                string preview = msg.MessageType == 0 
+                    ? (msg.PinExchange != null ? "Tin nhắn bảo mật" : "Tin nhắn văn bản")
+                    : "Đã gửi tệp đính kèm";
 
-    return result.OrderByDescending(x => x.LastSentAt).ToList();
-}
+                // Nếu tin nhắn văn bản, cố gắng cắt ngắn nếu quá dài (Optional)
+                // Lưu ý: CipherText ở đây là mã hóa, nên cắt chuỗi mã hóa không có ý nghĩa lắm về mặt hiển thị
+                // Nhưng cứ để nguyên để client giải mã hoặc hiển thị text placeholder.
+
+                result.Add(new ContactDto
+                {
+                    UserId = partner.UserId,
+                    Username = userInfo.Username,
+                    DisplayName = userInfo.DisplayName,
+                    AvatarUrl = userInfo.AvatarUrl ?? "",
+                    UnreadCount = unreadCounts.ContainsKey(partner.UserId) ? unreadCounts[partner.UserId] : 0,
+                    LastSentAt = msg.CreatedAt,
+                    LastMessagePreview = prefix + preview
+                });
+            }
+        }
+
+        return result.OrderByDescending(x => x.LastSentAt).ToList();
+    }
         //2. Đánh dấu đã đọc
         public async Task MarkMessagesAsReadAsync(Guid recipientId, Guid senderId)
         {
