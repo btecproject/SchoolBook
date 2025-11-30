@@ -28,6 +28,7 @@ public class AppDbContext : DbContext
     public DbSet<Message> Messages { get; set; }
     public DbSet<MessageAttachment> MessageAttachments { get; set; }
     public DbSet<MessageNotification> MessageNotifications { get; set; }
+    public DbSet<ConversationKey>  ConversationKeys { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -145,7 +146,9 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<UserRsaKey>()
             .HasIndex(k => k.IsActive);
-
+        
+        modelBuilder.Entity<ConversationKey>()
+            .HasKey(k => new { k.UserId, k.ConversationId, k.KeyVersion });
         base.OnModelCreating(modelBuilder);
     }
 }

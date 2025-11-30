@@ -12,7 +12,62 @@ namespace SchoolBookPlatform.Controllers
     public class ChatController(AppDbContext db, ChatService chatService, ILogger<ChatController> logger)
         : Controller
     {
-        
+        // API: /Chat/GetConversationKey - Lấy key giải mã cuộc hội thoại
+        [HttpGet]
+        public async Task<IActionResult> GetConversationKey(Guid conversationId, int keyVersion = 1)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null) return Unauthorized();
+
+            try
+            {
+                var key = await chatService.GetConversationKeyAsync(currentUser.Id, conversationId, keyVersion);
+                
+                if (string.IsNullOrEmpty(key))
+                {
+                    return NotFound(new { message = "Key not found" });
+                }
+
+                return Ok(new { encryptedKey = key });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting conversation key");
+                return StatusCode(500, new { message = "Error getting key" });
+            }
+        }
+
+        // API: /Chat/SaveConversationKey - Lưu key (cho Self-healing)
+        [HttpPost]
+        public async Task<IActionResult> SaveConversationKey([FromBody] ConversationKeyModel model)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null) return Unauthorized();
+
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            try
+            {
+                var result = await chatService.SaveConversationKeyAsync(
+                    currentUser.Id, 
+                    model.ConversationId, 
+                    model.EncryptedKey, 
+                    model.KeyVersion
+                );
+
+                if (!result)
+                {
+                    return BadRequest(new { message = "Could not save key" });
+                }
+
+                return Ok(new { message = "Key saved successfully" });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error saving conversation key");
+                return StatusCode(500, new { message = "Error saving key" });
+            }
+        }
         [HttpGet]
         public async Task<IActionResult> GetRecentContacts()
         {

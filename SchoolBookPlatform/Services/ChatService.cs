@@ -12,6 +12,62 @@ namespace SchoolBookPlatform.Services
         ILogger<ChatService> logger,
         CloudinaryService cloudinaryService)
     {
+    // Lấy Conversation Key
+        public async Task<string?> GetConversationKeyAsync(Guid userId, Guid conversationId, int version)
+        {
+            // Kiểm tra user có trong conversation không để bảo mật
+            var isMember = await db.ConversationMembers
+                .AnyAsync(cm => cm.ConversationId == conversationId && cm.UserId == userId);
+            
+            if (!isMember) return null;
+
+            var key = await db.ConversationKeys
+                .Where(ck => ck.UserId == userId && 
+                             ck.ConversationId == conversationId && 
+                             ck.KeyVersion == version)
+                .Select(ck => ck.EncryptedKey)
+                .FirstOrDefaultAsync();
+
+            return key;
+        }
+
+        // Lưu Conversation Key
+        public async Task<bool> SaveConversationKeyAsync(Guid userId, Guid conversationId, string encryptedKey, int version)
+        {
+            // Kiểm tra user có trong conversation không
+            var isMember = await db.ConversationMembers
+                .AnyAsync(cm => cm.ConversationId == conversationId && cm.UserId == userId);
+            
+            if (!isMember) return false;
+
+            var existingKey = await db.ConversationKeys
+                .FirstOrDefaultAsync(ck => ck.UserId == userId && 
+                                           ck.ConversationId == conversationId && 
+                                           ck.KeyVersion == version);
+
+            if (existingKey != null)
+            {
+                // Update key nếu đã tồn tại
+                existingKey.EncryptedKey = encryptedKey;
+                existingKey.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                // Thêm mới
+                var newKey = new ConversationKey
+                {
+                    UserId = userId,
+                    ConversationId = conversationId,
+                    KeyVersion = version,
+                    EncryptedKey = encryptedKey,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                db.ConversationKeys.Add(newKey);
+            }
+
+            await db.SaveChangesAsync();
+            return true;
+        }    
     public async Task<List<ContactDto>> GetRecentContactsAsync(Guid currentUserId)
     {
         // 1. Lấy tất cả Conversation mà user tham gia
@@ -99,7 +155,6 @@ namespace SchoolBookPlatform.Services
                 await db.SaveChangesAsync();
             }
         }
-        
         
         // Kiểm tra user đã kích hoạt chat chưa
         public async Task<bool> IsChatActivatedAsync(Guid userId)
