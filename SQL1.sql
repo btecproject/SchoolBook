@@ -299,3 +299,20 @@ CREATE UNIQUE INDEX IX_UserRsaKeys_Active_User
 -- Index để kiểm tra key hết hạn nhanh
 CREATE INDEX IX_UserRsaKeys_ExpiresAt ON UserRsaKeys (ExpiresAt);
 CREATE INDEX IX_UserRsaKeys_IsActive ON UserRsaKeys (IsActive);
+
+
+CREATE TABLE ConversationKeys (
+                                  UserId          UNIQUEIDENTIFIER NOT NULL,
+                                  ConversationId  UNIQUEIDENTIFIER NOT NULL,
+
+                                  KeyVersion      INT NOT NULL DEFAULT 1,
+
+                                  EncryptedKey    NVARCHAR(MAX) NOT NULL,
+
+                                  UpdatedAt       DATETIME2 DEFAULT GETUTCDATE(),
+
+                                  CONSTRAINT PK_ConversationKeys PRIMARY KEY (UserId, ConversationId, KeyVersion),
+
+                                  CONSTRAINT FK_ConversationKeys_ConversationId
+                                      FOREIGN KEY (ConversationId) REFERENCES Conversations(Id) ON DELETE CASCADE
+);

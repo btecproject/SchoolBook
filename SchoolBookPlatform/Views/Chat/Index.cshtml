@@ -176,7 +176,98 @@ ViewData["Title"] = "Chat";
         </div>
     </div>
 </div>
+@section Styles
+{
+    <style>
+    .vh-100 {
+    height: 100vh;
+    }
 
+    .cursor-pointer {
+    cursor: pointer;
+    }
+
+    .hover-bg:hover {
+    background-color: #f8f9fa;
+    }
+
+    .avatar-circle {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+    }
+
+    .user-item {
+    transition: all 0.2s ease;
+    }
+
+    .user-item:hover {
+    transform: translateX(5px);
+    }
+
+    .bg-chat {
+    background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+    }
+
+    .message {
+    display: flex;
+    }
+
+    .message-mine {
+    justify-content: flex-end;
+    }
+
+    .message-theirs {
+    justify-content: flex-start;
+    }
+
+    .message-bubble {
+    max-width: 70%;
+    padding: 10px 15px;
+    border-radius: 15px;
+    word-wrap: break-word;
+    }
+
+    .message-mine .message-bubble {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-bottom-right-radius: 5px;
+    }
+
+    .message-theirs .message-bubble {
+    background-color: #e9ecef;
+    color: #333;
+    border-bottom-left-radius: 5px;
+    }
+
+    .message-time {
+    font-size: 0.7rem;
+    margin-top: 5px;
+    opacity: 0.8;
+    }
+
+    #messagesArea {
+    background-image:
+    repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.02),
+    rgba(0, 0, 0, 0.02) 1px,
+    transparent 1px,
+    transparent 40px
+    );
+    }
+
+    .border-end {
+    border-right: 2px solid #dee2e6 !important;
+    }
+</style>
+}
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>
@@ -298,31 +389,87 @@ ViewData["Title"] = "Chat";
         }
     }
 
+    // async function decryptAndCachePinExchange(encryptedPin, senderId) {
+    //     try {
+    //         console.log('🔍 decryptAndCachePinExchange called for senderId:', senderId);
+    //         console.log('🔍 currentUserId:', currentUserId);
+    //
+    //         if (senderId === currentUserId) {
+    //             console.log('⚠️ Skipping own PIN - cannot decrypt with own private key');
+    //             return null;
+    //         }
+    //
+    //         const myPrivateKeyEnc = await getMyPrivateKey();
+    //         if (!myPrivateKeyEnc) {
+    //             console.error('Private key not found');
+    //             return null;
+    //         }
+    //
+    //         const myPinLocal = getMyPin();
+    //         if (!myPinLocal) return null;
+    //
+    //         const myPrivateKeyDecrypted = CryptoJS.AES.decrypt(myPrivateKeyEnc, myPinLocal)
+    //             .toString(CryptoJS.enc.Utf8);
+    //
+    //         if (!myPrivateKeyDecrypted) {
+    //             console.error('Failed to decrypt private key - wrong PIN?');
+    //             return null;
+    //         }
+    //
+    //         const decrypt = new JSEncrypt();
+    //         decrypt.setPrivateKey(myPrivateKeyDecrypted);
+    //         const senderPin = decrypt.decrypt(encryptedPin);
+    //
+    //         if (!senderPin) {
+    //             console.error('Failed to decrypt sender PIN - key mismatch or malformed data');
+    //             return null;
+    //         }
+    //
+    //         recipientPinsCache.set(senderId, senderPin);
+    //         console.log('✅ Cached PIN for sender:', senderId);
+    //         return senderPin;
+    //     } catch (error) {
+    //         console.error('❌ Error decrypting PIN exchange:', error);
+    //         return null;
+    //     }
+    // }
+    // [SỬA LỖI] Hàm giải mã an toàn hơn
     async function decryptAndCachePinExchange(encryptedPin, senderId) {
+        // Khai báo biến bên ngoài để dùng được trong cả try và catch
+        let decryptedBytes = null;
+
         try {
             console.log('🔍 decryptAndCachePinExchange called for senderId:', senderId);
-            console.log('🔍 currentUserId:', currentUserId);
 
-            if (senderId === currentUserId) {
-                console.log('⚠️ Skipping own PIN - cannot decrypt with own private key');
-                return null;
-            }
+            if (senderId === currentUserId) return null;
 
             const myPrivateKeyEnc = await getMyPrivateKey();
             if (!myPrivateKeyEnc) {
-                console.error('Private key not found');
+                console.error("❌ Không lấy được Private Key đã mã hóa");
                 return null;
             }
 
             const myPinLocal = getMyPin();
-            if (!myPinLocal) return null;
+            if (!myPinLocal) {
+                console.error("❌ Không tìm thấy PIN local");
+                return null;
+            }
 
-            const myPrivateKeyDecrypted = CryptoJS.AES.decrypt(myPrivateKeyEnc, myPinLocal)
-                .toString(CryptoJS.enc.Utf8);
+            // 1. Giải mã ra dạng WordArray (bytes)
+            // Nếu PIN sai, bước này chưa lỗi ngay mà sẽ trả về bytes rác
+            decryptedBytes = CryptoJS.AES.decrypt(myPrivateKeyEnc, myPinLocal);
+
+            // 2. Thử convert sang chuỗi UTF-8
+            let myPrivateKeyDecrypted;
+            try {
+                // Bước này sẽ throw lỗi nếu bytes là rác (do sai PIN/Key cũ)
+                myPrivateKeyDecrypted = decryptedBytes.toString(CryptoJS.enc.Utf8);
+            } catch (e) {
+                throw new Error("UTF8_PARSE_ERROR"); // Ném lỗi để catch bên dưới bắt được
+            }
 
             if (!myPrivateKeyDecrypted) {
-                console.error('Failed to decrypt private key - wrong PIN?');
-                return null;
+                throw new Error("EMPTY_KEY_AFTER_DECRYPT");
             }
 
             const decrypt = new JSEncrypt();
@@ -330,19 +477,32 @@ ViewData["Title"] = "Chat";
             const senderPin = decrypt.decrypt(encryptedPin);
 
             if (!senderPin) {
-                console.error('Failed to decrypt sender PIN - key mismatch or malformed data');
+                console.error('Failed to decrypt sender PIN - key mismatch');
                 return null;
             }
 
             recipientPinsCache.set(senderId, senderPin);
             console.log('✅ Cached PIN for sender:', senderId);
             return senderPin;
+
         } catch (error) {
-            console.error('❌ Error decrypting PIN exchange:', error);
+            console.error("❌ Lỗi trong quá trình giải mã:", error);
+
+            // Kiểm tra xem lỗi có phải do sai PIN/Key không để redirect
+            // Nếu lỗi là UTF8_PARSE_ERROR hoặc decryptedBytes tồn tại nhưng không convert được
+            if (error.message === "UTF8_PARSE_ERROR" || (decryptedBytes && decryptedBytes.sigBytes > 0)) {
+                console.error("❌ MÃ PIN KHÔNG KHỚP VỚI PRIVATE KEY");
+
+                // Tắt modal trước khi hiện alert để tránh bị treo overlay
+                hideLoading();
+
+                alert("⚠️ Cảnh báo bảo mật:\nMã PIN hiện tại không khớp với Khóa bảo mật.\nHệ thống sẽ chuyển bạn đến trang thiết lập lại khóa.");
+                window.location.href = '@Url.Action("SetupKeys", "Chat")';
+            }
+
             return null;
         }
     }
-
     async function findAndDecryptPinExchange(messages) {
         console.log('=== 🔍 findAndDecryptPinExchange DEBUG ===');
         console.log('Current User ID:', currentUserId);
@@ -399,9 +559,37 @@ ViewData["Title"] = "Chat";
         new bootstrap.Modal(document.getElementById('loadingModal')).show();
     }
 
+    // function hideLoading() {
+    //     const modal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+    //     if (modal) modal.hide();
+    // }
     function hideLoading() {
-        const modal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
-        if (modal) modal.hide();
+        const modalEl = document.getElementById('loadingModal');
+
+        // 1. Thử tắt theo cách chuẩn của Bootstrap
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+
+        // 2. FORCE: Xóa thủ công các class và element gây kẹt
+        setTimeout(() => {
+            // Xóa class modal-open ở body (nguyên nhân chính khiến không scroll được)
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('padding-right');
+            document.body.style.removeProperty('overflow');
+
+            // Ẩn modal bằng CSS
+            modalEl.classList.remove('show');
+            modalEl.style.display = 'none';
+            modalEl.setAttribute('aria-hidden', 'true');
+            modalEl.removeAttribute('aria-modal');
+            modalEl.removeAttribute('role');
+
+            // Xóa tất cả các backdrop còn sót lại trong DOM
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+        }, 300); // Đợi một chút cho animation
     }
 
     function getToken() {
@@ -920,3 +1108,4 @@ ViewData["Title"] = "Chat";
     });
 </script>
 }
+
