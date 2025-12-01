@@ -109,7 +109,7 @@ namespace SchoolBookPlatform.Services
                     Success = true,
                     Url = uploadResult.SecureUrl.ToString(),
                     PublicId = uploadResult.PublicId,
-                    ResourceType = resourceType.ToString(),
+                    ResourceType = resourceType.ToString().ToLower(),
                     Format = uploadResult.Format,
                     FileName = file.FileName,
                     FileSize = file.Length,

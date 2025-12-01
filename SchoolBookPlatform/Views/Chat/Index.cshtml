@@ -968,55 +968,86 @@ ViewData["Title"] = "Chat";
     //     scrollToBottom(true);
     // }
     async function appendSingleMessageToUI(msg) {
+        console.log("🔨 appendSingleMessageToUI called:", {
+            messageId: msg.messageId,
+            messageType: msg.messageType,
+            hasAttachment: !!msg.attachment,
+            attachment: msg.attachment
+        }); // Debug log
+
         let content = msg.cipherText;
         let isFile = msg.messageType !== 0;
 
-        if (!msg.pinExchange) {
-            try {
-                let pinToUse = msg.senderId === currentUserId ? getMyPin() : recipientPinsCache.get(msg.senderId.toLowerCase());
-
-                if (pinToUse) {
-                    if (isFile) {
-                        const decryptedUrl = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
-
-                        if (!decryptedUrl) {
-                            content = '[Lỗi giải mã file]';
-                        } else if (msg.attachment) {
-                            // Có attachment data - render ngay
-                            content = renderFileAttachment(decryptedUrl, msg.attachment, msg.messageType);
-                        } else {
-                            // Không có attachment - tạo placeholder
-                            content = createFileAttachmentPlaceholder(decryptedUrl, msg.messageType);
-                        }
-                    } else {
-                        // Text message
-                        content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
-                        if (!content) content = '[Lỗi giải mã]';
-                    }
-                } else {
-                    content = '[Đang tải khóa...]';
-                    findKeyViaRSA([msg], msg.senderId).then(k => {
-                        if(k) loadMessagesAndReturn(currentConversationId).then(displayMessages);
-                    });
-                }
-            } catch (e) {
-                console.error('Decrypt error:', e);
-                content = '[Lỗi giải mã]';
-            }
-        } else {
-            content = '[Hệ thống: Đã cập nhật khóa]';
+        // Nếu là PIN Exchange, bỏ qua
+        if (msg.pinExchange) {
+            console.log("⏭️ Skipping PIN Exchange message");
+            return;
         }
 
+        try {
+            let pinToUse = msg.senderId === currentUserId
+                ? getMyPin()
+                : recipientPinsCache.get(msg.senderId.toLowerCase());
+
+            console.log("🔑 PIN available:", !!pinToUse); // Debug log
+
+            if (pinToUse) {
+                if (isFile) {
+                    // FILE MESSAGE
+                    console.log("📎 Processing file message"); // Debug log
+
+                    const decryptedUrl = CryptoJS.AES.decrypt(msg.cipherText, pinToUse)
+                        .toString(CryptoJS.enc.Utf8);
+
+                    console.log("🔓 Decrypted URL length:", decryptedUrl.length); // Debug log
+
+                    if (!decryptedUrl) {
+                        content = '[Lỗi giải mã file]';
+                    } else if (msg.attachment) {
+                        // CÓ ATTACHMENT DATA - Render ngay
+                        console.log("✅ Rendering with attachment data"); // Debug log
+                        content = renderFileAttachment(decryptedUrl, msg.attachment, msg.messageType);
+                    } else {
+                        // KHÔNG CÓ ATTACHMENT - Tạo placeholder
+                        console.log("⚠️ No attachment data, using placeholder"); // Debug log
+                        content = createFileAttachmentPlaceholder(decryptedUrl, msg.messageType);
+                    }
+                } else {
+                    // TEXT MESSAGE
+                    content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse)
+                        .toString(CryptoJS.enc.Utf8);
+                    if (!content) content = '[Lỗi giải mã]';
+                }
+            } else {
+                content = '[Đang tải khóa...]';
+                // Tìm key và reload
+                findKeyViaRSA([msg], msg.senderId).then(k => {
+                    if(k) {
+                        loadMessagesAndReturn(currentConversationId).then(displayMessages);
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('❌ Decrypt error:', e);
+            content = '[Lỗi giải mã]';
+        }
+
+        // Render message
         const area = document.getElementById('messagesArea');
         const div = document.createElement('div');
         div.className = `message ${msg.senderId === currentUserId ? 'message-mine' : 'message-theirs'}`;
         div.innerHTML = `
         <div class="message-bubble">${content}</div>
-        <div class="message-time">${new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
+        <div class="message-time">${new Date(msg.createdAt || new Date()).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
     `;
         area.appendChild(div);
 
+        console.log("✅ Message appended to UI"); // Debug log
+
+        // Remove typing indicator
         hideTypingIndicator();
+
+        // Scroll to bottom
         scrollToBottom(true);
     }
     // ===== SIGNALR EVENTS =====
@@ -1024,11 +1055,26 @@ ViewData["Title"] = "Chat";
         connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").withAutomaticReconnect().build();
 
         connection.on("ReceiveMessage", async (msg) => {
-            if (msg.senderId !== currentUserId) await loadRecentContacts();
+            console.log("📨 ReceiveMessage event:", msg); // Debug log
 
+            // Update contact list nếu tin nhắn không phải của mình
+            if (msg.senderId !== currentUserId) {
+                await loadRecentContacts();
+            }
+
+            // Chỉ xử lý nếu đang ở đúng conversation
             if (msg.conversationId === currentConversationId) {
+                console.log("✅ Message for current conversation"); // Debug log
+
+                // Mark as read nếu là tin nhắn của người khác
+                if (msg.senderId !== currentUserId) {
+                    await markAsRead(msg.senderId);
+                }
+
+                // Append message to UI
                 await appendSingleMessageToUI(msg);
-                markAsRead(msg.senderId);
+            } else {
+                console.log("⏭️ Message for different conversation"); // Debug log
             }
         });
         connection.on("UpdateContactList", async () => {
@@ -1131,6 +1177,18 @@ ViewData["Title"] = "Chat";
         document.getElementById('fileInput').value = '';
         document.getElementById('filePreview').classList.add('d-none');
     });
+
+    //Enter để gửi
+    document.getElementById('messageInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            
+            const text = this.value.trim();
+            if (text || selectedFile) {
+                document.getElementById('sendBtn').click();
+            }
+        }
+    });
     // ===== File Upload + review =====
     function displayFilePreview(file) {
         const preview = document.getElementById('filePreview');
@@ -1172,7 +1230,10 @@ ViewData["Title"] = "Chat";
     }
 
     async function handleFileUpload(file) {
-        if (!currentConversationId || !connection) return;
+        if (!currentConversationId || !connection) {
+            console.error("❌ No conversation or connection");
+            return;
+        }
 
         const pin = getMyPin();
         if (!pin) {
@@ -1181,12 +1242,13 @@ ViewData["Title"] = "Chat";
         }
 
         try {
-            // Show upload progress
+            console.log("📤 Starting file upload..."); // Debug log
+
             const progressBar = document.querySelector('#uploadProgress .progress-bar');
             document.getElementById('uploadProgress').style.display = 'block';
             progressBar.style.width = '0%';
 
-            // 1. Upload file lên server
+            // 1. Upload file
             const formData = new FormData();
             formData.append('file', file);
             formData.append('conversationId', currentConversationId);
@@ -1211,12 +1273,14 @@ ViewData["Title"] = "Chat";
             }
 
             const uploadResult = await uploadResponse.json();
+            console.log("✅ Upload result:", uploadResult); // Debug log
+
             progressBar.style.width = '80%';
 
-            // 2. Mã hóa URL của file
+            // 2. Mã hóa URL
             const encryptedUrl = CryptoJS.AES.encrypt(uploadResult.url, pin).toString();
 
-            // 3. Cập nhật message với URL đã mã hóa
+            // 3. Update message
             const updateResponse = await fetch('@Url.Action("UpdateMessageWithFile", "Chat")', {
                 method: 'POST',
                 headers: {
@@ -1237,20 +1301,38 @@ ViewData["Title"] = "Chat";
 
             progressBar.style.width = '100%';
 
-            // 4. Gửi thông báo qua SignalR với đầy đủ attachment data
-            await connection.invoke("SendFileMessage", {
+            // 4. ✅ FIX: Xác định messageType ĐÚNG dựa trên resourceType từ server
+            let messageType = 3; // Default: File
+
+            const resourceType = (uploadResult.resourceType || '').toLowerCase();
+            console.log("🔍 Resource type from server:", resourceType); // Debug
+
+            if (resourceType === 'image') {
+                messageType = 1; // Image
+            } else if (resourceType === 'video') {
+                messageType = 2; // Video
+            }
+
+            console.log("✅ Final messageType:", messageType); // Debug
+
+            const signalRData = {
                 conversationId: currentConversationId,
                 messageId: uploadResult.messageId,
                 cipherText: encryptedUrl,
-                messageType: uploadResult.resourceType === 'image' ? 1 :
-                    uploadResult.resourceType === 'video' ? 2 : 3,
+                messageType: messageType,
                 attachment: {
                     url: uploadResult.url,
                     fileName: uploadResult.fileName,
                     resourceType: uploadResult.resourceType,
                     format: uploadResult.format
                 }
-            });
+            };
+
+            console.log("📡 Sending via SignalR:", signalRData); // Debug log
+
+            await connection.invoke("SendFileMessage", signalRData);
+
+            console.log("✅ File message sent successfully"); // Debug log
 
             // Reset UI
             selectedFile = null;
@@ -1262,13 +1344,14 @@ ViewData["Title"] = "Chat";
             }, 500);
 
         } catch (error) {
-            console.error('File upload error:', error);
+            console.error('❌ File upload error:', error);
             alert('Lỗi khi upload file: ' + error.message);
             document.getElementById('uploadProgress').style.display = 'none';
         }
-    }
+}
     function createFileAttachmentPlaceholder(url, messageType) {
-        // Tạo placeholder đơn giản dựa vào messageType
+        console.log("🖼️ Creating placeholder for type:", messageType); // Debug log
+
         if (messageType === 1) {
             // Image
             return `
@@ -1276,7 +1359,7 @@ ViewData["Title"] = "Chat";
                 <img src="${url}" alt="Image" 
                      style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer;"
                      onclick="window.open('${url}', '_blank')"
-                     onerror="this.onerror=null; this.alt='[Lỗi tải ảnh]';"/>
+                     onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='[Lỗi tải ảnh]';"/>
             </div>
         `;
         } else if (messageType === 2) {
@@ -1293,7 +1376,7 @@ ViewData["Title"] = "Chat";
             // Other file
             return `
             <div class="file-attachment">
-                <a href="${url}" target="_blank" class="text-decoration-none text-white d-flex align-items-center">
+                <a href="${url}" target="_blank" class="text-decoration-none ${msg.senderId === currentUserId ? 'text-white' : 'text-dark'} d-flex align-items-center">
                     <i class="bi bi-file-earmark fs-4 me-2"></i>
                     <div>
                         <div class="fw-semibold">File đính kèm</div>
@@ -1304,8 +1387,14 @@ ViewData["Title"] = "Chat";
         `;
         }
 }
-    
+
     function renderFileAttachment(url, attachment, messageType) {
+        console.log("🎨 Rendering file attachment:", {
+            url: url.substring(0, 50) + '...',
+            fileName: attachment.fileName,
+            messageType: messageType
+        }); // Debug log
+
         const fileName = attachment.fileName || 'File';
 
         // Image
@@ -1314,7 +1403,8 @@ ViewData["Title"] = "Chat";
             <div class="file-attachment">
                 <img src="${url}" alt="${fileName}" 
                      style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer;"
-                     onclick="window.open('${url}', '_blank')"/>
+                     onclick="window.open('${url}', '_blank')"
+                     onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='[Lỗi tải ảnh]';"/>
                 <div class="small mt-1 opacity-75">${fileName}</div>
             </div>
         `;
@@ -1325,7 +1415,7 @@ ViewData["Title"] = "Chat";
             return `
             <div class="file-attachment">
                 <video controls style="max-width: 300px; border-radius: 8px;">
-                    <source src="${url}" type="video/${attachment.format}">
+                    <source src="${url}" type="video/${attachment.format || 'mp4'}">
                     Your browser does not support the video tag.
                 </video>
                 <div class="small mt-1 opacity-75">${fileName}</div>
@@ -1337,14 +1427,19 @@ ViewData["Title"] = "Chat";
         const ext = attachment.format || 'file';
         let iconClass = 'bi-file-earmark';
 
-        if (['pdf'].includes(ext)) iconClass = 'bi-file-earmark-pdf';
-        else if (['doc', 'docx'].includes(ext)) iconClass = 'bi-file-earmark-word';
-        else if (['xls', 'xlsx'].includes(ext)) iconClass = 'bi-file-earmark-excel';
-        else if (['zip', 'rar'].includes(ext)) iconClass = 'bi-file-earmark-zip';
+        if (['pdf'].includes(ext.toLowerCase())) {
+            iconClass = 'bi-file-earmark-pdf';
+        } else if (['doc', 'docx'].includes(ext.toLowerCase())) {
+            iconClass = 'bi-file-earmark-word';
+        } else if (['xls', 'xlsx'].includes(ext.toLowerCase())) {
+            iconClass = 'bi-file-earmark-excel';
+        } else if (['zip', 'rar'].includes(ext.toLowerCase())) {
+            iconClass = 'bi-file-earmark-zip';
+        }
 
         return `
         <div class="file-attachment">
-            <a href="${url}" target="_blank" class="text-decoration-none text-white d-flex align-items-center">
+            <a href="${url}" target="_blank" class="text-decoration-none text-inherit d-flex align-items-center p-2 rounded" style="background: rgba(0,0,0,0.05);">
                 <i class="bi ${iconClass} fs-4 me-2"></i>
                 <div>
                     <div class="fw-semibold">${fileName}</div>
