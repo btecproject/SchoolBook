@@ -23,4 +23,5 @@ public class ProfileViewModel
     public bool IsFollowing { get; set; }
     public bool IsOwner { get; set; }
     public bool CanEdit { get; set; }
+    
 }

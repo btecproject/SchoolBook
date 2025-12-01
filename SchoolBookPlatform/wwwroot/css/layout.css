@@ -58,7 +58,14 @@
     box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
 }
 
-/* Giúp main không bị footer che mất */
-main {
-    padding-bottom: 80px;
+.sidebar {
+    position: fixed;
+    top: 70px; /* dưới navbar */
+    left: 0;
+    height: calc(100vh - 70px);
+    overflow-y: auto;
+}
+.container {
+    padding-top: 70px;
+    padding-left: 110px; /* tránh che nội dung */
 }

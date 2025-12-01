@@ -661,5 +661,59 @@ public class PostService
         }
     }
     
+    /// <summary>
+    /// Lấy danh sách bài đăng từ những người đã follow (có phân trang)
+    /// </summary>
+    /// <param name="userId">ID của user</param>
+    /// <param name="page">Số trang (bắt đầu từ 1)</param>
+    /// <param name="pageSize">Số bài đăng mỗi trang</param>
+    /// <returns>Danh sách bài đăng</returns>
+    public async Task<List<Post>> GetFollowingPostsAsync(Guid userId, int page = 1, int pageSize = 20)
+    {
+        // 1. Lấy danh sách người đang follow
+        var followingIds = await _db.Following
+            .Where(f => f.UserId == userId)
+            .Select(f => f.FollowingId)
+            .ToListAsync();
+
+        // Nếu không follow ai, trả về danh sách rỗng
+        if (!followingIds.Any())
+        {
+            return new List<Post>();
+        }
+
+        var userRoles = await _db.GetUserRolesAsync(userId);
+        var isAdmin = userRoles.Contains("HighAdmin") || 
+                      userRoles.Contains("Admin") || 
+                      userRoles.Contains("Moderator");
+
+        // Query lấy bài đăng từ những người đã follow
+        var query = _db.Posts
+            .Where(p => followingIds.Contains(p.UserId));
+
+        // Áp dụng filter quyền xem (tương tự GetVisiblePostsAsync)
+        if (!isAdmin)
+        {
+            query = query.Where(p => 
+                p.IsVisible && 
+                !p.IsDeleted && 
+                (p.UserId == userId || // Bài của mình (nếu có trong following)
+                 p.VisibleToRoles == null || 
+                 p.VisibleToRoles == "All" || 
+                 userRoles.Contains(p.VisibleToRoles))
+            );
+        }
+
+        return await query
+            .Include(p => p.User)
+            .ThenInclude(u => u.UserProfile)
+            .Include(p => p.Votes)
+            .Include(p => p.Comments)
+            .Include(p => p.Attachments)
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+    }
 }
 

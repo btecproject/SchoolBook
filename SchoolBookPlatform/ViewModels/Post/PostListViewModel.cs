@@ -19,6 +19,10 @@ public class PostListViewModel
     /// Số bài đăng mỗi trang
     /// </summary>
     public int PageSize { get; set; }
+    
+    public string ViewType { get; set; } = "all"; 
+    // Property để hiển thị thông báo khi không có bài đăng
+    public bool IsEmptyFollowing => ViewType == "following" && !Posts.Any();
 }
 
 

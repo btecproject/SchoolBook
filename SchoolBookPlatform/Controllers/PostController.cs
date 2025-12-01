@@ -500,5 +500,56 @@ public class PostController(
         TempData["SuccessMessage"] = "Đã xóa bài đăng thành công!";
         return RedirectToAction(nameof(Index));
     }
+    /// <summary>
+    /// GET: Post/Following
+    /// Hiển thị danh sách bài đăng từ những người đã follow
+    /// </summary>
+    /// <param name="page">Số trang (bắt đầu từ 1)</param>
+    /// <param name="pageSize">Số bài đăng mỗi trang</param>
+    /// <returns>View danh sách bài đăng</returns>
+    public async Task<IActionResult> Following(int page = 1, int pageSize = 20)
+    {
+        var userId = GetCurrentUserId();
+    
+        // Gọi service để lấy bài đăng từ những người đã follow
+        var posts = await postService.GetFollowingPostsAsync(userId, page, pageSize);
+
+        ViewBag.ViewType = "following"; // Thêm dòng này
+        
+        var viewModel = new PostListViewModel
+        {
+            Posts = posts.Select(p => new PostViewModel
+            {
+                Id = p.Id,
+                Title = p.Title,
+                Content = p.Content,
+                AuthorName = p.User.Username,
+                AuthorAvatar = p.User.UserProfile?.AvatarUrl,
+                CreatedAt = p.CreatedAt,
+                UpdatedAt = p.UpdatedAt,
+                UpvoteCount = p.Votes.Count(v => v.VoteType),
+                DownvoteCount = p.Votes.Count(v => !v.VoteType),
+                CommentCount = p.Comments.Count,
+                IsDeleted = p.IsDeleted,
+                IsVisible = p.IsVisible,
+                VisibleToRoles = p.VisibleToRoles,
+                IsOwner = p.UserId == userId,
+                CanDelete = p.UserId == userId,
+                Attachments = p.Attachments.Select(a => new AttachmentViewModel
+                {
+                    Id = a.Id,
+                    FileName = a.FileName,
+                    FilePath = a.FilePath,
+                    FileSize = a.FileSize,
+                    UploadedAt = a.UploadedAt
+                }).ToList()
+            }).ToList(),
+            CurrentPage = page,
+            PageSize = pageSize,
+            ViewType = "following" // Thêm property để phân biệt view
+        };
+
+        return View("Index", viewModel); // Có thể tái sử dụng view Index
+    }
 }
 

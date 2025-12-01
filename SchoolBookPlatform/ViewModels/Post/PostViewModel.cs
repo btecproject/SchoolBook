@@ -33,6 +33,7 @@ public class PostViewModel
     /// Danh sách file đính kèm của bài đăng
     /// </summary>
     public List<AttachmentViewModel> Attachments { get; set; } = new();
+    
 }
 
 
