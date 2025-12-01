@@ -30,9 +30,12 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Views\Chat\css\" />
-      <Folder Include="Views\Chat\js\" />
       <Folder Include="wwwroot\images\avatars\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="Views\Chat\PartialScript\_ChatLogicScript.cshtml" />
+      <_ContentIncludedByDefault Remove="Views\Chat\PartialScript\_ChatUIScript.cshtml" />
     </ItemGroup>
 
 </Project>
