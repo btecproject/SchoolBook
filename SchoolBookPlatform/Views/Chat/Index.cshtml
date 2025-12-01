@@ -546,7 +546,7 @@ ViewData["Title"] = "Chat";
             // 1. Xử lý ảnh null hoặc rỗng
             const avatarSrc = user.avatarUrl && user.avatarUrl.trim() !== ''
                 ? user.avatarUrl
-                : '~/images/avatars/default.png';
+                : '/images/avatars/default.png';
 
             return `
         <div class="user-item d-flex align-items-center mb-2 p-2 rounded cursor-pointer hover-bg" 
@@ -855,11 +855,13 @@ ViewData["Title"] = "Chat";
                 markAsRead(msg.senderId);
             }
         });
-
+        connection.on("UpdateContactList", async () => {
+            console.log("Received UpdateContactList signal");
+            await loadRecentContacts();
+        });
         connection.on("ReceivePinExchange", async (data) => {
             if (data.senderId === currentUserId) return;
             const senderPin = await decryptAndCachePinExchange(data.encryptedPin, data.senderId);
-
             if (senderPin) {
                 const key = `hs_${data.conversationId}_${data.senderId}`;
                 if (!sessionStorage.getItem(key)) {
@@ -912,7 +914,24 @@ ViewData["Title"] = "Chat";
         });
 
         input.value = '';
-        await loadRecentContacts();
+
+        const searchInput = document.getElementById('searchUserInput');
+        if (searchInput.value.trim() !== "") {
+            searchInput.value = ''; 
+            document.getElementById('clearSearch').style.display = 'none';
+
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('conversationList').style.display = 'block';
+            await loadRecentContacts();
+
+            //autoclick
+            const contactElementId = `contact-${currentRecipientId}`;
+            const contactElement = document.getElementById(contactElementId);
+            if (contactElement) {
+                contactElement.click();
+                contactElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
     });
 
     // ===== INIT =====

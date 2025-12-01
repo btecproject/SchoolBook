@@ -181,7 +181,18 @@ namespace SchoolBookPlatform.Hubs
                     createdAt = DateTime.UtcNow,
                     pinExchange = request.PinExchange
                 });
+                
+                //Fix: bắt buộc thành viên chat khác phải updateContactList (trường hợp A nhắn B, B chưa ở đoạn chat bao giờ)
+                var otherMembers = await _db.ConversationMembers
+                    .Where(cm => cm.ConversationId == convId && cm.UserId != user.Id)
+                    .Select(cm => cm.UserId.ToString())
+                    .ToListAsync();
 
+                foreach (var memberId in otherMembers)
+                {
+                    await Clients.User(memberId).SendAsync("UpdateContactList");
+                }
+                
                 _logger.LogInformation("Message {MsgId} sent by user {UserId} in conversation {ConvId}", 
                     result.Data, user.Id, convId);
             }
@@ -239,7 +250,8 @@ namespace SchoolBookPlatform.Hubs
                     encryptedPin = request.EncryptedPin,
                     createdAt = DateTime.UtcNow
                 });
-
+                //Fix: bắt buộc thành viên chat khác phải updateContactList (trường hợp A nhắn B, B chưa ở đoạn chat bao giờ)
+                await Clients.User(request.RecipientId).SendAsync("UpdateContactList");
                 _logger.LogInformation("PIN exchange sent by user {UserId} in conversation {ConvId}", 
                     user.Id, convId);
             }

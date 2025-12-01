@@ -81,6 +81,7 @@ namespace SchoolBookPlatform.Services
         // 2. Lấy tin nhắn cuối cùng (Dùng EF Core Window Function hoặc GroupBy tối ưu)
         var lastMessages = await db.Messages
             .Where(m => conversationIds.Contains(m.ConversationId))
+            .Where(m => m.CipherText != "[PIN Exchange]")
             .GroupBy(m => m.ConversationId)
             .Select(g => g.OrderByDescending(m => m.CreatedAt).FirstOrDefault())
             .ToListAsync();
