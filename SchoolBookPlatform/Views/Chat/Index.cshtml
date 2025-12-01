@@ -131,9 +131,9 @@ ViewData["Title"] = "Chat";
                             <input type="file" id="fileInput" class="d-none"
                                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" />
 
-                            <input type="text" id="messageInput"
+                            <textarea type="text" id="messageInput"
                                    class="form-control rounded-pill border-0 bg-light px-4 py-2"
-                                   placeholder="Aa" autocomplete="off" disabled />
+                                   placeholder="Aa" autocomplete="off" disabled></textarea>
 
                             <button type="submit" class="btn btn-primary rounded-circle p-2" id="sendBtn" disabled>
                                 <i class="bi bi-send-fill"></i>
@@ -779,56 +779,6 @@ ViewData["Title"] = "Chat";
             return resp.ok ? await resp.json() : [];
         } catch { return []; }
     }
-
-    // function displayMessages(messages) {
-    //     const area = document.getElementById('messagesArea');
-    //     area.innerHTML = '';
-    //
-    //     // 1. LỌC TIN NHẮN: Loại bỏ các tin nhắn là Pin Exchange
-    //     const visibleMessages = messages.filter(msg => !msg.pinExchange);
-    //
-    //     // 2. Kiểm tra lại độ dài sau khi lọc
-    //     if (!visibleMessages.length) {
-    //         area.innerHTML = '<div class="text-center py-4 text-muted"><p>Chưa có tin nhắn</p></div>';
-    //         return;
-    //     }
-    //
-    //     const myPinLocal = getMyPin();
-    //
-    //     // 3. Render trên danh sách đã lọc (visibleMessages)
-    //     const html = visibleMessages.map(msg => {
-    //         // Không cần kiểm tra msg.pinExchange ở đây nữa vì đã lọc ở trên rồi
-    //
-    //         let content = msg.cipherText;
-    //
-    //         try {
-    //             let pinToUse = msg.isMine ? myPinLocal : recipientPinsCache.get(msg.senderId.toLowerCase());
-    //
-    //             if (pinToUse) {
-    //                 // Giải mã tin nhắn văn bản
-    //                 content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
-    //                 if (!content) content = '[Lỗi giải mã]';
-    //             } else {
-    //                 content = '[Đang tải khóa...]';
-    //                 // Nếu chưa có khóa, bạn có thể kích hoạt logic tìm khóa ở đây nếu muốn
-    //             }
-    //         } catch {
-    //             content = '[Lỗi dữ liệu]';
-    //         }
-    //
-    //         const bubbleClass = msg.isMine ? 'message-mine' : 'message-theirs';
-    //         const time = new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    //
-    //         return `
-    //         <div class="message ${bubbleClass}">
-    //             <div class="message-bubble">${content}</div>
-    //             <div class="message-time">${time}</div>
-    //         </div>
-    //     `;
-    //     }).join('');
-    //
-    //     area.innerHTML = html;
-    // }
     
     function displayMessages(messages) {
         const area = document.getElementById('messagesArea');
@@ -1168,6 +1118,8 @@ ViewData["Title"] = "Chat";
     });
     document.getElementById('fileInput').addEventListener('change', function(e) {
         selectedFile = e.target.files[0];
+        document.getElementById('messageInput').focus();
+
         if (selectedFile) {
             document.getElementById("filePreview").hidden = false;
             displayFilePreview(selectedFile);
@@ -1182,11 +1134,19 @@ ViewData["Title"] = "Chat";
         document.getElementById('filePreview').classList.add('d-none');
     });
 
-    //Enter để gửi
-    document.getElementById('messageInput').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
+    //Auto-resize textarea
+    const messageInput = document.getElementById('messageInput');
+    messageInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+
+    //Enter để gửi (cả text và file), Shift+Enter để xuống dòng
+    messageInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            document.getElementById('sendBtn').click();
+            e.stopPropagation();
+            document.getElementById('messageForm').dispatchEvent(new Event('submit'));
         }
     });
     // ===== File Upload + review =====
