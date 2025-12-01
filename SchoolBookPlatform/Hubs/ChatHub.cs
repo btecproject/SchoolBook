@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.DTOs;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Services;
 
@@ -38,10 +39,11 @@ namespace SchoolBookPlatform.Hubs
                     {
                         _userConnections[user.Id] = new HashSet<string>();
                     }
+
                     _userConnections[user.Id].Add(Context.ConnectionId);
                 }
 
-                _logger.LogInformation("User {UserId} connected with ConnectionId {ConnectionId}", 
+                _logger.LogInformation("User {UserId} connected with ConnectionId {ConnectionId}",
                     user.Id, Context.ConnectionId);
 
                 // Notify user's contacts that they are online
@@ -62,7 +64,7 @@ namespace SchoolBookPlatform.Hubs
                     if (_userConnections.ContainsKey(user.Id))
                     {
                         _userConnections[user.Id].Remove(Context.ConnectionId);
-                        
+
                         // Nếu user không còn connection nào thì xóa khỏi dictionary
                         if (_userConnections[user.Id].Count == 0)
                         {
@@ -71,7 +73,7 @@ namespace SchoolBookPlatform.Hubs
                     }
                 }
 
-                _logger.LogInformation("User {UserId} disconnected with ConnectionId {ConnectionId}", 
+                _logger.LogInformation("User {UserId} disconnected with ConnectionId {ConnectionId}",
                     user.Id, Context.ConnectionId);
 
                 // Check if user is completely offline
@@ -108,7 +110,7 @@ namespace SchoolBookPlatform.Hubs
 
             // Join vào group (room) của conversation
             await Groups.AddToGroupAsync(Context.ConnectionId, conversationId);
-            
+
             _logger.LogInformation("User {UserId} joined conversation {ConvId}", user.Id, convId);
 
             // Notify others in the conversation
@@ -126,7 +128,7 @@ namespace SchoolBookPlatform.Hubs
             if (user == null) return;
 
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, conversationId);
-            
+
             _logger.LogInformation("User {UserId} left conversation {ConvId}", user.Id, conversationId);
 
             await Clients.OthersInGroup(conversationId).SendAsync("UserLeftConversation", new
@@ -169,6 +171,22 @@ namespace SchoolBookPlatform.Hubs
                     return;
                 }
 
+                // Lấy attachment nếu có (cho file messages)
+                MessageAttachmentDto? attachment = null;
+                if (request.MessageType != 0) // Không phải text
+                {
+                    attachment = await _db.MessageAttachments
+                        .Where(a => a.MessageId == result.Data)
+                        .Select(a => new MessageAttachmentDto
+                        {
+                            Url = a.CloudinaryUrl,
+                            FileName = a.FileName,
+                            ResourceType = a.ResourceType,
+                            Format = a.Format
+                        })
+                        .FirstOrDefaultAsync();
+                }
+
                 // Broadcast to all members in conversation (including sender)
                 await Clients.Group(request.ConversationId).SendAsync("ReceiveMessage", new
                 {
@@ -181,7 +199,7 @@ namespace SchoolBookPlatform.Hubs
                     createdAt = DateTime.UtcNow,
                     pinExchange = request.PinExchange
                 });
-                
+
                 //Fix: bắt buộc thành viên chat khác phải updateContactList (trường hợp A nhắn B, B chưa ở đoạn chat bao giờ)
                 var otherMembers = await _db.ConversationMembers
                     .Where(cm => cm.ConversationId == convId && cm.UserId != user.Id)
@@ -192,8 +210,8 @@ namespace SchoolBookPlatform.Hubs
                 {
                     await Clients.User(memberId).SendAsync("UpdateContactList");
                 }
-                
-                _logger.LogInformation("Message {MsgId} sent by user {UserId} in conversation {ConvId}", 
+
+                _logger.LogInformation("Message {MsgId} sent by user {UserId} in conversation {ConvId}",
                     result.Data, user.Id, convId);
             }
             catch (Exception ex)
@@ -252,7 +270,7 @@ namespace SchoolBookPlatform.Hubs
                 });
                 //Fix: bắt buộc thành viên chat khác phải updateContactList (trường hợp A nhắn B, B chưa ở đoạn chat bao giờ)
                 await Clients.User(request.RecipientId).SendAsync("UpdateContactList");
-                _logger.LogInformation("PIN exchange sent by user {UserId} in conversation {ConvId}", 
+                _logger.LogInformation("PIN exchange sent by user {UserId} in conversation {ConvId}",
                     user.Id, convId);
             }
             catch (Exception ex)
@@ -310,7 +328,7 @@ namespace SchoolBookPlatform.Hubs
                 lastMessageId
             });
 
-            _logger.LogDebug("User {UserId} marked messages as read in conversation {ConvId}", 
+            _logger.LogDebug("User {UserId} marked messages as read in conversation {ConvId}",
                 user.Id, convId);
         }
 
@@ -328,8 +346,8 @@ namespace SchoolBookPlatform.Hubs
         {
             lock (_lock)
             {
-                return _userConnections.ContainsKey(userId) 
-                    ? _userConnections[userId].ToList() 
+                return _userConnections.ContainsKey(userId)
+                    ? _userConnections[userId].ToList()
                     : new List<string>();
             }
         }
@@ -377,21 +395,112 @@ namespace SchoolBookPlatform.Hubs
 
             await Clients.Caller.SendAsync("OnlineStatusResponse", onlineUsers);
         }
+
+
+ public async Task SendFileMessage(SendFileMessageRequest request)
+{
+    var user = await Context.GetHttpContext()!.GetCurrentUserAsync(_db);
+    if (user == null)
+    {
+        await Clients.Caller.SendAsync("Error", "User not authenticated");
+        return;
     }
 
-    // Request models for SignalR
-    public class SendMessageRequest
+    try
     {
-        public string ConversationId { get; set; } = string.Empty;
-        public string CipherText { get; set; } = string.Empty;
-        public byte MessageType { get; set; }
-        public string? PinExchange { get; set; }
-    }
+        // Validate conversation ID
+        if (!Guid.TryParse(request.ConversationId, out var convId))
+        {
+            await Clients.Caller.SendAsync("Error", "Invalid conversation ID");
+            return;
+        }
 
-    public class PinExchangeRequest
+        // Kiểm tra user có phải member của conversation không
+        var isMember = await _db.ConversationMembers
+            .AnyAsync(cm => cm.ConversationId == convId && cm.UserId == user.Id);
+
+        if (!isMember)
+        {
+            await Clients.Caller.SendAsync("Error", "You are not a member of this conversation");
+            return;
+        }
+
+        // Verify message exists và thuộc về user này
+        var messageExists = await _db.Messages
+            .AnyAsync(m => m.Id == request.MessageId && m.SenderId == user.Id);
+
+        if (!messageExists)
+        {
+            await Clients.Caller.SendAsync("Error", "Message not found or unauthorized");
+            return;
+        }
+
+        // Broadcast file message với đầy đủ attachment data
+        await Clients.Group(request.ConversationId).SendAsync("ReceiveMessage", new
+        {
+            messageId = request.MessageId,
+            conversationId = convId,
+            senderId = user.Id,
+            senderUsername = user.Username,
+            cipherText = request.CipherText,
+            messageType = request.MessageType,
+            createdAt = DateTime.UtcNow,
+            pinExchange = (string?)null,
+            attachment = request.Attachment // ✅ GỬI KÈM ATTACHMENT DATA
+        });
+        
+        // Thông báo cho các members khác cập nhật contact list
+        var otherMembers = await _db.ConversationMembers
+            .Where(cm => cm.ConversationId == convId && cm.UserId != user.Id)
+            .Select(cm => cm.UserId.ToString())
+            .ToListAsync();
+
+        foreach (var memberId in otherMembers)
+        {
+            await Clients.User(memberId).SendAsync("UpdateContactList");
+        }
+        
+        _logger.LogInformation("File message {MsgId} (type: {Type}) sent by user {UserId} in conversation {ConvId}", 
+            request.MessageId, request.MessageType, user.Id, convId);
+    }
+    catch (Exception ex)
     {
-        public string ConversationId { get; set; } = string.Empty;
-        public string RecipientId { get; set; } = string.Empty;
-        public string EncryptedPin { get; set; } = string.Empty;
+        _logger.LogError(ex, "Error sending file message {MsgId} in SignalR", request.MessageId);
+        await Clients.Caller.SendAsync("Error", "Failed to send file message");
+    }
+}
+
+        public class SendFileMessageRequest
+        {
+            public string ConversationId { get; set; } = string.Empty;
+            public long MessageId { get; set; }
+            public string CipherText { get; set; } = string.Empty;
+            public byte MessageType { get; set; }
+            public FileAttachmentData? Attachment { get; set; }
+        }
+
+        public class FileAttachmentData
+        {
+            public string Url { get; set; } = string.Empty;
+            public string? FileName { get; set; }
+            public string? ResourceType { get; set; }
+            public string? Format { get; set; }
+        }
+
+        // Request models for SignalR
+        public class SendMessageRequest
+        {
+            public string ConversationId { get; set; } = string.Empty;
+            public string CipherText { get; set; } = string.Empty;
+            public byte MessageType { get; set; }
+            public string? PinExchange { get; set; }
+        }
+
+        public class PinExchangeRequest
+        {
+            public string ConversationId { get; set; } = string.Empty;
+            public string RecipientId { get; set; } = string.Empty;
+            public string EncryptedPin { get; set; } = string.Empty;
+        }
     }
 }

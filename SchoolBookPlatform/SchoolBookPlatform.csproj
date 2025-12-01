@@ -30,6 +30,8 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Views\Chat\css\" />
+      <Folder Include="Views\Chat\js\" />
       <Folder Include="wwwroot\images\avatars\" />
     </ItemGroup>
 

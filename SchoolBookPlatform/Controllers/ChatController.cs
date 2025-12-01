@@ -68,6 +68,7 @@ namespace SchoolBookPlatform.Controllers
                 return StatusCode(500, new { message = "Error saving key" });
             }
         }
+        
         [HttpGet]
         public async Task<IActionResult> GetRecentContacts()
         {
@@ -94,6 +95,53 @@ namespace SchoolBookPlatform.Controllers
             
             await chatService.MarkMessagesAsReadAsync(currentUser.Id, senderId);
             return Ok();
+        }
+        
+        // API: /Chat/UpdateMessageWithFile - Cập nhật message với file URL đã mã hóa
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateMessageWithFile([FromBody] UpdateMessageFileModel model)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var message = await db.Messages.FindAsync(model.MessageId);
+        
+                if (message == null)
+                {
+                    return NotFound(new { message = "Message không tồn tại" });
+                }
+
+                // Kiểm tra quyền: chỉ sender mới được update
+                if (message.SenderId != currentUser.Id)
+                {
+                    return Forbid();
+                }
+
+                // Update message với encrypted URL
+                message.CipherText = model.EncryptedUrl;
+        
+                await db.SaveChangesAsync();
+
+                logger.LogInformation("Message {MessageId} updated with encrypted file URL", model.MessageId);
+
+                return Ok(new { message = "Message updated successfully" });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating message {MessageId} with file", model.MessageId);
+                return StatusCode(500, new { message = "Lỗi khi cập nhật message" });
+            }
         }
         
         // API: /Chat/GetCurrentUserInfo - Lấy thông tin user hiện tại
@@ -697,5 +745,14 @@ namespace SchoolBookPlatform.Controllers
         
         [System.ComponentModel.DataAnnotations.Required]
         public byte MessageType { get; set; }
+    }
+    
+    public class UpdateMessageFileModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public long MessageId { get; set; }
+    
+        [System.ComponentModel.DataAnnotations.Required]
+        public string EncryptedUrl { get; set; } = string.Empty;
     }
 }

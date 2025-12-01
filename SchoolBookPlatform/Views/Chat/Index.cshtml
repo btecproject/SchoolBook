@@ -322,6 +322,70 @@ ViewData["Title"] = "Chat";
         0%, 80%, 100% { transform: scale(0); }
         40% { transform: scale(1); }
     }
+
+
+    /* File Attachment Styles */
+    .file-attachment {
+        margin: 4px 0;
+    }
+
+    .file-attachment img {
+        transition: transform 0.2s;
+    }
+
+    .file-attachment img:hover {
+        transform: scale(1.02);
+    }
+
+    .file-attachment a {
+        display: inline-block;
+        padding: 8px 12px;
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        transition: background-color 0.2s;
+    }
+
+    .file-attachment a:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Message bubble adjustments for files */
+    .message-mine .file-attachment a {
+        background-color: rgba(255, 255, 255, 0.15);
+        color: white !important;
+    }
+
+    .message-theirs .file-attachment a {
+        background-color: rgba(0, 0, 0, 0.05);
+        color: #2d3748 !important;
+    }
+
+    /* Upload Progress */
+    #uploadProgress {
+        margin-top: 8px;
+    }
+
+    #uploadProgress .progress-bar {
+        transition: width 0.3s ease;
+    }
+
+    /* File Preview Card */
+    #filePreview .card {
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    #filePreview .card-body {
+        padding: 12px;
+    }
+
+    #removeFileBtn {
+        padding: 4px 8px;
+    }
+
+    #removeFileBtn:hover {
+        background-color: rgba(239, 68, 68, 0.1);
+    }
 </style>
 }
 
@@ -716,14 +780,62 @@ ViewData["Title"] = "Chat";
         } catch { return []; }
     }
 
+    // function displayMessages(messages) {
+    //     const area = document.getElementById('messagesArea');
+    //     area.innerHTML = '';
+    //
+    //     // 1. LỌC TIN NHẮN: Loại bỏ các tin nhắn là Pin Exchange
+    //     const visibleMessages = messages.filter(msg => !msg.pinExchange);
+    //
+    //     // 2. Kiểm tra lại độ dài sau khi lọc
+    //     if (!visibleMessages.length) {
+    //         area.innerHTML = '<div class="text-center py-4 text-muted"><p>Chưa có tin nhắn</p></div>';
+    //         return;
+    //     }
+    //
+    //     const myPinLocal = getMyPin();
+    //
+    //     // 3. Render trên danh sách đã lọc (visibleMessages)
+    //     const html = visibleMessages.map(msg => {
+    //         // Không cần kiểm tra msg.pinExchange ở đây nữa vì đã lọc ở trên rồi
+    //
+    //         let content = msg.cipherText;
+    //
+    //         try {
+    //             let pinToUse = msg.isMine ? myPinLocal : recipientPinsCache.get(msg.senderId.toLowerCase());
+    //
+    //             if (pinToUse) {
+    //                 // Giải mã tin nhắn văn bản
+    //                 content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
+    //                 if (!content) content = '[Lỗi giải mã]';
+    //             } else {
+    //                 content = '[Đang tải khóa...]';
+    //                 // Nếu chưa có khóa, bạn có thể kích hoạt logic tìm khóa ở đây nếu muốn
+    //             }
+    //         } catch {
+    //             content = '[Lỗi dữ liệu]';
+    //         }
+    //
+    //         const bubbleClass = msg.isMine ? 'message-mine' : 'message-theirs';
+    //         const time = new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    //
+    //         return `
+    //         <div class="message ${bubbleClass}">
+    //             <div class="message-bubble">${content}</div>
+    //             <div class="message-time">${time}</div>
+    //         </div>
+    //     `;
+    //     }).join('');
+    //
+    //     area.innerHTML = html;
+    // }
+    
     function displayMessages(messages) {
         const area = document.getElementById('messagesArea');
         area.innerHTML = '';
 
-        // 1. LỌC TIN NHẮN: Loại bỏ các tin nhắn là Pin Exchange
         const visibleMessages = messages.filter(msg => !msg.pinExchange);
 
-        // 2. Kiểm tra lại độ dài sau khi lọc
         if (!visibleMessages.length) {
             area.innerHTML = '<div class="text-center py-4 text-muted"><p>Chưa có tin nhắn</p></div>';
             return;
@@ -731,24 +843,38 @@ ViewData["Title"] = "Chat";
 
         const myPinLocal = getMyPin();
 
-        // 3. Render trên danh sách đã lọc (visibleMessages)
         const html = visibleMessages.map(msg => {
-            // Không cần kiểm tra msg.pinExchange ở đây nữa vì đã lọc ở trên rồi
-
             let content = msg.cipherText;
+            let isFile = msg.messageType !== 0;
+            let decryptedUrl = '';
 
             try {
                 let pinToUse = msg.isMine ? myPinLocal : recipientPinsCache.get(msg.senderId.toLowerCase());
 
                 if (pinToUse) {
-                    // Giải mã tin nhắn văn bản
-                    content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
-                    if (!content) content = '[Lỗi giải mã]';
+                    if (isFile) {
+                        // Giải mã URL
+                        decryptedUrl = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
+
+                        if (!decryptedUrl) {
+                            content = '[Lỗi giải mã file]';
+                        } else {
+                            // Render file attachment
+                            if (msg.attachment) {
+                                content = renderFileAttachment(decryptedUrl, msg.attachment, msg.messageType);
+                            } else {
+                                content = `<a href="${decryptedUrl}" target="_blank" class="text-white">📎 File đính kèm</a>`;
+                            }
+                        }
+                    } else {
+                        // Tin nhắn văn bản
+                        content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
+                        if (!content) content = '[Lỗi giải mã]';
+                    }
                 } else {
                     content = '[Đang tải khóa...]';
-                    // Nếu chưa có khóa, bạn có thể kích hoạt logic tìm khóa ở đây nếu muốn
                 }
-            } catch {
+            } catch (e) {
                 content = '[Lỗi dữ liệu]';
             }
 
@@ -765,7 +891,6 @@ ViewData["Title"] = "Chat";
 
         area.innerHTML = html;
     }
-
     function showChatWindow(username, displayName) {
         document.getElementById('welcomeScreen').style.display = 'none';
         document.getElementById('chatWindow').style.display = 'flex';
@@ -809,22 +934,75 @@ ViewData["Title"] = "Chat";
     }
 
     // ===== HELPER: APPEND MESSAGE (SMOOTH UX) =====
+    // async function appendSingleMessageToUI(msg) {
+    //     let content = msg.cipherText;
+    //
+    //     if (!msg.pinExchange) {
+    //         try {
+    //             let pinToUse = msg.senderId === currentUserId ? getMyPin() : recipientPinsCache.get(msg.senderId.toLowerCase());
+    //             if (pinToUse) {
+    //                 content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
+    //             } else {
+    //                 // Fallback: reload keys
+    //                 content = '[Đang tải khóa...]';
+    //                 findKeyViaRSA([msg], msg.senderId).then(k => {
+    //                     if(k) loadMessagesAndReturn(currentConversationId).then(displayMessages);
+    //                 });
+    //             }
+    //         } catch (e) { content = '[Lỗi giải mã]'; }
+    //     } else {
+    //         content = '[Hệ thống: Đã cập nhật khóa]';
+    //     }
+    //
+    //     const area = document.getElementById('messagesArea');
+    //     const div = document.createElement('div');
+    //     div.className = `message ${msg.senderId === currentUserId ? 'message-mine' : 'message-theirs'}`;
+    //     div.innerHTML = `
+    //         <div class="message-bubble">${content}</div>
+    //         <div class="message-time">${new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
+    //     `;
+    //     area.appendChild(div);
+    //
+    //     // Remove typing indicator if exists
+    //     hideTypingIndicator();
+    //     scrollToBottom(true);
+    // }
     async function appendSingleMessageToUI(msg) {
         let content = msg.cipherText;
+        let isFile = msg.messageType !== 0;
 
         if (!msg.pinExchange) {
             try {
                 let pinToUse = msg.senderId === currentUserId ? getMyPin() : recipientPinsCache.get(msg.senderId.toLowerCase());
+
                 if (pinToUse) {
-                    content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
+                    if (isFile) {
+                        const decryptedUrl = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
+
+                        if (!decryptedUrl) {
+                            content = '[Lỗi giải mã file]';
+                        } else if (msg.attachment) {
+                            // Có attachment data - render ngay
+                            content = renderFileAttachment(decryptedUrl, msg.attachment, msg.messageType);
+                        } else {
+                            // Không có attachment - tạo placeholder
+                            content = createFileAttachmentPlaceholder(decryptedUrl, msg.messageType);
+                        }
+                    } else {
+                        // Text message
+                        content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
+                        if (!content) content = '[Lỗi giải mã]';
+                    }
                 } else {
-                    // Fallback: reload keys
                     content = '[Đang tải khóa...]';
                     findKeyViaRSA([msg], msg.senderId).then(k => {
                         if(k) loadMessagesAndReturn(currentConversationId).then(displayMessages);
                     });
                 }
-            } catch (e) { content = '[Lỗi giải mã]'; }
+            } catch (e) {
+                console.error('Decrypt error:', e);
+                content = '[Lỗi giải mã]';
+            }
         } else {
             content = '[Hệ thống: Đã cập nhật khóa]';
         }
@@ -833,16 +1011,14 @@ ViewData["Title"] = "Chat";
         const div = document.createElement('div');
         div.className = `message ${msg.senderId === currentUserId ? 'message-mine' : 'message-theirs'}`;
         div.innerHTML = `
-            <div class="message-bubble">${content}</div>
-            <div class="message-time">${new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
-        `;
+        <div class="message-bubble">${content}</div>
+        <div class="message-time">${new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
+    `;
         area.appendChild(div);
 
-        // Remove typing indicator if exists
         hideTypingIndicator();
         scrollToBottom(true);
     }
-
     // ===== SIGNALR EVENTS =====
     async function initializeSignalR() {
         connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").withAutomaticReconnect().build();
@@ -902,6 +1078,14 @@ ViewData["Title"] = "Chat";
 
         const input = document.getElementById('messageInput');
         const text = input.value.trim();
+
+        // Nếu có file đính kèm
+        if (selectedFile) {
+            await handleFileUpload(selectedFile);
+            return;
+        }
+        
+        //Text only
         if (!text) return;
 
         const pin = getMyPin();
@@ -933,7 +1117,243 @@ ViewData["Title"] = "Chat";
             }
         }
     });
+    document.getElementById('attachFileBtn').addEventListener('click', function() {
+        document.getElementById('fileInput').click();
+    });
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        selectedFile = e.target.files[0];
+        if (selectedFile) {
+            displayFilePreview(selectedFile);
+        }
+    });
+    document.getElementById('removeFileBtn').addEventListener('click', function() {
+        selectedFile = null;
+        document.getElementById('fileInput').value = '';
+        document.getElementById('filePreview').classList.add('d-none');
+    });
+    // ===== File Upload + review =====
+    function displayFilePreview(file) {
+        const preview = document.getElementById('filePreview');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const fileIcon = document.getElementById('fileIcon');
 
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+
+        // Đổi icon theo loại file
+        const ext = file.name.split('.').pop().toLowerCase();
+        let iconClass = 'bi-file-earmark';
+
+        if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) {
+            iconClass = 'bi-file-earmark-image';
+        } else if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'].includes(ext)) {
+            iconClass = 'bi-file-earmark-play';
+        } else if (['pdf'].includes(ext)) {
+            iconClass = 'bi-file-earmark-pdf';
+        } else if (['doc', 'docx'].includes(ext)) {
+            iconClass = 'bi-file-earmark-word';
+        } else if (['xls', 'xlsx'].includes(ext)) {
+            iconClass = 'bi-file-earmark-excel';
+        } else if (['zip', 'rar'].includes(ext)) {
+            iconClass = 'bi-file-earmark-zip';
+        }
+
+        fileIcon.className = `bi ${iconClass} fs-3 text-primary me-2`;
+        preview.classList.remove('d-none');
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    async function handleFileUpload(file) {
+        if (!currentConversationId || !connection) return;
+
+        const pin = getMyPin();
+        if (!pin) {
+            alert('Không tìm thấy mã PIN');
+            return;
+        }
+
+        try {
+            // Show upload progress
+            const progressBar = document.querySelector('#uploadProgress .progress-bar');
+            document.getElementById('uploadProgress').style.display = 'block';
+            progressBar.style.width = '0%';
+
+            // 1. Upload file lên server
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('conversationId', currentConversationId);
+
+            progressBar.style.width = '30%';
+
+            const uploadResponse = await fetch('@Url.Action("UploadFile", "Chat")', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': getToken()
+                },
+                body: formData
+            });
+
+            progressBar.style.width = '60%';
+
+            if (!uploadResponse.ok) {
+                const error = await uploadResponse.json();
+                alert('Lỗi upload: ' + (error.message || 'Unknown error'));
+                document.getElementById('uploadProgress').style.display = 'none';
+                return;
+            }
+
+            const uploadResult = await uploadResponse.json();
+            progressBar.style.width = '80%';
+
+            // 2. Mã hóa URL của file
+            const encryptedUrl = CryptoJS.AES.encrypt(uploadResult.url, pin).toString();
+
+            // 3. Cập nhật message với URL đã mã hóa
+            const updateResponse = await fetch('@Url.Action("UpdateMessageWithFile", "Chat")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': getToken()
+                },
+                body: JSON.stringify({
+                    messageId: uploadResult.messageId,
+                    encryptedUrl: encryptedUrl
+                })
+            });
+
+            if (!updateResponse.ok) {
+                alert('Lỗi cập nhật tin nhắn');
+                document.getElementById('uploadProgress').style.display = 'none';
+                return;
+            }
+
+            progressBar.style.width = '100%';
+
+            // 4. Gửi thông báo qua SignalR với đầy đủ attachment data
+            await connection.invoke("SendFileMessage", {
+                conversationId: currentConversationId,
+                messageId: uploadResult.messageId,
+                cipherText: encryptedUrl,
+                messageType: uploadResult.resourceType === 'image' ? 1 :
+                    uploadResult.resourceType === 'video' ? 2 : 3,
+                attachment: {
+                    url: uploadResult.url,
+                    fileName: uploadResult.fileName,
+                    resourceType: uploadResult.resourceType,
+                    format: uploadResult.format
+                }
+            });
+
+            // Reset UI
+            selectedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('filePreview').classList.add('d-none');
+
+            setTimeout(() => {
+                document.getElementById('uploadProgress').style.display = 'none';
+            }, 500);
+
+        } catch (error) {
+            console.error('File upload error:', error);
+            alert('Lỗi khi upload file: ' + error.message);
+            document.getElementById('uploadProgress').style.display = 'none';
+        }
+    }
+    function createFileAttachmentPlaceholder(url, messageType) {
+        // Tạo placeholder đơn giản dựa vào messageType
+        if (messageType === 1) {
+            // Image
+            return `
+            <div class="file-attachment">
+                <img src="${url}" alt="Image" 
+                     style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer;"
+                     onclick="window.open('${url}', '_blank')"
+                     onerror="this.onerror=null; this.alt='[Lỗi tải ảnh]';"/>
+            </div>
+        `;
+        } else if (messageType === 2) {
+            // Video
+            return `
+            <div class="file-attachment">
+                <video controls style="max-width: 300px; border-radius: 8px;">
+                    <source src="${url}">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        `;
+        } else {
+            // Other file
+            return `
+            <div class="file-attachment">
+                <a href="${url}" target="_blank" class="text-decoration-none text-white d-flex align-items-center">
+                    <i class="bi bi-file-earmark fs-4 me-2"></i>
+                    <div>
+                        <div class="fw-semibold">File đính kèm</div>
+                        <div class="small opacity-75">Click để tải</div>
+                    </div>
+                </a>
+            </div>
+        `;
+        }
+}
+    
+    function renderFileAttachment(url, attachment, messageType) {
+        const fileName = attachment.fileName || 'File';
+
+        // Image
+        if (messageType === 1) {
+            return `
+            <div class="file-attachment">
+                <img src="${url}" alt="${fileName}" 
+                     style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer;"
+                     onclick="window.open('${url}', '_blank')"/>
+                <div class="small mt-1 opacity-75">${fileName}</div>
+            </div>
+        `;
+        }
+
+        // Video
+        if (messageType === 2) {
+            return `
+            <div class="file-attachment">
+                <video controls style="max-width: 300px; border-radius: 8px;">
+                    <source src="${url}" type="video/${attachment.format}">
+                    Your browser does not support the video tag.
+                </video>
+                <div class="small mt-1 opacity-75">${fileName}</div>
+            </div>
+        `;
+        }
+
+        // Other files
+        const ext = attachment.format || 'file';
+        let iconClass = 'bi-file-earmark';
+
+        if (['pdf'].includes(ext)) iconClass = 'bi-file-earmark-pdf';
+        else if (['doc', 'docx'].includes(ext)) iconClass = 'bi-file-earmark-word';
+        else if (['xls', 'xlsx'].includes(ext)) iconClass = 'bi-file-earmark-excel';
+        else if (['zip', 'rar'].includes(ext)) iconClass = 'bi-file-earmark-zip';
+
+        return `
+        <div class="file-attachment">
+            <a href="${url}" target="_blank" class="text-decoration-none text-white d-flex align-items-center">
+                <i class="bi ${iconClass} fs-4 me-2"></i>
+                <div>
+                    <div class="fw-semibold">${fileName}</div>
+                    <div class="small opacity-75">${ext.toUpperCase()}</div>
+                </div>
+            </a>
+        </div>
+    `;
+    }
     // ===== INIT =====
     window.addEventListener('load', async () => {
         if (await autoVerifyPin() && await loadCurrentUserInfo()) {

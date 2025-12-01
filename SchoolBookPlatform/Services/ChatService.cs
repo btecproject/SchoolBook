@@ -30,7 +30,7 @@ namespace SchoolBookPlatform.Services
 
             return key;
         }
-
+        
         // Lưu Conversation Key
         public async Task<bool> SaveConversationKeyAsync(Guid userId, Guid conversationId, string encryptedKey, int version)
         {
@@ -78,7 +78,7 @@ namespace SchoolBookPlatform.Services
 
         if (!conversationIds.Any()) return new List<ContactDto>();
 
-        // 2. Lấy tin nhắn cuối cùng (Dùng EF Core Window Function hoặc GroupBy tối ưu)
+        // 2. Lấy tin nhắn cuối cùng
         var lastMessages = await db.Messages
             .Where(m => conversationIds.Contains(m.ConversationId))
             .Where(m => m.CipherText != "[PIN Exchange]")
@@ -681,23 +681,15 @@ namespace SchoolBookPlatform.Services
 
                 if (!uploadResult.Success)
                 {
+                    // Nếu upload thất bại, XÓA message tạm
+                    await DeleteMessageAsync(messageId);
                     return uploadResult;
                 }
 
-                // Update message with encrypted URL
-                var message = await db.Messages.FindAsync(messageId);
-                if (message == null)
-                {
-                    return new CloudinaryUploadResult
-                    {
-                        Success = false,
-                        Message = "Message không tồn tại"
-                    };
-                }
-
-                message.CipherText = uploadResult.Url; // URL will be encrypted on client
-
-                // Save attachment metadata
+                // ✅ KHÔNG CẬP NHẬT message.CipherText ở đây nữa
+                // Để Controller UpdateMessageWithFile lo việc đó
+        
+                // Chỉ lưu attachment metadata
                 var attachment = new MessageAttachment
                 {
                     MessageId = messageId,
@@ -711,13 +703,17 @@ namespace SchoolBookPlatform.Services
                 db.MessageAttachments.Add(attachment);
                 await db.SaveChangesAsync();
 
-                logger.LogInformation("File uploaded and message {MsgId} updated", messageId);
+                logger.LogInformation("File uploaded and attachment saved for message {MsgId}", messageId);
 
                 return uploadResult;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error uploading file for message {MsgId}", messageId);
+        
+                // Cleanup: Xóa message tạm nếu có lỗi
+                await DeleteMessageAsync(messageId);
+        
                 return new CloudinaryUploadResult
                 {
                     Success = false,

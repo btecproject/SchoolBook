@@ -3,17 +3,8 @@ using CloudinaryDotNet.Actions;
 
 namespace SchoolBookPlatform.Services
 {
-    public class CloudinaryService
+    public class CloudinaryService(Cloudinary cloudinary, ILogger<CloudinaryService> logger)
     {
-        private readonly Cloudinary _cloudinary;
-        private readonly ILogger<CloudinaryService> _logger;
-
-        public CloudinaryService(Cloudinary cloudinary, ILogger<CloudinaryService> logger)
-        {
-            _cloudinary = cloudinary;
-            _logger = logger;
-        }
-
         // Upload file cho chat message
         public async Task<CloudinaryUploadResult> UploadChatFileAsync(
             IFormFile file,
@@ -81,11 +72,11 @@ namespace SchoolBookPlatform.Services
                         UniqueFilename = uploadParams.UniqueFilename,
                         UseFilename = uploadParams.UseFilename
                     };
-                    uploadResult = await _cloudinary.UploadAsync(videoParams);
+                    uploadResult = await cloudinary.UploadAsync(videoParams);
                 }
                 else if (resourceType == ResourceType.Image)
                 {
-                    uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                    uploadResult = await cloudinary.UploadAsync(uploadParams);
                 }
                 else // Raw (documents, etc)
                 {
@@ -98,12 +89,12 @@ namespace SchoolBookPlatform.Services
                         UniqueFilename = uploadParams.UniqueFilename,
                         UseFilename = uploadParams.UseFilename
                     };
-                    uploadResult = await _cloudinary.UploadAsync(rawParams);
+                    uploadResult = await cloudinary.UploadAsync(rawParams);
                 }
 
                 if (uploadResult.Error != null)
                 {
-                    _logger.LogError("Cloudinary upload error: {Error}", uploadResult.Error.Message);
+                    logger.LogError("Cloudinary upload error: {Error}", uploadResult.Error.Message);
                     return new CloudinaryUploadResult
                     {
                         Success = false,
@@ -111,7 +102,7 @@ namespace SchoolBookPlatform.Services
                     };
                 }
 
-                _logger.LogInformation("File uploaded successfully: {Url}", uploadResult.SecureUrl);
+                logger.LogInformation("File uploaded successfully: {Url}", uploadResult.SecureUrl);
 
                 return new CloudinaryUploadResult
                 {
@@ -127,7 +118,7 @@ namespace SchoolBookPlatform.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error uploading file to Cloudinary");
+                logger.LogError(ex, "Error uploading file to Cloudinary");
                 return new CloudinaryUploadResult
                 {
                     Success = false,
@@ -146,21 +137,21 @@ namespace SchoolBookPlatform.Services
                     ResourceType = ParseResourceType(resourceType)
                 };
 
-                var result = await _cloudinary.DestroyAsync(deleteParams);
+                var result = await cloudinary.DestroyAsync(deleteParams);
 
                 if (result.Result == "ok")
                 {
-                    _logger.LogInformation("File deleted successfully: {PublicId}", publicId);
+                    logger.LogInformation("File deleted successfully: {PublicId}", publicId);
                     return true;
                 }
 
-                _logger.LogWarning("Failed to delete file: {PublicId}, Result: {Result}", 
+                logger.LogWarning("Failed to delete file: {PublicId}, Result: {Result}", 
                     publicId, result.Result);
                 return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting file from Cloudinary: {PublicId}", publicId);
+                logger.LogError(ex, "Error deleting file from Cloudinary: {PublicId}", publicId);
                 return false;
             }
         }
