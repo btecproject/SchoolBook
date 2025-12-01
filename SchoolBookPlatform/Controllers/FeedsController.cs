@@ -1,36 +1,25 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using SchoolBookPlatform.Data;
-using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
-using SchoolBookPlatform.ViewModels;
-using System.Security.Claims;
 
 namespace SchoolBookPlatform.Controllers;
 
 [Authorize]
-public class FeedsController : Controller
+public class FeedsController(
+    TrustedService trustedService) : Controller
 {
-    private readonly TrustedService _trustedService;
-    private readonly AppDbContext _context;
-
-    public FeedsController(TrustedService trustedService, AppDbContext context)
+    public IActionResult Home()
     {
-        _trustedService = trustedService;
-        _context = context;
+        return View();
     }
-
     /// <summary>
-    /// Test lấy IP
+    /// Test Lấy IP
     /// </summary>
     public IActionResult GetIp()
     {
-        var info = _trustedService.GetDeviceInfoAsync(HttpContext);
-        var ip = _trustedService.GetDeviceIpAsync(HttpContext);
-
+        var info = trustedService.GetDeviceInfoAsync(HttpContext);
+        var ip = trustedService.GetDeviceIpAsync(HttpContext);
         TempData["Ip + Info"] = ip + " | " + info;
-
-        return RedirectToAction(nameof(Home));
+        return View(nameof(Home));
     }
 }

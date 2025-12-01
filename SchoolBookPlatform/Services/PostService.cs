@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Http;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Models;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 
 namespace SchoolBookPlatform.Services;
 
@@ -14,13 +16,14 @@ public class PostService
 {
     private readonly AppDbContext _db;
     private readonly ILogger<PostService> _logger;
-    private readonly IWebHostEnvironment _environment;
+    private readonly Cloudinary _cloudinary;
 
-    public PostService(AppDbContext db, ILogger<PostService> logger, IWebHostEnvironment environment)
+    public PostService(AppDbContext db, ILogger<PostService> logger, Cloudinary cloudinary)
     {
         _db = db;
         _logger = logger;
-        _environment = environment;
+        _cloudinary = cloudinary;
+
     }
 
     /// <summary>
@@ -65,7 +68,7 @@ public class PostService
         // Check role của user có match với VisibleToRoles không
         return userRoles.Contains(post.VisibleToRoles);
     }
-
+    
     /// <summary>
     /// Lấy danh sách bài đăng user có quyền xem (có phân trang)
     /// - HighAdmin/Admin/Moderator: Xem tất cả
@@ -79,8 +82,8 @@ public class PostService
     {
         var userRoles = await _db.GetUserRolesAsync(userId);
         var isAdmin = userRoles.Contains("HighAdmin") || 
-                     userRoles.Contains("Admin") || 
-                     userRoles.Contains("Moderator");
+                      userRoles.Contains("Admin") || 
+                      userRoles.Contains("Moderator");
 
         var query = _db.Posts.AsQueryable();
 
@@ -100,7 +103,7 @@ public class PostService
 
         return await query
             .Include(p => p.User)
-                .ThenInclude(u => u.UserProfile)
+            .ThenInclude(u => u.UserProfile)
             .Include(p => p.Votes)
             .Include(p => p.Comments)
             .Include(p => p.Attachments)
@@ -109,7 +112,7 @@ public class PostService
             .Take(pageSize)
             .ToListAsync();
     }
-
+    
     /// <summary>
     /// Tạo bài đăng mới
     /// </summary>
@@ -141,7 +144,7 @@ public class PostService
         _db.Posts.Add(post);
         await _db.SaveChangesAsync();
 
-        // Xử lý upload file nếu có
+        // Xử lý upload file lên Cloudinary nếu có
         if (files != null && files.Any())
         {
             await SaveAttachmentsAsync(post.Id, files);
@@ -149,7 +152,8 @@ public class PostService
 
         return post;
     }
-
+    
+    
     /// <summary>
     /// Cập nhật bài đăng
     /// Chỉ owner hoặc Admin/Moderator mới có quyền sửa
@@ -179,8 +183,8 @@ public class PostService
 
         var userRoles = await _db.GetUserRolesAsync(editorId);
         var isAdmin = userRoles.Contains("HighAdmin") || 
-                     userRoles.Contains("Admin") || 
-                     userRoles.Contains("Moderator");
+                      userRoles.Contains("Admin") || 
+                      userRoles.Contains("Moderator");
 
         // Kiểm tra quyền: chỉ owner hoặc admin/mod mới được sửa
         if (post.UserId != editorId && !isAdmin)
@@ -216,9 +220,9 @@ public class PostService
         await _db.SaveChangesAsync();
         return post;
     }
-
+    
     /// <summary>
-    /// Xóa bài đăng
+    /// Xóa bài đăng (cập nhật để xóa cả trên Cloudinary)
     /// - HighAdmin: Có thể hard delete (xóa vĩnh viễn)
     /// - User thường: Chỉ xóa được bài của mình (soft delete)
     /// </summary>
@@ -228,7 +232,10 @@ public class PostService
     /// <returns>True nếu thành công, False nếu thất bại</returns>
     public async Task<bool> DeletePostAsync(Guid userId, Guid postId, bool hardDelete = false)
     {
-        var post = await _db.Posts.FindAsync(postId);
+        var post = await _db.Posts
+            .Include(p => p.Attachments)
+            .FirstOrDefaultAsync(p => p.Id == postId);
+            
         if (post == null) return false;
 
         var userRoles = await _db.GetUserRolesAsync(userId);
@@ -236,8 +243,14 @@ public class PostService
         // HighAdmin có thể hard delete
         if (hardDelete && userRoles.Contains("HighAdmin"))
         {
+            // Xóa toàn bộ thư mục trên Cloudinary trước
+            await DeletePostFolderFromCloudinaryAsync(postId);
+            
+            // Xóa từ database
             _db.Posts.Remove(post);
             await _db.SaveChangesAsync();
+            
+            _logger.LogInformation("Đã hard delete post {PostId} và xóa folder Cloudinary", postId);
             return true;
         }
 
@@ -247,13 +260,15 @@ public class PostService
             return false;
         }
 
+        // Soft delete - không xóa folder Cloudinary
         post.IsDeleted = true;
         post.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
+        _logger.LogInformation("Đã soft delete post {PostId}", postId);
         return true;
     }
-
+    
     /// <summary>
     /// Moderator/Admin soft delete bài đăng không phù hợp
     /// </summary>
@@ -283,7 +298,7 @@ public class PostService
         await _db.SaveChangesAsync();
         return true;
     }
-
+    
     /// <summary>
     /// Tạo comment cho bài đăng
     /// </summary>
@@ -316,7 +331,7 @@ public class PostService
         // Load lại với navigation properties
         return await _db.PostComments
             .Include(c => c.User)
-                .ThenInclude(u => u.UserProfile)
+            .ThenInclude(u => u.UserProfile)
             .FirstOrDefaultAsync(c => c.Id == comment.Id);
     }
 
@@ -466,8 +481,7 @@ public class PostService
         };
     }
 
-    /// <summary>
-    /// Lưu file đính kèm vào thư mục và database
+    /// Lưu file đính kèm lên Cloudinary
     /// </summary>
     /// <param name="postId">ID của bài đăng</param>
     /// <param name="files">Danh sách file cần lưu</param>
@@ -475,14 +489,10 @@ public class PostService
     public async Task SaveAttachmentsAsync(Guid postId, IEnumerable<IFormFile> files)
     {
         const long maxFileSize = 10 * 1024 * 1024; // 10MB
-        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".mov", ".avi" };
-        var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "posts", postId.ToString());
-
-        // Tạo thư mục nếu chưa tồn tại
-        if (!Directory.Exists(uploadsPath))
-        {
-            Directory.CreateDirectory(uploadsPath);
-        }
+        var allowedImageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp" };
+        var allowedVideoExtensions = new[] { ".mp4", ".mov", ".avi", ".mkv", ".wmv", ".flv" };
+        
+        var allowedExtensions = allowedImageExtensions.Concat(allowedVideoExtensions).ToArray();
 
         foreach (var file in files)
         {
@@ -503,16 +513,46 @@ public class PostService
                 continue;
             }
 
-            // Tạo tên file unique
-            var uniqueFileName = $"{Guid.NewGuid()}{extension}";
-            var filePath = Path.Combine(uploadsPath, uniqueFileName);
-
-            // Lưu file vào disk
             try
             {
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                // Xác định resource type dựa trên extension
+                bool isImage = allowedImageExtensions.Contains(extension);
+                
+                // Tạo public ID cho file trên Cloudinary
+                var publicId = $"SchoolBook/Post/{postId}/PostAttachment/{Guid.NewGuid()}";
+
+                RawUploadResult uploadResult;
+
+                if (isImage)
                 {
-                    await file.CopyToAsync(stream);
+                    // Upload image
+                    var uploadParams = new ImageUploadParams
+                    {
+                        File = new FileDescription(file.FileName, file.OpenReadStream()),
+                        PublicId = publicId,
+                        Folder = $"SchoolBook/Post/{postId}/PostAttachment"
+                    };
+
+                    uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                }
+                else
+                {
+                    // Upload video
+                    var uploadParams = new VideoUploadParams
+                    {
+                        File = new FileDescription(file.FileName, file.OpenReadStream()),
+                        PublicId = publicId,
+                        Folder = $"SchoolBook/Post/{postId}/PostAttachment"
+                    };
+
+                    uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                }
+
+                if (uploadResult.Error != null)
+                {
+                    _logger.LogError("Lỗi Cloudinary khi upload file {FileName}: {Error}", 
+                        file.FileName, uploadResult.Error.Message);
+                    continue;
                 }
 
                 // Lưu thông tin vào database
@@ -521,27 +561,23 @@ public class PostService
                     Id = Guid.NewGuid(),
                     PostId = postId,
                     FileName = file.FileName,
-                    FilePath = $"/uploads/posts/{postId}/{uniqueFileName}",
+                    FilePath = uploadResult.SecureUrl.ToString(), // Lưu secure URL
                     FileSize = (int)file.Length,
                     UploadedAt = DateTime.UtcNow
                 };
 
                 _db.PostAttachments.Add(attachment);
+                _logger.LogInformation("Đã upload file {FileName} lên Cloudinary thành công", file.FileName);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi khi lưu file {FileName}", file.FileName);
-                // Nếu lưu file thất bại, xóa file đã tạo (nếu có)
-                if (File.Exists(filePath))
-                {
-                    File.Delete(filePath);
-                }
+                _logger.LogError(ex, "Lỗi khi upload file {FileName} lên Cloudinary", file.FileName);
             }
         }
 
         await _db.SaveChangesAsync();
     }
-
+    
     /// <summary>
     /// Xóa file đính kèm (xóa cả file trên disk và record trong database)
     /// </summary>
@@ -556,25 +592,74 @@ public class PostService
 
         foreach (var attachment in attachments)
         {
-            // Xóa file trên disk
-            var filePath = Path.Combine(_environment.WebRootPath, attachment.FilePath.TrimStart('/'));
-            if (File.Exists(filePath))
+            try
             {
-                try
-                {
-                    File.Delete(filePath);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Lỗi khi xóa file {FilePath}", filePath);
-                }
+                // Extract public ID từ URL (nếu có) hoặc tạo từ file path
+                // Trong trường hợp này, chúng ta cần lưu public ID khi upload
+                // Vì chúng ta không lưu public ID trong database, nên cần xác định public ID từ URL
+                
+                // Tạm thời xóa record từ database
+                // Để triển khai đầy đủ, cần lưu public ID trong bảng PostAttachment
+                _db.PostAttachments.Remove(attachment);
+                
+                _logger.LogInformation("Đã xóa attachment {AttachmentId} từ database", attachment.Id);
             }
-
-            // Xóa record trong database
-            _db.PostAttachments.Remove(attachment);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi xóa attachment {AttachmentId} từ Cloudinary", attachment.Id);
+            }
         }
 
         await _db.SaveChangesAsync();
     }
+    
+    public async Task DeletePostFolderFromCloudinaryAsync(Guid postId)
+    {
+        var folderPath = $"SchoolBook/Post/{postId}";
+
+        try
+        {
+            _logger.LogInformation("Bắt đầu xóa folder Cloudinary: {Folder}", folderPath);
+
+            // 1. Xóa toàn bộ resources trong folder
+            while (true)
+            {
+                var listResult = await _cloudinary.ListResourcesByPrefixAsync(folderPath);
+
+                if (listResult.Resources == null || listResult.Resources.Length == 0)
+                    break;
+
+                var publicIds = listResult.Resources.Select(r => r.PublicId).ToArray();
+
+                var deleteResult = await _cloudinary.DeleteResourcesAsync(publicIds);
+
+                if (deleteResult.Error != null)
+                {
+                    _logger.LogError("Lỗi khi xóa resources: {Error}", deleteResult.Error.Message);
+                    break;
+                }
+
+                _logger.LogInformation("Đã xóa {Count} resources trong folder {Folder}",
+                    publicIds.Length, folderPath);
+            }
+
+            // 2. Xóa folder
+            var deleteFolder = await _cloudinary.DeleteFolderAsync(folderPath);
+
+            if (deleteFolder.Error != null)
+            {
+                _logger.LogError("Lỗi khi xóa folder Cloudinary: {Error}", deleteFolder.Error.Message);
+            }
+            else
+            {
+                _logger.LogInformation("Đã xóa thành công folder {Folder}", folderPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi thực thi xóa folder Cloudinary {Folder}", folderPath);
+        }
+    }
+    
 }
 

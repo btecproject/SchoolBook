@@ -354,7 +354,9 @@ public class PostController(
             return RedirectToAction(nameof(Index));
         }
 
-        TempData["SuccessMessage"] = "Xóa bài đăng thành công!";
+        TempData["SuccessMessage"] = isHighAdmin ? 
+            "Đã xóa bài đăng và toàn bộ file đính kèm vĩnh viễn!" : 
+            "Đã xóa bài đăng thành công!";
         return RedirectToAction(nameof(Index));
     }
 

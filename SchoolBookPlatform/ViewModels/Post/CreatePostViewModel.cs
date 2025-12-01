@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
 
 namespace SchoolBookPlatform.ViewModels.Post;
@@ -36,7 +36,3 @@ public class CreatePostViewModel
     [Display(Name = "Thêm ảnh/video")]
     public List<IFormFile>? Files { get; set; }
 }
-
-
-
-
