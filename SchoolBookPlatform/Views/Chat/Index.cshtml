@@ -1169,7 +1169,11 @@ ViewData["Title"] = "Chat";
     document.getElementById('fileInput').addEventListener('change', function(e) {
         selectedFile = e.target.files[0];
         if (selectedFile) {
+            document.getElementById("filePreview").hidden = false;
             displayFilePreview(selectedFile);
+        }
+        else{
+            document.getElementById("filePreview").hidden = true;
         }
     });
     document.getElementById('removeFileBtn').addEventListener('click', function() {
@@ -1182,11 +1186,7 @@ ViewData["Title"] = "Chat";
     document.getElementById('messageInput').addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            
-            const text = this.value.trim();
-            if (text || selectedFile) {
-                document.getElementById('sendBtn').click();
-            }
+            document.getElementById('sendBtn').click();
         }
     });
     // ===== File Upload + review =====
