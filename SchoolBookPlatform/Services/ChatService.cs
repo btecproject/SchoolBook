@@ -345,6 +345,8 @@ namespace SchoolBookPlatform.Services
                 {
                     UserId = cu.UserId,
                     Username = cu.Username,
+                    AvatarUrl = db.UserProfiles.Where(up=>up.UserId == cu.UserId)
+                        .Select(up => up.AvatarUrl).FirstOrDefault(),
                     DisplayName = cu.DisplayName
                 })
                 .Take(20)

@@ -446,11 +446,11 @@ ViewData["Title"] = "Chat";
             const response = await fetch('@Url.Action("GetRecentContacts", "Chat")');
             if (!response.ok) return;
             const contacts = await response.json();
-            renderContacts(contacts);
+            displayContacts(contacts);
         } catch (error) { console.error("Error loading contacts:", error); }
     }
 
-    function renderContacts(contacts) {
+    function displayContacts(contacts) {
         const container = document.getElementById('contactsListContainer');
         if (!container) return;
 
@@ -475,8 +475,8 @@ ViewData["Title"] = "Chat";
             if (c.avatarUrl && c.avatarUrl.trim() !== "") {
                 avatarHtml = `<img src="${c.avatarUrl}" class="avatar-img" alt="${c.displayName}">`;
             } else {
-                const initial = c.displayName ? c.displayName.charAt(0).toUpperCase() : "?";
-                avatarHtml = `<div class="avatar-text">${initial}</div>`;
+                const initial = '/images/avatars/default.png';
+                avatarHtml = `<img src="${initial}" class="avatar-img" alt="${c.displayName}">`;
             }
 
             let previewText = c.lastMessagePreview || (c.unreadCount > 0 ? "Tin nhắn mới" : "Tin nhắn được bảo mật");
@@ -542,16 +542,32 @@ ViewData["Title"] = "Chat";
             return;
         }
 
-        resultsDiv.innerHTML = users.map(user => `
-            <div class="user-item d-flex align-items-center mb-2 p-2 rounded cursor-pointer hover-bg" 
-                 onclick="startChatWithUser('${user.userId}', '${user.username}', '${user.displayName}')">
-                <div class="avatar-circle me-3">${user.displayName.charAt(0).toUpperCase()}</div>
-                <div>
-                    <div class="fw-semibold">${user.displayName}</div>
-                    <small class="text-muted">${user.username}</small>
-                </div>
+        resultsDiv.innerHTML = users.map(user => {
+            // 1. Xử lý ảnh null hoặc rỗng
+            const avatarSrc = user.avatarUrl && user.avatarUrl.trim() !== ''
+                ? user.avatarUrl
+                : '~/images/avatars/default.png';
+
+            return `
+        <div class="user-item d-flex align-items-center mb-2 p-2 rounded cursor-pointer hover-bg" 
+             onclick="startChatWithUser('${user.userId}', '${user.username}', '${user.displayName}')"
+             style="transition: background 0.2s;">
+            
+            <div class="avatar-circle me-3" 
+                 style="width: 45px; height: 45px; min-width: 45px; border-radius: 50%; overflow: hidden; background-color: #e4e6eb; border: 1px solid #dee2e6;">
+                
+                <img src="${avatarSrc}" 
+                     alt="${user.displayName}"
+                     style="width: 100%; height: 100%; object-fit: cover;"
+                     onerror="this.onerror=null; this.src='/images/avatars/default.png';"/>
             </div>
-        `).join('');
+
+            <div style="overflow: hidden;">
+                <div class="fw-semibold text-truncate" style="font-size: 15px;">${user.displayName}</div>
+                <small class="text-muted text-truncate d-block" style="font-size: 13px;">${user.username}</small>
+            </div>
+        </div>
+    `}).join('');
     }
 
     // ===== DECRYPT LOGIC (Simplified) =====
@@ -704,40 +720,50 @@ ViewData["Title"] = "Chat";
         const area = document.getElementById('messagesArea');
         area.innerHTML = '';
 
-        if (!messages.length) {
+        // 1. LỌC TIN NHẮN: Loại bỏ các tin nhắn là Pin Exchange
+        const visibleMessages = messages.filter(msg => !msg.pinExchange);
+
+        // 2. Kiểm tra lại độ dài sau khi lọc
+        if (!visibleMessages.length) {
             area.innerHTML = '<div class="text-center py-4 text-muted"><p>Chưa có tin nhắn</p></div>';
             return;
         }
 
         const myPinLocal = getMyPin();
 
-        const html = messages.map(msg => {
-            let content = msg.pinExchange ? '[Hệ thống: Đã cập nhật khóa]' : msg.cipherText;
+        // 3. Render trên danh sách đã lọc (visibleMessages)
+        const html = visibleMessages.map(msg => {
+            // Không cần kiểm tra msg.pinExchange ở đây nữa vì đã lọc ở trên rồi
 
-            if (!msg.pinExchange) {
-                try {
-                    let pinToUse = msg.isMine ? myPinLocal : recipientPinsCache.get(msg.senderId.toLowerCase());
-                    if (pinToUse) {
-                        content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8) || '[Lỗi giải mã]';
-                    } else {
-                        content = '[Chưa có khóa]';
-                    }
-                } catch { content = '[Lỗi dữ liệu]'; }
+            let content = msg.cipherText;
+
+            try {
+                let pinToUse = msg.isMine ? myPinLocal : recipientPinsCache.get(msg.senderId.toLowerCase());
+
+                if (pinToUse) {
+                    // Giải mã tin nhắn văn bản
+                    content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
+                    if (!content) content = '[Lỗi giải mã]';
+                } else {
+                    content = '[Đang tải khóa...]';
+                    // Nếu chưa có khóa, bạn có thể kích hoạt logic tìm khóa ở đây nếu muốn
+                }
+            } catch {
+                content = '[Lỗi dữ liệu]';
             }
 
             const bubbleClass = msg.isMine ? 'message-mine' : 'message-theirs';
             const time = new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
             return `
-                <div class="message ${bubbleClass}">
-                    <div class="message-bubble">${content}</div>
-                    <div class="message-time">${time}</div>
-                </div>
-            `;
+            <div class="message ${bubbleClass}">
+                <div class="message-bubble">${content}</div>
+                <div class="message-time">${time}</div>
+            </div>
+        `;
         }).join('');
 
         area.innerHTML = html;
-        area.scrollTop = area.scrollHeight;
     }
 
     function showChatWindow(username, displayName) {
