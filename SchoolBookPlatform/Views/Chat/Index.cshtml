@@ -1074,43 +1074,44 @@ ViewData["Title"] = "Chat";
 
         const input = document.getElementById('messageInput');
         const text = input.value.trim();
-
-        // Nếu có file đính kèm
-        if (selectedFile) {
-            await handleFileUpload(selectedFile);
-            return;
-        }
+        const fileToSend = selectedFile;
         
-        //Text only
-        if (!text) return;
+        //Text
+        if (text) {
+            try {
+                const pin = getMyPin();
+                const encrypted = CryptoJS.AES.encrypt(text, pin).toString();
 
-        const pin = getMyPin();
-        const encrypted = CryptoJS.AES.encrypt(text, pin).toString();
+                await connection.invoke("SendMessage", {
+                    conversationId: currentConversationId,
+                    cipherText: encrypted,
+                    messageType: 0
+                });
 
-        await connection.invoke("SendMessage", {
-            conversationId: currentConversationId,
-            cipherText: encrypted,
-            messageType: 0
-        });
+                input.value = '';
 
-        input.value = '';
+                const searchInput = document.getElementById('searchUserInput');
+                if (searchInput.value.trim() !== "") {
+                    searchInput.value = '';
+                    document.getElementById('clearSearch').style.display = 'none';
 
-        const searchInput = document.getElementById('searchUserInput');
-        if (searchInput.value.trim() !== "") {
-            searchInput.value = ''; 
-            document.getElementById('clearSearch').style.display = 'none';
+                    document.getElementById('searchResults').style.display = 'none';
+                    document.getElementById('conversationList').style.display = 'block';
+                    await loadRecentContacts();
 
-            document.getElementById('searchResults').style.display = 'none';
-            document.getElementById('conversationList').style.display = 'block';
-            await loadRecentContacts();
-
-            //autoclick
-            const contactElementId = `contact-${currentRecipientId}`;
-            const contactElement = document.getElementById(contactElementId);
-            if (contactElement) {
-                contactElement.click();
-                contactElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
+                    //autoclick
+                    const contactElementId = `contact-${currentRecipientId}`;
+                    const contactElement = document.getElementById(contactElementId);
+                    if (contactElement) {
+                        contactElement.click();
+                        contactElement.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+                    }
+                }
+            }catch (err) {console.error("Lỗi gửi text:", err);}
+        }
+        if (fileToSend) {
+            await handleFileUpload(fileToSend);
+            input.focus();
         }
     });
     document.getElementById('attachFileBtn').addEventListener('click', function() {
