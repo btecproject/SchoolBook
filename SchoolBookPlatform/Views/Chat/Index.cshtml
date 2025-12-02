@@ -445,10 +445,18 @@ ViewData["Title"] = "Chat";
         const pinExchanges = messages.filter(m => m.pinExchange && !m.isMine && m.senderId === partnerId);
         pinExchanges.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        for (const msg of pinExchanges) {
-            const pin = await decryptAndCachePinExchange(msg.pinExchange, msg.senderId);
-            if (pin) return pin;
-        }
+        // for (const msg of pinExchanges) {
+        //     const pin = await decryptAndCachePinExchange(msg.pinExchange, msg.senderId);
+        //     if (pin) return pin;
+        // }
+
+        try {
+            const resp = await fetch(`@Url.Action("GetConversationKey", "Chat")?conversationId=${currentConversationId}&senderId=${partnerId}`);
+            if (resp.ok) {
+                const data = await resp.json();
+                return await decryptAndCachePinExchange(data.pinExchange, partnerId);
+            }
+        } catch(e) { console.error("Không lấy được key từ server", e); }
         return null;
     }
 

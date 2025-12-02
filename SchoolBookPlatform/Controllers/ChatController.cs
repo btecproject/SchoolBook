@@ -12,30 +12,44 @@ namespace SchoolBookPlatform.Controllers
     public class ChatController(AppDbContext db, ChatService chatService, ILogger<ChatController> logger)
         : Controller
     {
-        // API: /Chat/GetConversationKey - Lấy key giải mã cuộc hội thoại
+        
         [HttpGet]
-        public async Task<IActionResult> GetConversationKey(Guid conversationId, int keyVersion = 1)
+        public async Task<IActionResult> GetConversationKey(Guid conversationId, Guid senderId)
         {
-            var currentUser = await HttpContext.GetCurrentUserAsync(db);
-            if (currentUser == null) return Unauthorized();
+            // seảch PinExchange gần nhất
+            var keyMsg = await db.Messages
+                .Where(m => m.ConversationId == conversationId && m.SenderId == senderId && m.PinExchange != null)
+                .OrderByDescending(m => m.CreatedAt)
+                .Select(m => new { m.PinExchange })
+                .FirstOrDefaultAsync();
 
-            try
-            {
-                var key = await chatService.GetConversationKeyAsync(currentUser.Id, conversationId, keyVersion);
-                
-                if (string.IsNullOrEmpty(key))
-                {
-                    return NotFound(new { message = "Key not found" });
-                }
-
-                return Ok(new { encryptedKey = key });
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error getting conversation key");
-                return StatusCode(500, new { message = "Error getting key" });
-            }
+            if (keyMsg == null) return NotFound();
+            return Ok(keyMsg);
         }
+        
+        // [HttpGet]
+        // public async Task<IActionResult> GetConversationKey(Guid conversationId, int keyVersion = 1)
+        // {
+        //     var currentUser = await HttpContext.GetCurrentUserAsync(db);
+        //     if (currentUser == null) return Unauthorized();
+        //
+        //     try
+        //     {
+        //         var key = await chatService.GetConversationKeyAsync(currentUser.Id, conversationId, keyVersion);
+        //         
+        //         if (string.IsNullOrEmpty(key))
+        //         {
+        //             return NotFound(new { message = "Key not found" });
+        //         }
+        //
+        //         return Ok(new { encryptedKey = key });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         logger.LogError(ex, "Error getting conversation key");
+        //         return StatusCode(500, new { message = "Error getting key" });
+        //     }
+        // }
 
         // API: /Chat/SaveConversationKey - Lưu key (cho Self-healing)
         [HttpPost]
