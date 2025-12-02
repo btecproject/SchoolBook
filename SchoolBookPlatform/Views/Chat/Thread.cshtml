@@ -528,8 +528,13 @@
         let connection = null;
         let selectedFile = null;
         let messageIndex = 0;
+        let chatEncryption = null;
+        let encryptionReady = false;
 
-        // Initialize SignalR
+        // ===================================================
+        // SIGNALR CONNECTION
+        // ===================================================
+
         function initializeSignalR() {
             console.log("🔌 Initializing SignalR...");
 
@@ -539,23 +544,23 @@
                 .configureLogging(signalR.LogLevel.Information)
                 .build();
 
-            //  FIXED: Receive encrypted message handler
+            // Receive encrypted message
             connection.on("ReceiveEncryptedMessage", async (userId, encryptedContent, timestamp, isEncrypted, iv, encryptedKey, attachmentId, attachmentType, attachmentName, attachmentSize) => {
                 console.log(` Received message from ${userId}, encrypted: ${isEncrypted}`);
 
                 let displayText = encryptedContent;
-                
+
                 if (isEncrypted && chatEncryption && chatEncryption.isReady() && iv && encryptedKey) {
                     try {
                         console.log(` Attempting to decrypt message from ${userId}...`);
                         displayText = await chatEncryption.decryptMessage(encryptedContent, iv, encryptedKey);
                         console.log(` Decryption successful: "${displayText}"`);
                     } catch (decErr) {
-                        console.warn(`Decryption failed for message from ${userId}:`, decErr);
+                        console.warn(` Decryption failed for message from ${userId}:`, decErr);
                         displayText = "[ Encrypted Message]";
                     }
                 } else if (isEncrypted) {
-                    console.warn(` Message is encrypted but cannot decrypt - encryption not ready or missing keys`);
+                    console.warn(` Message is encrypted but cannot decrypt`);
                     displayText = "[ Encrypted Message]";
                 }
 
@@ -585,7 +590,6 @@
             connection.start()
                 .then(() => {
                     console.log(" SignalR connected successfully");
-                    console.log(` Joining thread: ${threadId}`);
                     return connection.invoke("JoinThread", threadId);
                 })
                 .then(() => {
@@ -597,14 +601,17 @@
                 });
         }
 
-        // Append message
+        // ===================================================
+        // MESSAGE DISPLAY
+        // ===================================================
+
         function appendMessage(userId, content, timestamp, attachmentId, attachmentType, attachmentName, attachmentSize, isEncrypted = false) {
             const messagesDiv = document.getElementById("messages");
             const isSent = userId === currentUser;
 
             let encryptionBadge = '';
             if (isEncrypted && !isSent) {
-                encryptionBadge = '<span class="badge bg-dark ms-2" style="font-size: 10px;">🔒</span>';
+                encryptionBadge = '<span class="badge bg-dark ms-2" style="font-size: 10px;"></span>';
             }
 
             let attachmentHtml = '';
@@ -656,7 +663,10 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        //  FIXED: Load messages with decryption
+        // ===================================================
+        // LOAD MESSAGES
+        // ===================================================
+
         async function loadMessages(segmentId, pin = null) {
             try {
                 console.log(` Loading messages for segment ${segmentId}...`);
@@ -675,16 +685,10 @@
                 let url = `/api/chat/messages?segmentId=${segmentId}`;
                 if (pin) url += `&pin=${encodeURIComponent(pin)}`;
 
-                console.log(` Fetching from: ${url}`);
-
                 const response = await fetch(url, {
                     method: 'GET',
-                    headers: {
-                        'Accept': 'application/json'
-                    }
+                    headers: { 'Accept': 'application/json' }
                 });
-
-                console.log('Response status:', response.status);
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -695,7 +699,7 @@
                         return;
                     }
 
-                    throw new Error(errorData.error || `HTTP ${response.status}: Failed to load messages`);
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
                 }
 
                 const messages = await response.json();
@@ -705,21 +709,14 @@
                 messagesDiv.innerHTML = '<div class="date-separator"><span>Today</span></div>';
 
                 if (Array.isArray(messages) && messages.length > 0) {
-                    //  CRITICAL: Process messages sequentially to handle decryption
                     for (let i = 0; i < messages.length; i++) {
                         const m = messages[i];
-
                         let displayContent = m.content;
 
-                        //  Decrypt if encrypted
                         if (m.isEncrypted && chatEncryption && chatEncryption.isReady() && m.encryptionIV && m.encryptedKey) {
                             try {
                                 console.log(` Decrypting message ${i + 1}/${messages.length}...`);
-                                displayContent = await chatEncryption.decryptMessage(
-                                    m.content,
-                                    m.encryptionIV,
-                                    m.encryptedKey
-                                );
+                                displayContent = await chatEncryption.decryptMessage(m.content, m.encryptionIV, m.encryptedKey);
                                 console.log(` Decrypted: "${displayContent}"`);
                             } catch (decErr) {
                                 console.warn(` Failed to decrypt message ${i + 1}:`, decErr);
@@ -729,20 +726,10 @@
                             displayContent = "[ Encrypted Message]";
                         }
 
-                        appendMessage(
-                            m.userId,
-                            displayContent,
-                            new Date(m.timestamp),
-                            m.attachmentId,
-                            m.attachmentType,
-                            m.attachmentName,
-                            m.attachmentSize
-                        );
+                        appendMessage(m.userId, displayContent, new Date(m.timestamp), m.attachmentId, m.attachmentType, m.attachmentName, m.attachmentSize);
                     }
 
                     messageIndex = messages.length;
-
-                    // Scroll to bottom
                     messagesDiv.scrollTop = messagesDiv.scrollHeight;
                 } else {
                     messagesDiv.innerHTML += '<div style="text-align: center; color: #999; padding: 20px;">No messages yet. Start the conversation!</div>';
@@ -763,7 +750,76 @@
             }
 }
 
-        // Send message
+        // ===================================================
+        // FILE HANDLING
+        // ===================================================
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            selectedFile = file;
+
+            document.getElementById('filePreview').style.display = 'block';
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+
+            const fileIcon = document.getElementById('fileIcon');
+            if (file.type.startsWith('image/')) {
+                fileIcon.className = 'bi bi-image';
+            } else if (file.type.startsWith('video/')) {
+                fileIcon.className = 'bi bi-camera-video';
+            } else {
+                fileIcon.className = 'bi bi-file-earmark';
+            }
+}
+
+        function cancelFile() {
+            selectedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('filePreview').style.display = 'none';
+        }
+
+        async function uploadFile() {
+            if (!selectedFile) return null;
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('segmentId', currentSegmentId);
+            formData.append('messageIndex', messageIndex);
+
+            const progressDiv = document.getElementById('uploadProgress');
+            const progressBar = document.getElementById('progressBar');
+            if (progressDiv) progressDiv.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/files/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Upload failed: ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log(' File uploaded:', result);
+
+                if (progressDiv) progressDiv.style.display = 'none';
+                return result;
+            } catch (error) {
+                console.error(' Upload error:', error);
+                alert('Failed to upload: ' + error.message);
+                if (progressDiv) progressDiv.style.display = 'none';
+                return null;
+            }
+}
+
+        // ===================================================
+        // SEND MESSAGE
+        // ===================================================
+
         async function sendMessage() {
             const input = document.getElementById("messageInput");
             const content = input.value.trim();
@@ -771,6 +827,7 @@
 
             try {
                 let attachmentId = null, attachmentType = null, attachmentName = null, attachmentSize = null;
+
                 if (selectedFile) {
                     const res = await uploadFile();
                     if (!res) return;
@@ -781,23 +838,20 @@
                     cancelFile();
                 }
 
-                //  CRITICAL: Build recipients list (exclude current user)
                 const allUsers = @Html.Raw(Json.Serialize(Model.UserIds.ToArray()));
                 const recipients = allUsers.filter(u => u !== currentUser);
 
-                console.log('👥 All thread users:', allUsers);
-                console.log('👤 Current user:', currentUser);
-                console.log('📨 Recipients (excluding self):', recipients);
+                console.log(' All users:', allUsers);
+                console.log(' Current user:', currentUser);
+                console.log('Recipients:', recipients);
 
                 let finalContent = content || "File";
                 let iv = "", encryptedKey = "";
                 let isEncrypted = false;
 
-                //  CRITICAL: Check if encryption is ready
                 if (encryptionReady && chatEncryption && chatEncryption.isReady() && recipients.length > 0) {
                     try {
                         console.log(' Encrypting message...');
-                        console.log('   Recipients:', recipients);
                         const r = await chatEncryption.encryptMessage(finalContent, recipients);
                         finalContent = r.encryptedContent;
                         iv = r.iv;
@@ -805,15 +859,11 @@
                         isEncrypted = true;
                         console.log(' Message encrypted');
                     } catch (encErr) {
-                        console.error(' Encryption failed, sending unencrypted:', encErr);
+                        console.error(' Encryption failed:', encErr);
                         isEncrypted = false;
                     }
                 } else {
-                    console.warn('⚠ Encryption not ready, sending unencrypted message');
-                    console.warn('   Encryption ready:', encryptionReady);
-                    console.warn('   ChatEncryption exists:', !!chatEncryption);
-                    console.warn('   ChatEncryption isReady:', chatEncryption ? chatEncryption.isReady() : false);
-                    console.warn('   Recipients count:', recipients.length);
+                    console.warn(' Encryption not ready');
                     isEncrypted = false;
                 }
 
@@ -830,52 +880,25 @@
             }
 }
 
-        // Helper functions
-        function formatFileSize(bytes) {
-            if (!bytes) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-        }
+        // ===================================================
+        // SEGMENT FUNCTIONS
+        // ===================================================
 
-        function formatTime(date) {
-            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-        
-
-        // Segment functions
         let pendingSegmentId = null;
 
         function selectSegment(segmentId, isProtected) {
             console.log(`Selecting segment: ${segmentId}, Protected: ${isProtected}`);
 
             if (isProtected) {
-                // Lưu lại segmentId để dùng sau khi nhập PIN
                 pendingSegmentId = segmentId;
-
-                // Hiện modal nhập PIN
                 const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
                 pinModal.show();
-
-                // Focus vào input PIN
-                setTimeout(() => {
-                    document.getElementById('pinInput').focus();
-                }, 500);
+                setTimeout(() => document.getElementById('pinInput').focus(), 500);
             } else {
-                // Segment không protected, load trực tiếp
                 currentSegmentId = segmentId;
                 messageIndex = 0;
                 loadMessages(segmentId);
 
-                // Đóng modal segments
                 const segmentsModalEl = document.getElementById('segmentsModal');
                 if (segmentsModalEl) {
                     const segmentsModal = bootstrap.Modal.getInstance(segmentsModalEl);
@@ -888,38 +911,25 @@
             const pinInput = document.getElementById("pinInput");
             const pin = pinInput.value.trim();
 
-            if (!pin) {
-                alert("Please enter a PIN");
-                return;
-            }
-
-            if (!/^\d{4,6}$/.test(pin)) {
+            if (!pin || !/^\d{4,6}$/.test(pin)) {
                 alert("PIN must be 4-6 digits");
                 return;
             }
 
-            console.log(`Submitting PIN for segment: ${pendingSegmentId}`);
-
-            // Cập nhật segment hiện tại
             currentSegmentId = pendingSegmentId;
             messageIndex = 0;
-
-            // Load messages với PIN
             loadMessages(pendingSegmentId, pin);
 
-            // Đóng modal PIN
             const pinModalEl = document.getElementById('pinModal');
             const pinModal = bootstrap.Modal.getInstance(pinModalEl);
             if (pinModal) pinModal.hide();
 
-            // Đóng modal segments
             const segmentsModalEl = document.getElementById('segmentsModal');
             if (segmentsModalEl) {
                 const segmentsModal = bootstrap.Modal.getInstance(segmentsModalEl);
                 if (segmentsModal) segmentsModal.hide();
             }
 
-            // Clear input
             pinInput.value = "";
             pendingSegmentId = null;
         }
@@ -944,11 +954,8 @@
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating...';
 
-            console.log('Creating first segment for thread:', threadId);
-
             if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
-                console.error('SignalR not connected');
-                alert('Chat connection not ready. Please refresh the page.');
+                alert('Chat not connected. Please refresh.');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bi bi-plus-circle"></i> Create Segment';
                 return;
@@ -956,38 +963,51 @@
 
             connection.invoke("StartNewSegment", threadId)
                 .then(() => {
-                    console.log('Segment created successfully');
                     alert("Segment created! Reloading...");
                     setTimeout(() => location.reload(), 1000);
                 })
                 .catch(err => {
-                    console.error('Failed to create segment:', err);
-                    alert("Failed to create segment: " + err.message);
+                    alert("Failed: " + err.message);
                     btn.disabled = false;
                     btn.innerHTML = '<i class="bi bi-plus-circle"></i> Create Segment';
                 });
         }
 
-        
-        // Initialize
-        let chatEncryption = null;
-        let encryptionReady = false;
+        // ===================================================
+        // HELPER FUNCTIONS
+        // ===================================================
 
-        // ================ KHỞI TẠO TOÀN BỘ ================
+        function formatFileSize(bytes) {
+            if (!bytes) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function formatTime(date) {
+            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ===================================================
+        // INITIALIZATION
+        // ===================================================
+
         document.addEventListener('DOMContentLoaded', async function () {
             console.log(' Initializing chat...');
-            console.log('Thread ID:', threadId);
-            console.log('Current Segment ID:', currentSegmentId);
-            console.log('Current User:', currentUser);
 
             try {
-              
                 console.log(' Initializing ChatEncryption...');
                 chatEncryption = new ChatEncryption();
-
                 await chatEncryption.initialize();
 
-      
                 if (!chatEncryption.isReady()) {
                     throw new Error('Encryption initialization failed');
                 }
@@ -995,34 +1015,35 @@
                 encryptionReady = true;
                 console.log(' Encryption ready!');
 
-             
                 if (threadId > 0) {
                     console.log(` Fetching public keys for thread ${threadId}...`);
-                    await chatEncryption.fetchPublicKeysForThread(threadId);
-                    console.log(` Public keys loaded: ${chatEncryption.publicKeys.size} keys`);
+
+                    let retries = 3;
+                    while (retries > 0) {
+                        await chatEncryption.fetchPublicKeysForThread(threadId);
+
+                        const allUsers = @Html.Raw(Json.Serialize(Model.UserIds.ToArray()));
+                        if (chatEncryption.publicKeys.size >= allUsers.length) {
+                            console.log(` All public keys loaded!`);
+                            break;
+                        }
+
+                        console.warn(` Retrying... (${retries - 1} left)`);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        retries--;
+                    }
                 }
-                
+
                 initializeSignalR();
-               
+
                 if (currentSegmentId > 0) {
-                    console.log(` Loading messages for segment: ${currentSegmentId}`);
                     setTimeout(() => loadMessages(currentSegmentId), 500);
-                } else {
-                    console.warn(' No active segment found');
-                    const messagesDiv = document.getElementById("messages");
-                    messagesDiv.innerHTML = `
-        <div style="text-align: center; color: #999; padding: 40px;">
-            <i class="bi bi-chat-dots" style="font-size: 64px; opacity: 0.3; margin-bottom: 20px;"></i>
-            <h5>No Active Chat Segment</h5>
-            <p>Create a segment to start messaging</p>
-        </div>`;
                 }
             } catch (err) {
                 console.error(' Initialization error:', err);
                 encryptionReady = false;
-                alert(' Encryption initialization failed. Messages will not be encrypted.\n\nError: ' + err.message);
+                alert('Encryption failed. Messages will not be encrypted.');
 
-                // Continue without encryption
                 initializeSignalR();
                 if (currentSegmentId > 0) {
                     setTimeout(() => loadMessages(currentSegmentId), 500);
