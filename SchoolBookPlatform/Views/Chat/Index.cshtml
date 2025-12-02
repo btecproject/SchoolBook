@@ -839,24 +839,7 @@ ViewData["Title"] = "Chat";
                 });
 
                 input.value = '';
-
-                const searchInput = document.getElementById('searchUserInput');
-                if (searchInput.value.trim() !== "") {
-                    searchInput.value = '';
-                    document.getElementById('clearSearch').style.display = 'none';
-
-                    document.getElementById('searchResults').style.display = 'none';
-                    document.getElementById('conversationList').style.display = 'block';
-                    await loadRecentContacts();
-
-                    //autoclick
-                    const contactElementId = `contact-${currentRecipientId}`;
-                    const contactElement = document.getElementById(contactElementId);
-                    if (contactElement) {
-                        contactElement.click();
-                        contactElement.scrollIntoView({behavior: 'smooth', block: 'nearest'});
-                    }
-                }
+                
             }catch (err) {console.error("Lỗi gửi text:", err);}
         }
         if (filesToSend.length > 0) {
@@ -864,6 +847,23 @@ ViewData["Title"] = "Chat";
                 await handleFileUpload(file);
             }
             input.focus();
+        }
+        const searchInput = document.getElementById('searchUserInput');
+        if (searchInput.value.trim() !== "") {
+            searchInput.value = '';
+            document.getElementById('clearSearch').style.display = 'none';
+
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('conversationList').style.display = 'block';
+            await loadRecentContacts();
+
+            //autoclick
+            const contactElementId = `contact-${currentRecipientId}`;
+            const contactElement = document.getElementById(contactElementId);
+            if (contactElement) {
+                contactElement.click();
+                contactElement.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+            }
         }
     });
     document.getElementById('attachFileBtn').addEventListener('click', function() {
