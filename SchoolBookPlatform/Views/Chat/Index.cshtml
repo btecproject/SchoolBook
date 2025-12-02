@@ -603,7 +603,7 @@ ViewData["Title"] = "Chat";
             }
 
             const bubbleClass = msg.isMine ? 'message-mine' : 'message-theirs';
-            const time = new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            const time = formatTime(msg.createdAt);
 
             return `
             <div class="message ${bubbleClass}">
@@ -615,6 +615,29 @@ ViewData["Title"] = "Chat";
 
         area.innerHTML = html;
     }
+
+    // Hàm cắt chuỗi giờ: Bất chấp múi giờ, bất chấp trình duyệt
+    function formatTime(dateInput) {
+        if (!dateInput) return '';
+        const str = String(dateInput);
+        const match = str.match(/T(\d{2}:\d{2})/);
+
+        if (match) {
+            return match[1];
+        }
+
+        // Fallback: Nếu định dạng lạ không có chữ T, thử parse kiểu cũ
+        try {
+            const date = new Date(str);
+            // Ép về giờ 2 số và phút 2 số
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+        } catch {
+            return '';
+        }
+    }
+    
     function showChatWindow(username, displayName) {
         document.getElementById('welcomeScreen').style.display = 'none';
         document.getElementById('chatWindow').style.display = 'flex';
@@ -729,7 +752,7 @@ ViewData["Title"] = "Chat";
         div.className = `message ${msg.senderId === currentUserId ? 'message-mine' : 'message-theirs'}`;
         div.innerHTML = `
         <div class="message-bubble">${content}</div>
-        <div class="message-time">${new Date(msg.createdAt || new Date()).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
+        <div class="message-time">${formatTime(msg.createdAt)}</div>
     `;
         area.appendChild(div);
 
