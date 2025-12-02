@@ -18,6 +18,7 @@ namespace SchoolBookPlatform.Views.Chat
         {
             var userId = User.Identity.Name;
             Threads = _chatService.GetThreadsForUser(userId).ToList();
+            
         }
     }
 }
