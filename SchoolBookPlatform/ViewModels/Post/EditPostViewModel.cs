@@ -72,5 +72,17 @@ public class AttachmentViewModel
                           FileName.ToLower().EndsWith(".png") || 
                           FileName.ToLower().EndsWith(".gif") || 
                           FileName.ToLower().EndsWith(".webp");
+    
+    public bool IsVideo => IsVideoFile(FileName);
+    
+    private bool IsVideoFile(string fileName)
+    {
+        if (string.IsNullOrEmpty(fileName))
+            return false;
+            
+        var extension = Path.GetExtension(fileName).ToLower();
+        var videoExtensions = new[] { ".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm" };
+        return videoExtensions.Contains(extension);
+    }
 }
 

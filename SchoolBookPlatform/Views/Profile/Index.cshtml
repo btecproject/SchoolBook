@@ -134,7 +134,174 @@
                     <div class="tab-content">
                         <!-- Tab Bài viết -->
                         <div class="tab-pane fade show active" id="posts">
-                            <p class="text-center text-muted py-5">Chưa có bài viết nào.</p>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Bài viết (@Model.PostCount)</h5>
+                                @if (Model.IsOwner)
+                                {
+                                    <a asp-controller="Post" asp-action="Create" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-plus me-1"></i> Đăng bài mới
+                                    </a>
+                                }
+                            </div>
+                            
+                            @if (Model.UserPosts.Any())
+                            {
+                                foreach (var post in Model.UserPosts)
+                                {
+                                    <div class="card mb-3">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <h5 class="card-title">
+                                                        <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" class="text-decoration-none">
+                                                            @post.Title
+                                                        </a>
+                                                    </h5>
+                                                    <p class="card-text">@post.Content</p>
+                                                    <small class="text-muted">
+                                                        <i class="far fa-clock"></i> @post.CreatedAt.ToString("g")
+                                                        @if (!string.IsNullOrEmpty(post.VisibleToRoles) && post.VisibleToRoles != "All")
+                                                        {
+                                                            <span class="badge bg-info ms-2">@post.VisibleToRoles</span>
+                                                        }
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Hiển thị ảnh đầu tiên nếu có -->
+                                            @if (post.Attachments.Any())
+                                            {
+                                                <div class="mt-3">
+                                                    @{
+                                                        var images = post.Attachments.Where(a => a.IsImage).ToList();
+                                                        var files = post.Attachments.Where(a => !a.IsImage).ToList();
+                                                    }
+                                                    
+                                                    @if (images.Any())
+                                                    {
+                                                        <div class="carousel-container">
+                                                            <div id="carousel-profile-@post.Id" class="carousel slide mb-3" data-bs-ride="carousel">
+                                                                <!-- Counter hiển thị số ảnh -->
+                                                                <div class="carousel-counter">
+                                                                    <span id="current-slide-profile-@post.Id">1</span> / <span id="total-slides-profile-@post.Id">@images.Count</span>
+                                                                </div>
+                                                                
+                                                                @if (images.Count > 1)
+                                                                {
+                                                                    <div class="carousel-indicators">
+                                                                        @for (int i = 0; i < images.Count; i++)
+                                                                        {
+                                                                            <button type="button" data-bs-target="#carousel-profile-@post.Id" 
+                                                                                    data-bs-slide-to="@i" class="@(i == 0 ? "active" : "")"
+                                                                                    aria-current="@(i == 0 ? "true" : "false")"></button>
+                                                                        }
+                                                                    </div>
+                                                                }
+                                                                
+                                                                <div class="carousel-inner">
+                                                                    @for (int i = 0; i < images.Count; i++)
+                                                                    {
+                                                                        var img = images[i];
+                                                                        <div class="carousel-item @(i == 0 ? "active" : "") text-center">
+                                                                            <a href="@img.FilePath" target="_blank" class="d-block h-100">
+                                                                                <img src="@img.FilePath" 
+                                                                                     alt="@img.FileName"
+                                                                                     class="img-fluid mx-auto d-block" />
+                                                                            </a>
+                                                                        </div>
+                                                                    }
+                                                                </div>
+                                                                
+                                                                @if (images.Count > 1)
+                                                                {
+                                                                    <button class="carousel-control-prev" type="button" data-bs-target="#carousel-profile-@post.Id" data-bs-slide="prev">
+                                                                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                                                        <span class="visually-hidden">Previous</span>
+                                                                    </button>
+                                                                    <button class="carousel-control-next" type="button" data-bs-target="#carousel-profile-@post.Id" data-bs-slide="next">
+                                                                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                                                        <span class="visually-hidden">Next</span>
+                                                                    </button>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                    
+                                                    @if (files.Any())
+                                                    {
+                                                        <div class="file-list">
+                                                            <small class="text-muted d-block mb-2">File đính kèm:</small>
+                                                            @foreach (var file in files)
+                                                            {
+                                                                <a href="@file.FilePath" target="_blank" 
+                                                                   class="d-flex align-items-center text-decoration-none text-dark p-2 border rounded mb-2">
+                                                                    @{
+                                                                        var icon = "fa-file";
+                                                                        var extension = System.IO.Path.GetExtension(file.FileName).ToLower();
+                                                                        var color = "#6c757d";
+                                                                        
+                                                                        if (extension == ".pdf") { icon = "fa-file-pdf"; color = "#dc3545"; }
+                                                                        else if (extension == ".doc" || extension == ".docx") { icon = "fa-file-word"; color = "#0d6efd"; }
+                                                                        else if (extension == ".xls" || extension == ".xlsx") { icon = "fa-file-excel"; color = "#198754"; }
+                                                                        else if (extension == ".ppt" || extension == ".pptx") { icon = "fa-file-powerpoint"; color = "#fd7e14"; }
+                                                                        else if (extension == ".zip" || extension == ".rar") { icon = "fa-file-archive"; color = "#6f42c1"; }
+                                                                    }
+                                                                    <i class="fas @icon fa-2x me-3" style="color: @color;"></i>
+                                                                    <div class="flex-grow-1">
+                                                                        <div class="fw-medium text-truncate" style="max-width: 300px;">@file.FileName</div>
+                                                                        <small class="text-muted">@((file.FileSize / 1024f / 1024f).ToString("F2")) MB</small>
+                                                                    </div>
+                                                                    <i class="fas fa-download text-primary"></i>
+                                                                </a>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                            
+                                            <!-- Thống kê -->
+                                            <div class="mt-3 d-flex gap-3">
+                                                <span class="text-muted">
+                                                    <i class="fas fa-thumbs-up"></i> @post.UpvoteCount
+                                                </span>
+                                                <span class="text-muted">
+                                                    <i class="fas fa-thumbs-down"></i> @post.DownvoteCount
+                                                </span>
+                                                <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" class="text-muted text-decoration-none">
+                                                    <i class="far fa-comment"></i> @post.CommentCount bình luận
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                
+                                @if (Model.PostCount > Model.UserPosts.Count)
+                                {
+                                    <div class="text-center mt-4">
+                                        <a href="@Url.Action("UserPosts", "Post", new { userId = Model.UserId })" class="btn btn-outline-primary">
+                                            Xem tất cả bài viết (@Model.PostCount)
+                                        </a>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="text-center py-5 text-muted">
+                                    <i class="fas fa-newspaper fa-3x mb-3"></i>
+                                    <h5>Chưa có bài viết nào</h5>
+                                    @if (Model.IsOwner)
+                                    {
+                                        <p class="mb-3">Hãy đăng bài đầu tiên của bạn</p>
+                                        <a asp-controller="Post" asp-action="Create" class="btn btn-primary">
+                                            <i class="fas fa-plus me-1"></i> Đăng bài ngay
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <p>@Model.Username chưa đăng bài viết nào</p>
+                                    }
+                                </div>
+                            }
                         </div>
 
                         <!-- Tab Thông tin -->
@@ -784,6 +951,69 @@
         }, 3000);
     }
 
+    // JavaScript để cập nhật số đếm khi chuyển slide cho carousel trong profile
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.carousel').forEach(carousel => {
+            const carouselId = carousel.id;
+            const currentSlideSpan = document.getElementById(`current-slide-${carouselId.replace('carousel-', '')}`);
+            const totalSlidesSpan = document.getElementById(`total-slides-${carouselId.replace('carousel-', '')}`);
 
+            // Thiết lập số slide tổng cộng
+            if (totalSlidesSpan) {
+                const totalItems = carousel.querySelectorAll('.carousel-item').length;
+                totalSlidesSpan.textContent = totalItems;
+            }
+
+            if (currentSlideSpan) {
+                // Thiết lập slide hiện tại
+                const activeSlide = carousel.querySelector('.carousel-item.active');
+                const activeIndex = Array.from(carousel.querySelectorAll('.carousel-item')).indexOf(activeSlide) + 1;
+                currentSlideSpan.textContent = activeIndex;
+            }
+
+            // Lắng nghe sự kiện slide.bs.carousel
+            carousel.addEventListener('slide.bs.carousel', function (event) {
+                if (currentSlideSpan) {
+                    const nextIndex = event.to + 1; // event.to là index (0-based)
+                    currentSlideSpan.textContent = nextIndex;
+                }
+            });
+        });
+
+        // Đảm bảo ảnh được căn giữa sau khi load
+        setTimeout(() => {
+            document.querySelectorAll('.carousel-item img').forEach(img => {
+                const parent = img.closest('.carousel-item');
+                if (parent) {
+                    // Căn giữa theo chiều dọc nếu ảnh thấp hơn container
+                    const imgHeight = img.offsetHeight;
+                    const parentHeight = parent.offsetHeight;
+
+                    if (imgHeight < parentHeight) {
+                        const marginTop = (parentHeight - imgHeight) / 2;
+                        img.style.marginTop = marginTop + 'px';
+                    }
+                }
+            });
+        }, 100);
+    });
+
+    // Xử lý khi window resize
+    window.addEventListener('resize', function() {
+        document.querySelectorAll('.carousel-item img').forEach(img => {
+            const parent = img.closest('.carousel-item');
+            if (parent) {
+                const imgHeight = img.offsetHeight;
+                const parentHeight = parent.offsetHeight;
+
+                if (imgHeight < parentHeight) {
+                    const marginTop = (parentHeight - imgHeight) / 2;
+                    img.style.marginTop = marginTop + 'px';
+                } else {
+                    img.style.marginTop = '0';
+                }
+            }
+        });
+    });
 </script>
 }

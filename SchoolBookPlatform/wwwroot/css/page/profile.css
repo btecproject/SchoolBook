@@ -5,6 +5,7 @@
     --tab-inactive-opacity: 0.7;
 }
 
+/* Tab styles */
 .nav-tabs .nav-link {
     border: none;
     font-weight: 600;
@@ -27,7 +28,7 @@
 /* Xóa style color inline trong thẻ p */
 .nav-tabs .nav-link p {
     margin-bottom: 0;
-    color: inherit; /* Kế thừa màu từ nav-link */
+    color: inherit;
 }
 
 .text-primary {
@@ -40,4 +41,41 @@
 .material-symbols-outlined {
     text-decoration: none !important;
 }
-/* GHI ĐÈ MỌI STYLE CÓ THỂ ẢNH HƯỞNG ĐẾN DISPLAY */
+
+/* Thêm vào phần CSS của trang hoặc trong file CSS chính */
+.carousel-inner {
+    display: flex;
+    align-items: center; /* Căn giữa theo chiều dọc */
+    justify-content: center; /* Căn giữa theo chiều ngang */
+    height: 500px; /* Hoặc chiều cao bạn muốn */
+    background-color: #f8f9fa; /* Màu nền nếu ảnh không đủ kích thước */
+}
+
+.carousel-item img {
+    max-height: 100%;
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain; /* Giữ tỷ lệ ảnh, không bị crop */
+    margin: 0 auto; /* Căn giữa */
+    display: block; /* Quan trọng để margin auto hoạt động */
+}
+
+/* Container cho carousel */
+.carousel-container {
+    margin: 0 auto;
+    max-width: 800px; /* Giới hạn chiều rộng tối đa */
+}
+
+/* Counter cho carousel */
+.carousel-counter {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 14px;
+    z-index: 10;
+}

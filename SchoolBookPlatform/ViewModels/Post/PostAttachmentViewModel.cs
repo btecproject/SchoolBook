@@ -11,5 +11,7 @@ namespace SchoolBookPlatform.ViewModels
         public string FileSizeFormatted { get; set; }
         public DateTime UploadedAt { get; set; }
         public string FileType { get; set; }
+        
+
     }
 }

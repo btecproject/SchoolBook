@@ -7,6 +7,7 @@ using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
+using SchoolBookPlatform.ViewModels.Post;
 using SchoolBookPlatform.ViewModels.Profile;
 
 namespace SchoolBookPlatform.Controllers;
@@ -34,14 +35,16 @@ public class ProfileController(
     Cloudinary  cloudinary) : Controller
 {
     // GET
+    [Authorize]
+    [Authorize]
     public async Task<IActionResult> Index(string username)
     {
         var targetUser = await db.GetUserWithProfileAsync(username);
         if (targetUser == null) return NotFound();
+        
         if (targetUser.UserProfile == null)
         {
-            await db.EnsureProfileAsync(targetUser.Id);
-            targetUser = await db.GetUserWithProfileAsync(username);
+            targetUser.UserProfile = await db.EnsureProfileAsync(targetUser.Id);
         }
         
         var currentUser = await HttpContext.GetCurrentUserAsync(db);
@@ -49,15 +52,53 @@ public class ProfileController(
         
         var isOwner = currentUser.Id == targetUser.Id;
 
-        var canViewPrivate = await db.CanViewPrivateInfoAsync(HttpContext,  targetUser.Id);
+        var canViewPrivate = await db.CanViewPrivateInfoAsync(HttpContext, targetUser.Id);
         
-        //follower/following
+        // follower/following
         var followerCount = await db.Followers.CountAsync(f => f.UserId == targetUser.Id);
         var followingCount = await db.Following.CountAsync(f => f.UserId == targetUser.Id);
 
-        //đã follow chưa
+        // đã follow chưa
         var isFollowing = !isOwner && await db.Followers
             .AnyAsync(f => f.UserId == targetUser.Id && f.FollowerId == currentUser.Id);
+
+        // Lấy bài đăng của user và chuyển sang PostViewModel
+        var userPosts = await db.Posts
+            .Where(p => p.UserId == targetUser.Id && !p.IsDeleted && p.IsVisible)
+            .Include(p => p.User)
+                .ThenInclude(u => u.UserProfile)
+            .Include(p => p.Votes)
+            .Include(p => p.Comments)
+            .Include(p => p.Attachments)
+            .OrderByDescending(p => p.CreatedAt)
+            .Take(20)
+            .Select(p => new PostViewModel
+            {
+                Id = p.Id,
+                Title = p.Title,
+                Content = p.Content,
+                AuthorName = p.User.Username,
+                AuthorAvatar = p.User.UserProfile.AvatarUrl,
+                CreatedAt = p.CreatedAt,
+                UpdatedAt = p.UpdatedAt,
+                UpvoteCount = p.Votes.Count(v => v.VoteType),
+                DownvoteCount = p.Votes.Count(v => !v.VoteType),
+                CommentCount = p.Comments.Count,
+                IsDeleted = p.IsDeleted,
+                IsVisible = p.IsVisible,
+                VisibleToRoles = p.VisibleToRoles,
+                IsOwner = currentUser.Id == p.UserId,
+                CanDelete = currentUser.Id == p.UserId,
+                Attachments = p.Attachments.Select(a => new AttachmentViewModel
+                {
+                    Id = a.Id,
+                    FileName = a.FileName,
+                    FilePath = a.FilePath,
+                    FileSize = a.FileSize,
+                    UploadedAt = a.UploadedAt
+                }).ToList()
+            })
+            .ToListAsync();
 
         var model = new ProfileViewModel
         {
@@ -81,8 +122,13 @@ public class ProfileController(
             FollowingCount = followingCount,
             IsFollowing = isFollowing,
             IsOwner = isOwner,
-            CanEdit = isOwner
+            CanEdit = isOwner,
+            
+            // Sử dụng PostViewModel
+            UserPosts = userPosts,
+            PostCount = await db.Posts.CountAsync(p => p.UserId == targetUser.Id && !p.IsDeleted && p.IsVisible)
         };
+        
         return View(model);
     }
 

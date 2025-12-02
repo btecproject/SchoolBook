@@ -52,7 +52,137 @@
     backdrop-filter: blur(5px);
 }
 
-/* Đảm bảo carousel có position relative */
-.carousel {
+ .modal-fullscreen .modal-content {
+     background-color: transparent !important;
+     backdrop-filter: blur(10px);
+ }
+
+.btn-close-white {
+    filter: invert(1) grayscale(100%) brightness(200%);
+    opacity: 0.8;
+    transition: opacity 0.2s;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    padding: 10px;
+}
+
+.btn-close-white:hover {
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+#imageModal .modal-header {
+    padding: 1rem;
+    z-index: 1001;
+}
+
+.carousel-counter-modal {
+    font-size: 1rem;
+    font-weight: 500;
+    backdrop-filter: blur(5px);
+}
+
+.modal-media {
+    transition: transform 0.3s ease;
+}
+
+.modal-media:hover {
+    cursor: pointer;
+    transform: scale(1.05);
+}
+
+#blurredBackground {
+    overflow: hidden;
+}
+
+#blurredBackground img {
+    transform: scale(1.1); /* Tăng kích thước để đảm bảo blur không để lộ viền */
+}
+
+.carousel-control-prev,
+.carousel-control-next {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+}
+
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+    background-size: 1.5rem;
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Animation cho background blur */
+#blurredBackground img {
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Video styles */
+.video-container {
     position: relative;
+}
+
+.video-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity 0.3s ease;
+}
+
+.video-overlay:hover {
+    opacity: 0.9;
+}
+
+.video-play-icon {
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.video-play-icon:hover {
+    transform: scale(1.1);
+    background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+.post-video {
+    border-radius: 4px;
+}
+
+.modal-video {
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Ẩn overlay khi video đang phát */
+.carousel-item.active video:not([paused]) + .video-overlay {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Responsive cho mobile */
+@media (max-width: 768px) {
+    .carousel-control-prev,
+    .carousel-control-next {
+        width: 50px;
+    }
+
+    .carousel-counter-modal {
+        font-size: 0.9rem;
+        padding: 4px 12px;
+    }
+
+    .video-play-icon {
+        padding: 1rem !important;
+    }
+
+    .video-play-icon i {
+        font-size: 1.5rem !important;
+    }
 }
