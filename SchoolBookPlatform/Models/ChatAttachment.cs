@@ -11,5 +11,6 @@
         public long FileSize { get; set; }
         public byte[] FileData { get; set; }
         public DateTime UploadedAt { get; set; }
+        
     }
 }

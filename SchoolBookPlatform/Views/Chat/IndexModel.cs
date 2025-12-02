@@ -14,7 +14,6 @@ namespace SchoolBookPlatform.Views.Chat
         {
             _chatService = chatService;
         }
-
         public void OnGet()
         {
             var userId = User.Identity.Name;

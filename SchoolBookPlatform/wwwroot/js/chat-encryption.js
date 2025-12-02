@@ -656,13 +656,12 @@
         try {
             console.log(' Initializing chat encryption...');
 
-            //  STEP 1: Try to load existing keypair from IndexedDB
+
             const existingKeyPair = await this.loadKeyPairFromDB();
 
             if (existingKeyPair) {
                 console.log(' Using existing keypair from IndexedDB');
-
-                // Store public key in localStorage for quick access
+                
                 const publicKeyBase64 = await this.exportPublicKey(this.keyPair.publicKey);
                 localStorage.setItem('chat_public_key', publicKeyBase64);
 
@@ -696,8 +695,7 @@
 
                 // Store public key in localStorage
                 await this.storeKeysLocally();
-
-                // Upload to server
+                
                 await this.uploadPublicKey();
 
                 console.log(' New keypair generated and stored');

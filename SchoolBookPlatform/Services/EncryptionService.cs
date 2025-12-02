@@ -14,8 +14,7 @@ namespace SchoolBookPlatform.Services
 
             using var aes = new AesGcm(key);
             aes.Encrypt(nonce, plaintextBytes, ciphertext, tag);
-
-            // Combine nonce + ciphertext + tag thành base64
+            
             byte[] encrypted = new byte[nonce.Length + ciphertext.Length + tag.Length];
             Buffer.BlockCopy(nonce, 0, encrypted, 0, nonce.Length);
             Buffer.BlockCopy(ciphertext, 0, encrypted, nonce.Length, ciphertext.Length);

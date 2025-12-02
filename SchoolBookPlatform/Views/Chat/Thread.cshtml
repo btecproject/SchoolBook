@@ -980,13 +980,13 @@
             console.log('Current User:', currentUser);
 
             try {
-                // BƯỚC 1: Khởi tạo hệ thống mã hóa
+              
                 console.log(' Initializing ChatEncryption...');
                 chatEncryption = new ChatEncryption();
 
                 await chatEncryption.initialize();
 
-                // Verify initialization
+      
                 if (!chatEncryption.isReady()) {
                     throw new Error('Encryption initialization failed');
                 }
@@ -994,17 +994,15 @@
                 encryptionReady = true;
                 console.log(' Encryption ready!');
 
-                // BƯỚC 2: Fetch public keys
+             
                 if (threadId > 0) {
                     console.log(` Fetching public keys for thread ${threadId}...`);
                     await chatEncryption.fetchPublicKeysForThread(threadId);
                     console.log(` Public keys loaded: ${chatEncryption.publicKeys.size} keys`);
                 }
-
-                // BƯỚC 3: Kết nối SignalR
+                
                 initializeSignalR();
-
-                // BƯỚC 4: Load messages (sẽ tự động giải mã)
+               
                 if (currentSegmentId > 0) {
                     console.log(` Loading messages for segment: ${currentSegmentId}`);
                     setTimeout(() => loadMessages(currentSegmentId), 500);

@@ -15,7 +15,6 @@
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? LastUsedAt { get; set; }
         
-        // Foreign key navigation
         public User? User { get; set; }
     }
 }

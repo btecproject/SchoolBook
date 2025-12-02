@@ -16,8 +16,6 @@ namespace SchoolBookPlatform.Hubs
             _chatService = chatService;
             _logger = logger;
         }
-        
-        // SEND ENCRYPTED MESSAGE
 
         public async Task SendEncryptedMessage(
             int threadId, 

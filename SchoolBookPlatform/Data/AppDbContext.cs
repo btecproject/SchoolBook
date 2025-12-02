@@ -78,8 +78,7 @@ public class AppDbContext : DbContext
                 .WithMany()  // Nếu User không có navigation back (collection keys), dùng WithMany(). Nếu có, dùng WithOne(u => u.EncryptionKey)
                 .HasForeignKey(k => k.UserId)
                 .OnDelete(DeleteBehavior.Cascade);  // Xóa user → xóa key
-
-            // Thêm unique index cho UserId để enforce 1 key/user
+            
             entity.HasIndex(k => k.UserId).IsUnique();
         });
         

@@ -11,7 +11,6 @@ namespace SchoolBookPlatform.Models
         // Lưu dưới dạng JSON string trong database
         public string UserIdsJson { get; set; }
         
-        // Property không map vào database
         [NotMapped]
         public List<string> UserIds 
         { 

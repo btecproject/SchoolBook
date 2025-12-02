@@ -4,12 +4,10 @@
     public string Content { get; set; }
     public DateTime Timestamp { get; set; }
     
-    // Encryption metadata
     public string? EncryptionIV { get; set; }        
     public string? EncryptedKey { get; set; }      
     public bool IsEncrypted { get; set; } = false;
     
-    // Attachments
     public int? AttachmentId { get; set; }
     public string? AttachmentType { get; set; }
     public string? AttachmentName { get; set; }

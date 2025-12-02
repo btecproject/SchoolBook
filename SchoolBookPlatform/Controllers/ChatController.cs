@@ -86,6 +86,7 @@ namespace SchoolBookPlatform.Controllers
                         message = "Segment ID must be greater than 0" 
                     });
                 }
+                
 
                 // STEP 2: Kiểm tra segment tồn tại trong database
                 _logger.LogInformation($"Checking if segment {segmentId} exists in database...");

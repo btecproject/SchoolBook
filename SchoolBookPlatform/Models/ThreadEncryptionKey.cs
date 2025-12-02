@@ -12,7 +12,6 @@
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
-        // Foreign key navigations
         public ChatThread? Thread { get; set; }
         public User? User { get; set; }
     }

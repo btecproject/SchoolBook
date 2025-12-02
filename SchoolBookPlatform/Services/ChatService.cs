@@ -25,7 +25,6 @@ namespace SchoolBookPlatform.Services
             Console.WriteLine($"   IsProtected: {isProtected}");
             Console.WriteLine($"   PIN provided: {(pin != null ? "YES" : "NO")}");
             
-            // CRITICAL: Chỉ tạo salt và pinHash khi isProtected = true
             byte[]? salt = null;
             string? pinHash = null;
             
