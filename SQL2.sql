@@ -301,3 +301,24 @@ PRINT '';
 PRINT 'CHAT DATABASE SCHEMA SETUP COMPLETED!';
 PRINT '=========================================';
 GO
+
+-- Create UserEncryptionKeys table
+CREATE TABLE [dbo].[UserEncryptionKeys] (
+    [Id] INT IDENTITY(1,1) NOT NULL,
+    [UserId] UNIQUEIDENTIFIER NOT NULL,
+    [PublicKey] NVARCHAR(4000) NOT NULL,
+    [EncryptedPrivateKey] NVARCHAR(4000) NULL,
+    [PrivateKeySalt] VARBINARY(MAX) NULL,
+    [CreatedAt] DATETIME2 NOT NULL DEFAULT (GETUTCDATE()),
+    [LastUsedAt] DATETIME2 NULL,
+
+    CONSTRAINT [PK_UserEncryptionKeys] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_UserEncryptionKeys_Users_UserId]
+    FOREIGN KEY ([UserId]) REFERENCES [Users]([Id]) ON DELETE CASCADE
+    );
+
+-- Create unique index
+CREATE UNIQUE INDEX [IX_UserEncryptionKeys_UserId]
+    ON [UserEncryptionKeys]([UserId]);
+
+PRINT '✅ UserEncryptionKeys table created successfully';

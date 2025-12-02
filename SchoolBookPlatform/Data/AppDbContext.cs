@@ -23,8 +23,9 @@ public class AppDbContext : DbContext
     public DbSet<Follower> Followers { get; set; }
     public DbSet<Following> Following { get; set; }
     public DbSet<RecoveryCode> RecoveryCodes { get; set; } = null!;
-    public DbSet<UserEncryptionKey> UserEncryptionKeys { get; set; }
-    public DbSet<ThreadEncryptionKey> ThreadEncryptionKeys { get; set; }
+    
+    public DbSet<UserEncryptionKey> UserEncryptionKeys { get; set; } = null!;
+    public DbSet<ThreadEncryptionKey> ThreadEncryptionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -51,24 +52,35 @@ public class AppDbContext : DbContext
                 .IsUnique();
         });
         
-        // USER ENCRYPTION KEY CONFIGURATION
+        //  USER ENCRYPTION KEY CONFIGURATION - FIXED
         modelBuilder.Entity<UserEncryptionKey>(entity =>
         {
             entity.HasKey(k => k.Id);
-            
-            entity.Property(k => k.UserId).IsRequired();
-            entity.Property(k => k.PublicKey).IsRequired();
-            entity.Property(k => k.EncryptedPrivateKey).IsRequired();
-            entity.Property(k => k.PrivateKeySalt).IsRequired();
-            
-            // Unique index on UserId
-            entity.HasIndex(k => k.UserId).IsUnique();
-            
-            // Foreign key
-            entity.HasOne(k => k.User)
-                .WithMany()
+        
+            // UserId - Required
+            entity.Property(k => k.UserId)
+                .IsRequired();
+        
+            // PublicKey - Required, max length for safety
+            entity.Property(k => k.PublicKey)
+                .IsRequired()
+                .HasMaxLength(4000); // RSA 2048 public key ~392 chars base64
+        
+            //  CRITICAL FIX: These should be NULLABLE for client-side only encryption
+            entity.Property(k => k.EncryptedPrivateKey)
+                .IsRequired(false);
+        
+            entity.Property(k => k.PrivateKeySalt)
+                .IsRequired(false);
+
+            // Thêm FK đến User (assume User.Id là Guid)
+            entity.HasOne(k => k.User)  // Navigation property trong UserEncryptionKey
+                .WithMany()  // Nếu User không có navigation back (collection keys), dùng WithMany(). Nếu có, dùng WithOne(u => u.EncryptionKey)
                 .HasForeignKey(k => k.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Cascade);  // Xóa user → xóa key
+
+            // Thêm unique index cho UserId để enforce 1 key/user
+            entity.HasIndex(k => k.UserId).IsUnique();
         });
         
         // THREAD ENCRYPTION KEY CONFIGURATION
@@ -133,30 +145,25 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // ChatSegment - CRITICAL: Đảm bảo MessagesJson không bao giờ NULL
+        // ChatSegment
         modelBuilder.Entity<ChatSegment>(entity =>
         {
             entity.HasKey(s => s.Id);
             
-            // MessagesJson - Required with default
             entity.Property(s => s.MessagesJson)
                 .IsRequired()
                 .HasDefaultValueSql("'[]'");
             
-            // StartTime - Required with default
             entity.Property(s => s.StartTime)
                 .IsRequired()
                 .HasDefaultValueSql("GETUTCDATE()");
             
-            // IsProtected - Default false    
             entity.Property(s => s.IsProtected)
                 .HasDefaultValue(false);
                 
-            // PinHash - Optional (NULL when not protected)
             entity.Property(s => s.PinHash)
                 .IsRequired(false);
                 
-            // Salt - Optional (NULL when not protected)
             entity.Property(s => s.Salt)
                 .IsRequired(false);
         });
@@ -197,17 +204,5 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(f => f.FollowingId)
             .OnDelete(DeleteBehavior.NoAction);
-        
-        //RecoveryCodes
-        // modelBuilder.Entity<RecoveryCode>(entity =>
-        // {
-        //     entity.HasIndex(e => new { e.UserId, e.IsUsed })
-        //         .HasDatabaseName("IX_RecoveryCodes_UserId_IsUsed")
-        //         .IncludeProperties(e => e.HashedCode); // Covering index siêu nhanh
-        //
-        //     entity.Property(e => e.HashedCode)
-        //         .IsRequired()
-        //         .HasMaxLength(255);
-        // });
     }
 }
