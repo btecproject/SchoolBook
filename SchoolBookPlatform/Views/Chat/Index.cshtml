@@ -128,7 +128,7 @@ ViewData["Title"] = "Chat";
                             <button type="button" class="btn btn-light rounded-circle p-2" id="attachFileBtn">
                                 <i class="bi bi-paperclip text-primary fs-5"></i>
                             </button>
-                            <input type="file" id="fileInput" class="d-none"
+                            <input type="file" id="fileInput" class="d-none" multiple
                                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" />
 
                             <textarea type="text" id="messageInput"
@@ -175,7 +175,8 @@ ViewData["Title"] = "Chat";
     let myPrivateKeyEncrypted = null;
     let typingTimeout = null;
     let connection = null;
-    let selectedFile = null;
+    // let selectedFile = null;
+    let selectedFiles = [];
     let recipientPinsCache = new Map();
 
     const currentUsername = '@User.Identity.Name';
@@ -811,8 +812,17 @@ ViewData["Title"] = "Chat";
 
         const input = document.getElementById('messageInput');
         const text = input.value.trim();
-        const fileToSend = selectedFile;
+        const filesToSend = [...selectedFiles]; //copy mảng
         
+        //reset UI
+        input.value = '';
+        input.style.height = 'auto';
+        
+        if (filesToSend.length > 0) {
+            selectedFiles = []; 
+            document.getElementById('fileInput').value = '';
+            // document.getElementById('filePreview').classList.add('d-none');
+        }
         //Text
         if (text) {
             try {
@@ -846,8 +856,10 @@ ViewData["Title"] = "Chat";
                 }
             }catch (err) {console.error("Lỗi gửi text:", err);}
         }
-        if (fileToSend) {
-            await handleFileUpload(fileToSend);
+        if (filesToSend.length > 0) {
+            for (const file of filesToSend) {
+                await handleFileUpload(file);
+            }
             input.focus();
         }
     });
@@ -855,19 +867,18 @@ ViewData["Title"] = "Chat";
         document.getElementById('fileInput').click();
     });
     document.getElementById('fileInput').addEventListener('change', function(e) {
-        selectedFile = e.target.files[0];
+        selectedFiles = Array.from(e.target.files);        
         document.getElementById('messageInput').focus();
-
-        if (selectedFile) {
+        if (selectedFiles.length > 0) {
             document.getElementById("filePreview").hidden = false;
-            displayFilePreview(selectedFile);
+            displayFilePreview(selectedFiles);
         }
         else{
             document.getElementById("filePreview").hidden = true;
         }
     });
     document.getElementById('removeFileBtn').addEventListener('click', function() {
-        selectedFile = null;
+        selectedFiles = [];
         document.getElementById('fileInput').value = '';
         document.getElementById('filePreview').classList.add('d-none');
     });
@@ -888,37 +899,42 @@ ViewData["Title"] = "Chat";
         }
     });
     // ===== File Upload + review =====
-    function displayFilePreview(file) {
+    function displayFilePreview(files) {
         const preview = document.getElementById('filePreview');
-        const fileName = document.getElementById('fileName');
-        const fileSize = document.getElementById('fileSize');
+        const fileNameLabel = document.getElementById('fileName');
+        const fileSizeLabel = document.getElementById('fileSize');
         const fileIcon = document.getElementById('fileIcon');
+        
+        let totalSize = 0;
+        files.forEach(f => totalSize += f.size);
 
-        fileName.textContent = file.name;
-        fileSize.textContent = formatFileSize(file.size);
-
-        // Đổi icon theo loại file
-        const ext = file.name.split('.').pop().toLowerCase();
-        let iconClass = 'bi-file-earmark';
-
-        if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) {
-            iconClass = 'bi-file-earmark-image';
-        } else if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'].includes(ext)) {
-            iconClass = 'bi-file-earmark-play';
-        } else if (['pdf'].includes(ext)) {
-            iconClass = 'bi-file-earmark-pdf';
-        } else if (['doc', 'docx'].includes(ext)) {
-            iconClass = 'bi-file-earmark-word';
-        } else if (['xls', 'xlsx'].includes(ext)) {
-            iconClass = 'bi-file-earmark-excel';
-        } else if (['zip', 'rar'].includes(ext)) {
-            iconClass = 'bi-file-earmark-zip';
+        // Hiển thị tên
+        if (files.length === 1) {
+            fileNameLabel.textContent = files[0].name;
+            // Đổi icon theo file đầu tiên
+            updateFileIcon(files[0].name, fileIcon);
+        } else {
+            fileNameLabel.textContent = `${files.length} files: ${files[0].name} ...`;
+            fileIcon.className = `bi bi-files fs-3 text-primary me-2`; // Icon folder/multiple
         }
 
-        fileIcon.className = `bi ${iconClass} fs-3 text-primary me-2`;
+        fileSizeLabel.textContent = formatFileSize(totalSize);
         preview.classList.remove('d-none');
     }
 
+    //Helpẻ đổi icon
+    function updateFileIcon(fileName, iconElement) {
+        const ext = fileName.split('.').pop().toLowerCase();
+        let iconClass = 'bi-file-earmark';
+        if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) iconClass = 'bi-file-earmark-image';
+        else if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'].includes(ext)) iconClass = 'bi-file-earmark-play';
+        else if (['pdf'].includes(ext)) iconClass = 'bi-file-earmark-pdf';
+        else if (['doc', 'docx'].includes(ext)) iconClass = 'bi-file-earmark-word';
+        else if (['xls', 'xlsx'].includes(ext)) iconClass = 'bi-file-earmark-excel';
+        else if (['zip', 'rar'].includes(ext)) iconClass = 'bi-file-earmark-zip';
+        iconElement.className = `bi ${iconClass} fs-3 text-primary me-2`;
+    }
+    
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;
