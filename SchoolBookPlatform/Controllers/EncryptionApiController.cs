@@ -296,10 +296,7 @@ namespace SchoolBookPlatform.Controllers
         }
     }
     
-
-    // ===================================================
-    // REQUEST MODELS
-    // ===================================================
+    
     public class UploadPublicKeyRequest
     {
         public string PublicKey { get; set; } = string.Empty;

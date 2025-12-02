@@ -35,7 +35,6 @@ namespace SchoolBookPlatform.Services
             Buffer.BlockCopy(encrypted, 12 + ciphertext.Length, tag, 0, 16);
 
             byte[] plaintext = new byte[ciphertext.Length];
-
             using var aes = new AesGcm(key);
             aes.Decrypt(nonce, ciphertext, tag, plaintext);
 

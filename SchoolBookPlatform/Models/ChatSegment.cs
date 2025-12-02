@@ -10,6 +10,5 @@
         public bool IsProtected { get; set; } = false;
         public string? PinHash { get; set; } 
         public byte[]? Salt { get; set; }
-        
     }
 }

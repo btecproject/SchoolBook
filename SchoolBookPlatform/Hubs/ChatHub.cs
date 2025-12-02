@@ -175,6 +175,7 @@ namespace SchoolBookPlatform.Hubs
                 throw new HubException($"Failed to start segment: {ex.Message}");
             }
         }
+        
 
         public async Task StartProtectedSegment(int threadId, string pin)
         {

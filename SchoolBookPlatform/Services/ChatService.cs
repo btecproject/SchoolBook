@@ -315,8 +315,6 @@ namespace SchoolBookPlatform.Services
 
         private byte[] DeriveKeyFromPin(string pin, byte[] salt)
         {
-            // CRITICAL: KHÔNG tạo salt mới nếu salt NULL
-            // Phải dùng salt được truyền vào
             if (salt == null || salt.Length == 0)
                 throw new ArgumentException("Salt is required for PIN derivation");
                 

@@ -80,8 +80,7 @@ namespace SchoolBookPlatform.Controllers
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation($"File saved to DB: ID={attachment.Id}, Name={file.FileName}, Size={file.Length}");
-
-                // Response khớp với JavaScript expectations
+                
                 return Ok(new
                 {
                     success = true,

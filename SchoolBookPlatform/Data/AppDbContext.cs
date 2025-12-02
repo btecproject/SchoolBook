@@ -52,7 +52,7 @@ public class AppDbContext : DbContext
                 .IsUnique();
         });
         
-        //  USER ENCRYPTION KEY CONFIGURATION - FIXED
+        //  USER ENCRYPTION KEY CONFIGURATION 
         modelBuilder.Entity<UserEncryptionKey>(entity =>
         {
             entity.HasKey(k => k.Id);

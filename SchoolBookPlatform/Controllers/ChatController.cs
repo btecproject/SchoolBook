@@ -355,8 +355,7 @@ namespace SchoolBookPlatform.Controllers
             }
         }
     }
-
-    //REQUEST MODEL
+    
     public class CreateThreadRequest
     {
         public string ThreadName { get; set; }

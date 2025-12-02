@@ -3,9 +3,7 @@
     public class ThreadEncryptionKey
     {
         public int Id { get; set; }
-        
         public int ThreadId { get; set; }
-        
         public Guid UserId { get; set; }
         
         public string EncryptedThreadKey { get; set; } = string.Empty;

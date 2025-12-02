@@ -12,4 +12,5 @@
     public string? AttachmentType { get; set; }
     public string? AttachmentName { get; set; }
     public long? AttachmentSize { get; set; }
+    
 }

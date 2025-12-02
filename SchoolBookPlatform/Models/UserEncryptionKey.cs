@@ -14,7 +14,6 @@
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? LastUsedAt { get; set; }
-        
         public User? User { get; set; }
     }
 }

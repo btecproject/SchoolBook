@@ -33,7 +33,6 @@ namespace SchoolBookPlatform.Models
                     
                 if (latestSegment == null || string.IsNullOrEmpty(latestSegment.MessagesJson)) 
                     return "No messages yet";
-                
                 try
                 {
                     var messages = JsonSerializer.Deserialize<List<ChatMessage>>(latestSegment.MessagesJson);
