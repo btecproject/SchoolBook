@@ -1,4 +1,6 @@
-﻿/* Thanh navbar */
+﻿/* wwwroot/css/layout.css */
+
+/* Thanh navbar */
 .navbar {
     background: linear-gradient(90deg, #fd964b, #ffb067);
     color: white !important;
@@ -45,6 +47,21 @@
     opacity: 1;
 }
 
+/* Main content adjustment for sidebar */
+.main-content {
+    margin-left: 276px; /* Sidebar width + margin */
+    padding: 100px 20px 20px 20px;
+    min-height: 100vh;
+    transition: margin-left 0.2s ease;
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        margin-left: 100px;
+        padding: 100px 10px 20px 10px;
+    }
+}
+
 /* Footer cố định */
 .footer {
     position: fixed;
@@ -58,14 +75,9 @@
     box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
 }
 
-.sidebar {
-    position: fixed;
-    top: 70px; /* dưới navbar */
-    left: 0;
-    height: calc(100vh - 70px);
-    overflow-y: auto;
-}
-.container {
-    padding-top: 70px;
-    padding-left: 110px; /* tránh che nội dung */
+/*Main Content UI*/
+@media (min-width: 1400px) {
+    .container, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl {
+        max-width: 860px;
+    }
 }

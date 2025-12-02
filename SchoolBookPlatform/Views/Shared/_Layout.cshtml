@@ -11,11 +11,23 @@
     <link rel="stylesheet" href="~/css/page/home.css" asp-append-version="true"/>
     <link rel="stylesheet" href="~/css/page/feed.css" asp-append-version="true"/>
     <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true"/>
+    <link rel="stylesheet" href="~/css/sidebar.css" asp-append-version="true"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        /* Additional inline styles for better spacing */
+        .navbar.fixed-top {
+            height: 70px;
+            z-index: 1030;
+        }
+        
+        body {
+            padding-top: 70px;
+        }
+    </style>
 </head>
 <body>
 <header>
-    <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light border-bottom box-shadow mb-3 fixed-top">
+    <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light border-bottom box-shadow fixed-top">
         <div class="container-fluid">
             <a class="navbar-brand" asp-area="" asp-controller="Authen" asp-action="Login">SchoolBook</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
@@ -107,46 +119,248 @@
         </div>
     </nav>
 </header>
-<div class="d-flex">
-    <!-- Sidebar trái -->
-    <div class="sidebar border-end p-3" style="width: 220px; min-height: 100vh;">
-        
-        <h5 class="mb-3">Feed</h5>
-        <a class="btn w-100 mb-2 @(ViewBag.ViewType != "following" ? "btn-primary" : "btn-outline-primary")"
-           href="@Url.Action("Index", "Post")">
-            <i class="fas fa-globe"></i> For You
+
+<!-- Sidebar mới với nền trắng -->
+<div class="sidebar-container" id="sidebar">
+    <div class="sidebar-header">
+        <a href="/" class="sidebar-title">
+            <i class="fas fa-book me-1"></i>SchoolBook
         </a>
-
-        <a class="btn w-100 mb-4 @(ViewBag.ViewType == "following" ? "btn-primary" : "btn-outline-primary")"
-           href="@Url.Action("Following", "Post")">
-            <i class="fas fa-user-friends"></i> Following
-        </a>
-
-        <hr />
-
-        <div class="mt-3 small text-muted">
-            <a asp-area="" asp-controller="Home" asp-action="Privacy" class="text-decoration-none d-block mb-2">
-                Quy định bảo mật
-            </a>
-            <strong>© 2025 SchoolBook Platform</strong>
+        <button class="sidebar-toggle" onclick="toggleSidebar()">
+            <span class="sidebar-toggle-burger"></span>
+        </button>
+    </div>
+    
+    <div class="sidebar-content">
+        <!-- Feed Section -->
+        <div class="sidebar-section-title">
+            <span>Feed</span>
         </div>
+        
+        <a class="sidebar-button @(ViewBag.ViewType != "following" ? "active" : "")" 
+           href="@Url.Action("Index", "Post")">
+            <i class="fas fa-globe"></i>
+            <span>For You</span>
+        </a>
+        
+        <a class="sidebar-button @(ViewBag.ViewType == "following" ? "active" : "")" 
+           href="@Url.Action("Following", "Post")">
+            <i class="fas fa-user-friends"></i>
+            <span>Following</span>
+        </a>
+        
+        <div class="sidebar-divider"></div>
+        
+        <!-- Features Section -->
+        <div class="sidebar-section-title">
+            <span>Features</span>
+        </div>
+        
+        <a class="sidebar-button" href="@Url.Action("Index", "Chat")">
+            <i class="fas fa-comments"></i>
+            <span>Chat</span>
+        </a>
+        
+        @if (User.IsInRole("HighAdmin") || User.IsInRole("Admin"))
+        {
+            <a class="sidebar-button" href="@Url.Action("Index", "Admin")">
+                <i class="fas fa-users-cog"></i>
+                <span>User Management</span>
+            </a>
+        }
+        
+        <a class="sidebar-button" href="@Url.Action("Index", "Profile", new { username = User.Identity?.Name })">
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
+        </a>
+        
+        <a class="sidebar-button" href="@Url.Action("Index", "Setting")">
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
+        </a>
+        
+        <div class="sidebar-divider"></div>
+        
+        <!-- Legal Section -->
+        <div class="sidebar-section-title">
+            <span>Legal</span>
+        </div>
+        
+        <a class="sidebar-button" href="@Url.Action("Privacy", "Home")">
+            <i class="fas fa-shield-alt"></i>
+            <span>Privacy Policy</span>
+        </a>
+        
+        <a class="sidebar-button" href="@Url.Action("Terms", "Home")">
+            <i class="fas fa-file-contract"></i>
+            <span>Terms of Service</span>
+        </a>
     </div>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
+    
+    <!-- Footer với user info -->
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <div class="sidebar-footer expanded" id="sidebarFooter">
+            <div class="sidebar-footer-header">
+                <div class="sidebar-footer-avatar">
+                    <img src="https://ui-avatars.com/api/?name=@User.Identity.Name&background=fd964b&color=fff" 
+                         alt="@User.Identity.Name">
+                </div>
+                <div class="sidebar-footer-userinfo">
+                    <div class="sidebar-footer-username">@User.Identity.Name</div>
+                    <div class="sidebar-footer-role">
+                        @foreach (var claim in User.Claims.Where(c => c.Type == ClaimTypes.Role))
+                        {
+                            var role = claim.Value;
+                            <span class="role-badge @(role == "HighAdmin" ? "bg-danger" : 
+                                                     role == "Admin" ? "bg-warning text-dark" : 
+                                                     role == "Moderator" ? "bg-info text-dark" : 
+                                                     role == "Teacher" ? "bg-success" : 
+                                                     role == "Student" ? "bg-secondary" : "bg-light text-dark")">
+                                @role
+                            </span>
+                        }
+                    </div>
+                </div>
+
+            </div>
+            <div class="sidebar-footer-content">
+                <form asp-controller="Authen" asp-action="Logout" method="post" class="mb-3">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="logout-btn-sidebar">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Log out</span>
+                    </button>
+                </form>
+                <small class="d-block text-center text-muted">
+                    &copy; @DateTime.Now.Year SchoolBook Platform
+                </small>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="sidebar-footer">
+            <div class="sidebar-footer-header">
+                <div class="sidebar-footer-avatar">
+                    <i class="fas fa-user-circle" style="font-size: 36px; color: #adb5bd;"></i>
+                </div>
+                <div class="sidebar-footer-userinfo">
+                    <div class="sidebar-footer-username">Guest</div>
+                    <div class="sidebar-footer-role">Not logged in</div>
+                </div>
+            </div>
+            <div class="sidebar-footer-content">
+                <a href="@Url.Action("Login", "Authen")" class="btn btn-primary btn-sm w-100 mb-2">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </a>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    <main role="main" class="pb-3">
+        @RenderBody()
+    </main>
 </div>
 
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
 
+<script>
+    // Sidebar toggle functionality
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('collapsed');
+        
+        // Save preference to localStorage
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        localStorage.setItem('sidebarCollapsed', isCollapsed);
+        
+        // Adjust main content padding
+        adjustMainContent();
+    }
+    
+    function adjustMainContent() {
+        const sidebar = document.getElementById('sidebar');
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        const sidebarWidth = isCollapsed ? 80 : 256;
+        
+        // Adjust main content margin
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+            mainContent.style.marginLeft = `${sidebarWidth + 30}px`;
+            mainContent.style.transition = 'margin-left 0.3s ease';
+        }
+    }
+    
+    // Initialize sidebar state
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebar = document.getElementById('sidebar');
+        const footer = document.getElementById('sidebarFooter');
+        
+        // Restore sidebar state
+        const savedSidebarState = localStorage.getItem('sidebarCollapsed');
+        if (savedSidebarState === 'true') {
+            sidebar.classList.add('collapsed');
+        }
+        
+        // Restore footer state
+        const savedFooterState = localStorage.getItem('footerExpanded');
+        if (footer && savedFooterState === 'true') {
+            footer.classList.add('expanded');
+            const icon = footer.querySelector('.sidebar-footer-toggle i');
+            if (icon) {
+                icon.className = 'fas fa-caret-up';
+            }
+        }
+        
+        // Set active button based on current page
+        const currentPath = window.location.pathname.toLowerCase();
+        document.querySelectorAll('.sidebar-button').forEach(button => {
+            const buttonPath = button.getAttribute('href').toLowerCase();
+            if (currentPath === buttonPath || 
+                (currentPath.startsWith(buttonPath) && buttonPath !== '/')) {
+                button.classList.add('active');
+            }
+        });
+        
+        adjustMainContent();
+        
+        // Handle responsive behavior
+        function handleResponsive() {
+            if (window.innerWidth <= 768) {
+                sidebar.classList.add('collapsed');
+            }
+        }
+        
+        window.addEventListener('resize', handleResponsive);
+        handleResponsive();
+        
+        // Close sidebar when clicking outside on mobile
+        if (window.innerWidth <= 768) {
+            document.addEventListener('click', function(event) {
+                const sidebar = document.getElementById('sidebar');
+                const isClickInsideSidebar = sidebar.contains(event.target);
+                const isToggleButton = event.target.closest('.sidebar-toggle');
+                
+                if (!isClickInsideSidebar && !isToggleButton && !sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.add('collapsed');
+                    adjustMainContent();
+                }
+            });
+        }
+    });
+</script>
 
 <!-- Toast Container -->
 <div aria-live="polite" aria-atomic="true" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;">
     <div id="toast-container"></div>
 </div>
+
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

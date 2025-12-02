@@ -5,7 +5,7 @@
 }
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-<link rel="stylesheet" href="~/css/page/profile.css" />
+@* <link rel="stylesheet" href="~/css/page/profile.css" /> *@
 
 <div class="container mt-5 mb-5">
     @Html.AntiForgeryToken()
@@ -131,6 +131,43 @@
                         </li>
                     </ul>
 
+                    <!-- Modal hiển thị ảnh/video toàn màn hình -->
+                    <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered modal-fullscreen">
+                            <div class="modal-content bg-transparent border-0">
+                                <div class="modal-header border-0 position-absolute top-0 end-0 z-3">
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body d-flex justify-content-center align-items-center p-0 position-relative">
+                                    <!-- Background mờ -->
+                                    <div id="blurredBackground" class="position-absolute top-0 start-0 w-100 h-100" style="z-index: -1;"></div>
+                                    
+                                    <!-- Container cho carousel modal -->
+                                    <div id="modalCarousel" class="carousel slide w-100 h-100" data-bs-interval="false">
+                                        <!-- Counter cho modal -->
+                                        <div class="carousel-counter-modal position-absolute top-3 start-50 translate-middle-x text-white bg-dark bg-opacity-50 px-3 py-1 rounded-pill z-2">
+                                            <span id="modalCurrentSlide">1</span> / <span id="modalTotalSlides">0</span>
+                                        </div>
+                                        
+                                        <div class="carousel-inner h-100">
+                                            <!-- Nội dung carousel sẽ được thêm bằng JavaScript -->
+                                        </div>
+                                        
+                                        <!-- Nút điều hướng - ẩn khi chỉ có 1 media -->
+                                        <button class="carousel-control-prev" type="button" data-bs-target="#modalCarousel" data-bs-slide="prev" style="display: none;">
+                                            <span class="carousel-control-prev-icon bg-dark bg-opacity-50 rounded-circle p-3" aria-hidden="true"></span>
+                                            <span class="visually-hidden">Previous</span>
+                                        </button>
+                                        <button class="carousel-control-next" type="button" data-bs-target="#modalCarousel" data-bs-slide="next" style="display: none;">
+                                            <span class="carousel-control-next-icon bg-dark bg-opacity-50 rounded-circle p-3" aria-hidden="true"></span>
+                                            <span class="visually-hidden">Next</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="tab-content">
                         <!-- Tab Bài viết -->
                         <div class="tab-pane fade show active" id="posts">
@@ -166,64 +203,125 @@
                                                         }
                                                     </small>
                                                 </div>
+                                                
+                                                <!-- Nút sửa/xóa cho chủ sở hữu -->
+                                                @if (post.IsOwner)
+                                                {
+                                                    <div class="d-flex gap-2">
+                                                        <a asp-controller="Post" asp-action="Edit" asp-route-id="@post.Id" class="btn btn-sm btn-primary">
+                                                            Sửa
+                                                        </a>
+                                                        <form asp-controller="Post" asp-action="Delete" asp-route-id="@post.Id" method="post" class="d-inline">
+                                                            @Html.AntiForgeryToken()
+                                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                                    onclick="return confirm('Bạn có chắc muốn xóa bài đăng này?');">
+                                                                Xóa
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                }
                                             </div>
                                             
-                                            <!-- Hiển thị ảnh đầu tiên nếu có -->
+                                            <!-- Hiển thị media -->
                                             @if (post.Attachments.Any())
                                             {
                                                 <div class="mt-3">
                                                     @{
-                                                        var images = post.Attachments.Where(a => a.IsImage).ToList();
-                                                        var files = post.Attachments.Where(a => !a.IsImage).ToList();
+                                                        // Hàm helper kiểm tra video
+                                                        bool IsVideoFile(string fileName)
+                                                        {
+                                                            if (string.IsNullOrEmpty(fileName))
+                                                                return false;
+                                                            var extension = System.IO.Path.GetExtension(fileName).ToLower();
+                                                            var videoExtensions = new[] { ".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg" };
+                                                            return videoExtensions.Contains(extension);
+                                                        }
+                                                        
+                                                        var mediaItems = post.Attachments.Where(a => a.IsImage || IsVideoFile(a.FileName)).ToList();
+                                                        var files = post.Attachments.Where(a => !a.IsImage && !IsVideoFile(a.FileName)).ToList();
                                                     }
                                                     
-                                                    @if (images.Any())
+                                                    @if (mediaItems.Any())
                                                     {
-                                                        <div class="carousel-container">
-                                                            <div id="carousel-profile-@post.Id" class="carousel slide mb-3" data-bs-ride="carousel">
-                                                                <!-- Counter hiển thị số ảnh -->
-                                                                <div class="carousel-counter">
-                                                                    <span id="current-slide-profile-@post.Id">1</span> / <span id="total-slides-profile-@post.Id">@images.Count</span>
+                                                        <div id="carousel-@post.Id" class="carousel slide mb-3" data-bs-ride="carousel">
+                                                            <!-- Counter hiển thị số media -->
+                                                            <div class="carousel-counter">
+                                                                <span id="current-slide-@post.Id">1</span> / <span id="total-slides-@post.Id">@mediaItems.Count</span>
+                                                            </div>
+                                                            
+                                                            @if (mediaItems.Count > 1)
+                                                            {
+                                                                <div class="carousel-indicators">
+                                                                    @for (int i = 0; i < mediaItems.Count; i++)
+                                                                    {
+                                                                        <button type="button" data-bs-target="#carousel-@post.Id" 
+                                                                                data-bs-slide-to="@i" class="@(i == 0 ? "active" : "")"
+                                                                                aria-current="@(i == 0 ? "true" : "false")"></button>
+                                                                    }
                                                                 </div>
-                                                                
-                                                                @if (images.Count > 1)
+                                                            }
+                                                            
+                                                            <div class="carousel-inner rounded">
+                                                                @for (int i = 0; i < mediaItems.Count; i++)
                                                                 {
-                                                                    <div class="carousel-indicators">
-                                                                        @for (int i = 0; i < images.Count; i++)
+                                                                    var media = mediaItems[i];
+                                                                    <div class="carousel-item @(i == 0 ? "active" : "")" data-slide-index="@(i + 1)">
+                                                                        @if (media.IsImage)
                                                                         {
-                                                                            <button type="button" data-bs-target="#carousel-profile-@post.Id" 
-                                                                                    data-bs-slide-to="@i" class="@(i == 0 ? "active" : "")"
-                                                                                    aria-current="@(i == 0 ? "true" : "false")"></button>
+                                                                            <a href="javascript:void(0);" class="d-block media-modal-link" 
+                                                                               data-post-id="@post.Id"
+                                                                               data-media-index="@i"
+                                                                               data-total-media="@mediaItems.Count"
+                                                                               data-media-type="image">
+                                                                                <img src="@media.FilePath" 
+                                                                                     class="d-block w-100 post-media"
+                                                                                     alt="@media.FileName"
+                                                                                     data-src="@media.FilePath"
+                                                                                     data-media-name="@media.FileName"
+                                                                                     style="max-height: 500px; object-fit: contain; background: #f8f9fa; cursor: pointer;" />
+                                                                            </a>
+                                                                        }
+                                                                        else if (IsVideoFile(media.FileName))
+                                                                        {
+                                                                            <div class="video-container position-relative">
+                                                                                <video class="d-block w-100 post-video"
+                                                                                       controls
+                                                                                       controlsList="nodownload"
+                                                                                       preload="metadata"
+                                                                                       style="max-height: 500px; object-fit: contain; background: #000; cursor: pointer;"
+                                                                                       data-src="@media.FilePath"
+                                                                                       data-media-name="@media.FileName">
+                                                                                    <source src="@media.FilePath" type="video/mp4">
+                                                                                    Trình duyệt của bạn không hỗ trợ video.
+                                                                                </video>
+                                                                                <a href="javascript:void(0);" class="media-modal-link video-overlay"
+                                                                                   data-post-id="@post.Id"
+                                                                                   data-media-index="@i"
+                                                                                   data-total-media="@mediaItems.Count"
+                                                                                   data-media-type="video">
+                                                                                    <div class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center">
+                                                                                        <div class="video-play-icon bg-dark bg-opacity-50 rounded-circle p-3">
+                                                                                            <i class="fas fa-play text-white fa-2x"></i>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </a>
+                                                                            </div>
                                                                         }
                                                                     </div>
                                                                 }
-                                                                
-                                                                <div class="carousel-inner">
-                                                                    @for (int i = 0; i < images.Count; i++)
-                                                                    {
-                                                                        var img = images[i];
-                                                                        <div class="carousel-item @(i == 0 ? "active" : "") text-center">
-                                                                            <a href="@img.FilePath" target="_blank" class="d-block h-100">
-                                                                                <img src="@img.FilePath" 
-                                                                                     alt="@img.FileName"
-                                                                                     class="img-fluid mx-auto d-block" />
-                                                                            </a>
-                                                                        </div>
-                                                                    }
-                                                                </div>
-                                                                
-                                                                @if (images.Count > 1)
-                                                                {
-                                                                    <button class="carousel-control-prev" type="button" data-bs-target="#carousel-profile-@post.Id" data-bs-slide="prev">
-                                                                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                                                                        <span class="visually-hidden">Previous</span>
-                                                                    </button>
-                                                                    <button class="carousel-control-next" type="button" data-bs-target="#carousel-profile-@post.Id" data-bs-slide="next">
-                                                                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                                                                        <span class="visually-hidden">Next</span>
-                                                                    </button>
-                                                                }
                                                             </div>
+                                                            
+                                                            @if (mediaItems.Count > 1)
+                                                            {
+                                                                <button class="carousel-control-prev" type="button" data-bs-target="#carousel-@post.Id" data-bs-slide="prev">
+                                                                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                                                    <span class="visually-hidden">Previous</span>
+                                                                </button>
+                                                                <button class="carousel-control-next" type="button" data-bs-target="#carousel-@post.Id" data-bs-slide="next">
+                                                                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                                                    <span class="visually-hidden">Next</span>
+                                                                </button>
+                                                            }
                                                         </div>
                                                     }
                                                     
@@ -245,6 +343,9 @@
                                                                         else if (extension == ".xls" || extension == ".xlsx") { icon = "fa-file-excel"; color = "#198754"; }
                                                                         else if (extension == ".ppt" || extension == ".pptx") { icon = "fa-file-powerpoint"; color = "#fd7e14"; }
                                                                         else if (extension == ".zip" || extension == ".rar") { icon = "fa-file-archive"; color = "#6f42c1"; }
+                                                                        else if (extension == ".mp4" || extension == ".avi" || extension == ".mov" || extension == ".mkv") { 
+                                                                            icon = "fa-file-video"; color = "#9c27b0"; 
+                                                                        }
                                                                     }
                                                                     <i class="fas @icon fa-2x me-3" style="color: @color;"></i>
                                                                     <div class="flex-grow-1">
@@ -259,16 +360,20 @@
                                                 </div>
                                             }
                                             
-                                            <!-- Thống kê -->
+                                            <!-- Thống kê vote và comment -->
                                             <div class="mt-3 d-flex gap-3">
-                                                <span class="text-muted">
-                                                    <i class="fas fa-thumbs-up"></i> @post.UpvoteCount
-                                                </span>
-                                                <span class="text-muted">
-                                                    <i class="fas fa-thumbs-down"></i> @post.DownvoteCount
-                                                </span>
-                                                <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" class="text-muted text-decoration-none">
-                                                    <i class="far fa-comment"></i> @post.CommentCount bình luận
+                                                <button class="btn btn-sm btn-outline-primary vote-btn"
+                                                        data-post-id="@post.Id"
+                                                        data-vote-type="true">
+                                                    👍 <span class="upvote-count">@post.UpvoteCount</span>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger vote-btn"
+                                                        data-post-id="@post.Id"
+                                                        data-vote-type="false">
+                                                    👎 <span class="downvote-count">@post.DownvoteCount</span>
+                                                </button>
+                                                <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" class="btn btn-sm btn-outline-secondary">
+                                                    💬 @post.CommentCount
                                                 </a>
                                             </div>
                                         </div>
@@ -951,67 +1056,363 @@
         }, 3000);
     }
 
-    // JavaScript để cập nhật số đếm khi chuyển slide cho carousel trong profile
+    // JavaScript để xử lý modal media toàn màn hình
     document.addEventListener('DOMContentLoaded', function() {
+        const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+        const modalCarousel = document.getElementById('modalCarousel');
+        const modalCarouselInner = modalCarousel.querySelector('.carousel-inner');
+        const modalCurrentSlideSpan = document.getElementById('modalCurrentSlide');
+        const modalTotalSlidesSpan = document.getElementById('modalTotalSlides');
+        const blurredBackground = document.getElementById('blurredBackground');
+        const prevButton = modalCarousel.querySelector('.carousel-control-prev');
+        const nextButton = modalCarousel.querySelector('.carousel-control-next');
+        
+        let currentPostMedia = [];
+        let currentPostId = null;
+        let currentPostCarousel = null;
+        let lastModalMediaIndex = 0; // Lưu vị trí media cuối cùng trong modal
+        let playingVideos = new Map(); // Lưu các video đang phát
+        
+        // Biến lưu trữ tất cả media của bài post
+        const postMediaMap = new Map();
+        
+        // Biến lưu trữ carousel instances
+        const postCarousels = new Map();
+        
+        // Khởi tạo dữ liệu media cho từng bài post và carousel instances
+        document.querySelectorAll('.card.mb-3').forEach(card => {
+            const postId = card.querySelector('.media-modal-link')?.dataset?.postId;
+            if (postId) {
+                const mediaItems = [];
+                card.querySelectorAll('.carousel-item').forEach((item, index) => {
+                    const videoElement = item.querySelector('video');
+                    const imgElement = item.querySelector('img');
+                    
+                    if (videoElement) {
+                        mediaItems.push({
+                            type: 'video',
+                            src: videoElement.dataset.src || videoElement.querySelector('source')?.src,
+                            alt: videoElement.dataset.mediaName || '',
+                            name: videoElement.dataset.mediaName || '',
+                            element: videoElement
+                        });
+                    } else if (imgElement) {
+                        mediaItems.push({
+                            type: 'image',
+                            src: imgElement.dataset.src || imgElement.src,
+                            alt: imgElement.alt,
+                            name: imgElement.dataset.mediaName || '',
+                            element: imgElement
+                        });
+                    }
+                });
+                postMediaMap.set(postId, mediaItems);
+                
+                // Lưu carousel instance
+                const carouselElement = document.getElementById(`carousel-${postId}`);
+                if (carouselElement) {
+                    const carouselInstance = new bootstrap.Carousel(carouselElement);
+                    postCarousels.set(postId, carouselInstance);
+                }
+            }
+        });
+        
+        // Lắng nghe click vào media
+        document.querySelectorAll('.media-modal-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const postId = this.dataset.postId;
+                const mediaIndex = parseInt(this.dataset.mediaIndex);
+                const totalMedia = parseInt(this.dataset.totalMedia);
+                const mediaType = this.dataset.mediaType;
+                
+                currentPostId = postId;
+                currentPostMedia = postMediaMap.get(postId) || [];
+                currentPostCarousel = postCarousels.get(postId);
+                lastModalMediaIndex = mediaIndex; // Lưu vị trí bắt đầu
+                
+                // Cập nhật tổng số media
+                modalTotalSlidesSpan.textContent = currentPostMedia.length;
+                
+                // Ẩn/Hiện counter và nút điều hướng dựa trên số lượng media
+                const counterElement = document.querySelector('.carousel-counter-modal');
+                if (currentPostMedia.length <= 1) {
+                    // Ẩn counter và nút điều hướng nếu chỉ có 1 media
+                    if (counterElement) counterElement.style.display = 'none';
+                    if (prevButton) prevButton.style.display = 'none';
+                    if (nextButton) nextButton.style.display = 'none';
+                } else {
+                    // Hiện counter và nút điều hướng nếu có nhiều media
+                    if (counterElement) counterElement.style.display = 'block';
+                    if (prevButton) prevButton.style.display = 'flex';
+                    if (nextButton) nextButton.style.display = 'flex';
+                }
+                
+                // Xóa nội dung carousel cũ
+                modalCarouselInner.innerHTML = '';
+                
+                // Thêm các media vào carousel modal
+                currentPostMedia.forEach((media, index) => {
+                    const carouselItem = document.createElement('div');
+                    carouselItem.className = `carousel-item h-100 ${index === mediaIndex ? 'active' : ''}`;
+                    
+                    const mediaContainer = document.createElement('div');
+                    mediaContainer.className = 'd-flex justify-content-center align-items-center h-100';
+                    
+                    if (media.type === 'image') {
+                        const img = document.createElement('img');
+                        img.src = media.src;
+                        img.alt = media.alt;
+                        img.className = 'img-fluid modal-media';
+                        img.style.maxHeight = '95vh';
+                        img.style.maxWidth = '95vw';
+                        img.style.objectFit = 'contain';
+                        img.style.cursor = 'pointer';
+                        
+                        // Thêm sự kiện click để đóng modal khi click vào ảnh
+                        img.addEventListener('click', function() {
+                            imageModal.hide();
+                        });
+                        
+                        mediaContainer.appendChild(img);
+                    } else if (media.type === 'video') {
+                        const videoContainer = document.createElement('div');
+                        videoContainer.className = 'position-relative w-100 h-100';
+                        
+                        const video = document.createElement('video');
+                        video.className = 'modal-video';
+                        video.controls = true;
+                        video.controlsList = 'nodownload';
+                        video.preload = 'auto';
+                        video.autoplay = index === mediaIndex; // Tự động phát video khi mở modal
+                        video.style.maxHeight = '95vh';
+                        video.style.maxWidth = '95vw';
+                        video.style.objectFit = 'contain';
+                        video.style.backgroundColor = '#000';
+                        
+                        const source = document.createElement('source');
+                        source.src = media.src;
+                        source.type = 'video/mp4';
+                        
+                        video.appendChild(source);
+                        video.appendChild(document.createTextNode('Trình duyệt của bạn không hỗ trợ video.'));
+                        
+                        // Lưu tham chiếu video để quản lý
+                        video.dataset.mediaIndex = index;
+                        
+                        // Thêm sự kiện để quản lý trạng thái phát
+                        video.addEventListener('play', function() {
+                            playingVideos.set(index, video);
+                            
+                            // Dừng các video khác đang phát
+                            playingVideos.forEach((vid, idx) => {
+                                if (idx !== index && !vid.paused) {
+                                    vid.pause();
+                                }
+                            });
+                        });
+                        
+                        video.addEventListener('pause', function() {
+                            playingVideos.delete(index);
+                        });
+                        
+                        videoContainer.appendChild(video);
+                        mediaContainer.appendChild(videoContainer);
+                    }
+                    
+                    carouselItem.appendChild(mediaContainer);
+                    modalCarouselInner.appendChild(carouselItem);
+                });
+                
+                // Khởi tạo lại carousel modal
+                const modalCarouselInstance = new bootstrap.Carousel(modalCarousel, {
+                    interval: false
+                });
+                
+                // Điều hướng đến media được click
+                modalCarouselInstance.to(mediaIndex);
+                
+                // Cập nhật số slide hiện tại
+                modalCurrentSlideSpan.textContent = mediaIndex + 1;
+                
+                // Cập nhật background mờ (chỉ cho ảnh)
+                updateBlurredBackground(mediaIndex);
+                
+                // Hiển thị modal
+                imageModal.show();
+            });
+        });
+        
+        // Lắng nghe sự kiện chuyển slide trong modal
+        modalCarousel.addEventListener('slide.bs.carousel', function(event) {
+            const nextSlide = event.to;
+            lastModalMediaIndex = nextSlide; // Cập nhật vị trí cuối cùng
+            modalCurrentSlideSpan.textContent = nextSlide + 1;
+            updateBlurredBackground(nextSlide);
+            
+            // Dừng video hiện tại khi chuyển slide
+            playingVideos.forEach(video => {
+                if (!video.paused) {
+                    video.pause();
+                }
+            });
+            playingVideos.clear();
+            
+            // Tự động phát video nếu slide mới là video
+            setTimeout(() => {
+                const activeItem = modalCarouselInner.querySelector('.carousel-item.active');
+                if (activeItem) {
+                    const video = activeItem.querySelector('video');
+                    if (video) {
+                        video.play().catch(e => console.log('Autoplay failed:', e));
+                    }
+                }
+            }, 300);
+        });
+        
+        // Khi modal đóng, cập nhật carousel trong post và reset UI
+        document.getElementById('imageModal').addEventListener('hidden.bs.modal', function() {
+            // Dừng tất cả video đang phát
+            playingVideos.forEach(video => {
+                if (!video.paused) {
+                    video.pause();
+                }
+            });
+            playingVideos.clear();
+            
+            if (currentPostCarousel && currentPostId) {
+                // Chuyển carousel trong post đến vị trí media cuối cùng xem trong modal
+                currentPostCarousel.to(lastModalMediaIndex);
+                
+                // Cập nhật counter trong post
+                const postCurrentSlideSpan = document.getElementById(`current-slide-${currentPostId}`);
+                if (postCurrentSlideSpan) {
+                    postCurrentSlideSpan.textContent = lastModalMediaIndex + 1;
+                }
+            }
+            
+            // Hiển thị lại counter và nút điều hướng (để chuẩn bị cho lần mở tiếp theo)
+            const counterElement = document.querySelector('.carousel-counter-modal');
+            if (counterElement) counterElement.style.display = 'block';
+            if (prevButton) prevButton.style.display = 'none'; // Vẫn ẩn mặc định
+            if (nextButton) nextButton.style.display = 'none'; // Vẫn ẩn mặc định
+            
+            // Reset biến
+            currentPostMedia = [];
+            currentPostId = null;
+            currentPostCarousel = null;
+            blurredBackground.innerHTML = '';
+            modalCarouselInner.innerHTML = '';
+            modalCurrentSlideSpan.textContent = '1';
+            modalTotalSlidesSpan.textContent = '0';
+        });
+        
+        // Hàm cập nhật background mờ (chỉ cho ảnh)
+        function updateBlurredBackground(slideIndex) {
+            blurredBackground.innerHTML = '';
+            
+            if (currentPostMedia.length > 0 && slideIndex < currentPostMedia.length) {
+                const currentMedia = currentPostMedia[slideIndex];
+                
+                // Chỉ tạo background mờ cho ảnh
+                if (currentMedia.type === 'image') {
+                    const backgroundImage = document.createElement('img');
+                    backgroundImage.src = currentMedia.src;
+                    backgroundImage.style.width = '100%';
+                    backgroundImage.style.height = '100%';
+                    backgroundImage.style.objectFit = 'cover';
+                    backgroundImage.style.filter = 'blur(20px) brightness(0.3)';
+                    backgroundImage.style.position = 'absolute';
+                    backgroundImage.style.top = '0';
+                    backgroundImage.style.left = '0';
+                    
+                    blurredBackground.appendChild(backgroundImage);
+                } else if (currentMedia.type === 'video') {
+                    // Video không có background mờ, chỉ hiển thị background tối
+                    blurredBackground.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+                }
+            }
+        }
+        
+        // Lắng nghe click vào nút đóng modal
+        document.querySelector('#imageModal .btn-close').addEventListener('click', function() {
+            imageModal.hide();
+        });
+        
+        // Cho phép đóng modal bằng phím ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && imageModal._isShown) {
+                imageModal.hide();
+            }
+            
+            // Thêm phím mũi tên để chuyển media (chỉ khi có nhiều hơn 1 media)
+            if (imageModal._isShown && currentPostMedia.length > 1) {
+                const carouselInstance = bootstrap.Carousel.getInstance(modalCarousel);
+                if (e.key === 'ArrowLeft') {
+                    carouselInstance.prev();
+                } else if (e.key === 'ArrowRight') {
+                    carouselInstance.next();
+                }
+            }
+        });
+        
+        // Click bên ngoài media để đóng modal
+        document.getElementById('imageModal').addEventListener('click', function(e) {
+            // Chỉ đóng khi click vào background, không phải vào media
+            if (e.target === this || 
+                (e.target.classList.contains('modal-body') && 
+                 !e.target.closest('.carousel-item') &&
+                 !e.target.closest('.modal-video') &&
+                 !e.target.closest('.modal-media'))) {
+                imageModal.hide();
+            }
+        });
+
+        // JavaScript cho vote (AJAX)
+        document.querySelectorAll('.vote-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const postId = this.dataset.postId;
+                const isUpvote = this.dataset.voteType === 'true';
+                
+                try {
+                    const response = await fetch('/Post/Vote', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `postId=${postId}&isUpvote=${isUpvote}`
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        // Cập nhật số lượng vote
+                        const card = this.closest('.card');
+                        card.querySelector('.upvote-count').textContent = data.upvoteCount;
+                        card.querySelector('.downvote-count').textContent = data.downvoteCount;
+                    } else {
+                        alert(data.message || 'Có lỗi xảy ra');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi vote');
+                }
+            });
+        });
+
+        // JavaScript để cập nhật số đếm khi chuyển slide trong carousel post
         document.querySelectorAll('.carousel').forEach(carousel => {
             const carouselId = carousel.id;
             const currentSlideSpan = document.getElementById(`current-slide-${carouselId.replace('carousel-', '')}`);
             const totalSlidesSpan = document.getElementById(`total-slides-${carouselId.replace('carousel-', '')}`);
 
-            // Thiết lập số slide tổng cộng
-            if (totalSlidesSpan) {
-                const totalItems = carousel.querySelectorAll('.carousel-item').length;
-                totalSlidesSpan.textContent = totalItems;
-            }
-
-            if (currentSlideSpan) {
-                // Thiết lập slide hiện tại
-                const activeSlide = carousel.querySelector('.carousel-item.active');
-                const activeIndex = Array.from(carousel.querySelectorAll('.carousel-item')).indexOf(activeSlide) + 1;
-                currentSlideSpan.textContent = activeIndex;
-            }
-
-            // Lắng nghe sự kiện slide.bs.carousel
-            carousel.addEventListener('slide.bs.carousel', function (event) {
-                if (currentSlideSpan) {
-                    const nextIndex = event.to + 1; // event.to là index (0-based)
-                    currentSlideSpan.textContent = nextIndex;
-                }
-            });
-        });
-
-        // Đảm bảo ảnh được căn giữa sau khi load
-        setTimeout(() => {
-            document.querySelectorAll('.carousel-item img').forEach(img => {
-                const parent = img.closest('.carousel-item');
-                if (parent) {
-                    // Căn giữa theo chiều dọc nếu ảnh thấp hơn container
-                    const imgHeight = img.offsetHeight;
-                    const parentHeight = parent.offsetHeight;
-
-                    if (imgHeight < parentHeight) {
-                        const marginTop = (parentHeight - imgHeight) / 2;
-                        img.style.marginTop = marginTop + 'px';
-                    }
-                }
-            });
-        }, 100);
-    });
-
-    // Xử lý khi window resize
-    window.addEventListener('resize', function() {
-        document.querySelectorAll('.carousel-item img').forEach(img => {
-            const parent = img.closest('.carousel-item');
-            if (parent) {
-                const imgHeight = img.offsetHeight;
-                const parentHeight = parent.offsetHeight;
-
-                if (imgHeight < parentHeight) {
-                    const marginTop = (parentHeight - imgHeight) / 2;
-                    img.style.marginTop = marginTop + 'px';
-                } else {
-                    img.style.marginTop = '0';
-                }
+            if (currentSlideSpan && totalSlidesSpan) {
+                // Lắng nghe sự kiện slide.bs.carousel
+                carousel.addEventListener('slide.bs.carousel', function (event) {
+                    const activeSlide = event.to;
+                    currentSlideSpan.textContent = activeSlide + 1;
+                });
             }
         });
     });

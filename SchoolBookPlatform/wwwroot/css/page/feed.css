@@ -52,10 +52,10 @@
     backdrop-filter: blur(5px);
 }
 
- .modal-fullscreen .modal-content {
-     background-color: transparent !important;
-     backdrop-filter: blur(10px);
- }
+.modal-fullscreen .modal-content {
+    background-color: transparent !important;
+    backdrop-filter: blur(10px);
+}
 
 .btn-close-white {
     filter: invert(1) grayscale(100%) brightness(200%);
@@ -184,5 +184,134 @@
 
     .video-play-icon i {
         font-size: 1.5rem !important;
+    }
+}
+
+/* =========================================== */
+/* CSS MỚI: Cố định chiều cao và căn giữa */
+/* =========================================== */
+
+/* Container chính cho carousel - cố định chiều cao */
+.carousel.slide.mb-3 {
+    height: 550px !important; /* Chiều cao cố định */
+    overflow: hidden; /* Ẩn phần thừa */
+    position: relative; /* Để positioning cho các phần tử con */
+}
+
+/* Carousel inner - chiếm toàn bộ chiều cao */
+.carousel-inner.rounded {
+    height: 100% !important;
+    background-color: #f8f9fa; /* Màu nền cho phần không có media */
+    border-radius: 8px; /* Bo góc */
+}
+
+/* Carousel item - chiếm toàn bộ chiều cao */
+.carousel-item {
+    height: 100% !important;
+    position: relative; /* Để căn giữa nội dung */
+}
+
+/* Container cho media (ảnh/video) */
+.carousel-item .video-container,
+.carousel-item .d-block.media-modal-link {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Ảnh trong carousel */
+.post-media {
+    max-height: 100% !important;
+    max-width: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important; /* Giữ tỉ lệ và fit vào container */
+    background-color: #f8f9fa; /* Màu nền cho ảnh trong suốt */
+    border-radius: 8px; /* Bo góc cho ảnh */
+}
+
+/* Video trong carousel */
+.post-video {
+    max-height: 100% !important;
+    max-width: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important; /* Giữ tỉ lệ video */
+    background-color: #000 !important; /* Nền đen cho video */
+    border-radius: 8px; /* Bo góc cho video */
+}
+
+/* Overlay cho video */
+.video-overlay {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background-color: rgba(0, 0, 0, 0.3); /* Overlay mờ */
+    border-radius: 8px; /* Bo góc overlay */
+}
+
+/* Nút play trong video overlay */
+.video-play-icon {
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+/* Chỉnh CSS cho carousel indicators (nếu có nhiều ảnh) */
+.carousel-indicators {
+    bottom: 15px !important;
+    margin-bottom: 0 !important;
+}
+
+.carousel-indicators button {
+    width: 10px !important;
+    height: 10px !important;
+    border-radius: 50% !important;
+    margin: 0 4px !important;
+    background-color: rgba(255, 255, 255, 0.5) !important;
+    border: 1px solid rgba(0, 0, 0, 0.3) !important;
+}
+
+.carousel-indicators button.active {
+    background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Chỉnh CSS cho carousel controls */
+.carousel-control-prev,
+.carousel-control-next {
+    background-color: rgba(92, 92, 92, 0.7) !important;
+    backdrop-filter: blur(5px);
+    transition: background-color 0.3s ease;
+}
+
+.carousel-control-prev:hover,
+.carousel-control-next:hover {
+    background-color: rgba(92, 92, 92, 0.9) !important;
+}
+
+/* Responsive cho mobile */
+@media (max-width: 768px) {
+    .carousel.slide.mb-3 {
+        height: 400px !important; /* Giảm chiều cao trên mobile */
+    }
+
+    .video-play-icon {
+        width: 50px;
+        height: 50px;
+    }
+
+    .video-play-icon i {
+        font-size: 1.5rem !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .carousel.slide.mb-3 {
+        height: 300px !important; /* Giảm hơn nữa trên màn hình nhỏ */
     }
 }
