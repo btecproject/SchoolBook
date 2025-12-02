@@ -598,7 +598,7 @@ namespace SchoolBookPlatform.Controllers
 
         // API: /Chat/GetMessages - Lấy tin nhắn
         [HttpGet]
-        public async Task<IActionResult> GetMessages(Guid conversationId, int count = 20)
+        public async Task<IActionResult> GetMessages(Guid conversationId, int count = 20, long? beforeId = null)
         {
             var currentUser = await HttpContext.GetCurrentUserAsync(db);
             if (currentUser == null)
@@ -608,7 +608,7 @@ namespace SchoolBookPlatform.Controllers
 
             try
             {
-                var messages = await chatService.GetMessagesAsync(conversationId, currentUser.Id, count);
+                var messages = await chatService.GetMessagesAsync(conversationId, currentUser.Id, count, beforeId);
                 return Ok(messages);
             }
             catch (Exception ex)

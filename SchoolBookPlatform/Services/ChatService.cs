@@ -495,7 +495,8 @@ namespace SchoolBookPlatform.Services
         public async Task<List<MessageDto>> GetMessagesAsync(
             Guid conversationId,
             Guid userId,
-            int count = 20)
+            int count = 20,
+            long? beforeId = null)
         {
             try
             {
@@ -507,8 +508,13 @@ namespace SchoolBookPlatform.Services
                     throw new UnauthorizedAccessException("Bạn không có quyền xem tin nhắn này");
                 }
 
-                var messages = await db.Messages
-                    .Where(m => m.ConversationId == conversationId)
+                var query = db.Messages.Where(m => m.ConversationId == conversationId);
+                if (beforeId.HasValue)
+                {
+                    query = query.Where(m => m.Id < beforeId.Value);
+                }
+                
+                var messages = await query
                     .OrderByDescending(m => m.Id)
                     .Take(count)
                     .OrderBy(m => m.Id)

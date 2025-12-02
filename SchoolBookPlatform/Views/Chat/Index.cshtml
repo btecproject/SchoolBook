@@ -173,8 +173,12 @@ ViewData["Title"] = "Chat";
     // let selectedFile = null;
     let selectedFiles = [];
     let recipientPinsCache = new Map();
+    // pagination
+    let oldestMessageId = null;
+    let isLoadingHistory = false;
+    let isAllLoaded = false;
 
-    const currentUsername = '@User.Identity.Name';
+    const currentUsername = '@User.Identity!.Name';
 
     // ===== PIN & AUTH =====
     function getToken() {
@@ -546,22 +550,37 @@ ViewData["Title"] = "Chat";
             });
         }
     }
-
-    async function loadMessagesAndReturn(convId) {
+//            const resp = await fetch(`@Url.Action("GetMessages", "Chat")?conversationId=${convId}&count=20`);
+    async function loadMessagesAndReturn(convId, beforeId = null) {
         try {
-            const resp = await fetch(`@Url.Action("GetMessages", "Chat")?conversationId=${convId}&count=20`);
-            return resp.ok ? await resp.json() : [];
+            let url = `@Url.Action("GetMessages", "Chat")?conversationId=${convId}&count=20`;
+            if(beforeId){
+                url += `&beforeId=${beforeId}`;
+            }
+            const resp = await fetch(url);
+            if(resp.ok) {
+                const messages = await resp.json();
+                if (messages.length <20) {
+                    isAllLoaded = true;
+                }
+                
+                if (messages.length > 0) {
+                    oldestMessageId = messages[0].messageId;
+                }
+                return messages;
+            }
+            return [];
         } catch { return []; }
     }
-    
-    function displayMessages(messages) {
+    //isHistory = true (chèn lên đầu), false (load mới)
+    function displayMessages(messages, isHistory = false) {
         const area = document.getElementById('messagesArea');
-        area.innerHTML = '';
-
         const visibleMessages = messages.filter(msg => !msg.pinExchange);
 
-        if (!visibleMessages.length) {
-            area.innerHTML = '<div class="text-center py-4 text-muted"><p>Chưa có tin nhắn</p></div>';
+        if (visibleMessages.length === 0) {
+            if (!isHistory && area.innerHTML === '') {
+                area.innerHTML = '<div class="text-center py-4 text-muted"><p>Chưa có tin nhắn</p></div>';
+            }
             return;
         }
 
@@ -577,13 +596,10 @@ ViewData["Title"] = "Chat";
 
                 if (pinToUse) {
                     if (isFile) {
-                        // Giải mã URL
                         decryptedUrl = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
-
                         if (!decryptedUrl) {
                             content = '[Lỗi giải mã file]';
                         } else {
-                            // Render file attachment
                             if (msg.attachment) {
                                 content = renderFileAttachment(decryptedUrl, msg.attachment, msg.messageType);
                             } else {
@@ -591,7 +607,6 @@ ViewData["Title"] = "Chat";
                             }
                         }
                     } else {
-                        // Tin nhắn văn bản
                         content = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
                         if (!content) content = '[Lỗi giải mã]';
                     }
@@ -606,14 +621,27 @@ ViewData["Title"] = "Chat";
             const time = formatTime(msg.createdAt);
 
             return `
-            <div class="message ${bubbleClass}">
+            <div class="message ${bubbleClass}" id="msg-${msg.messageId}">
                 <div class="message-bubble">${content}</div>
                 <div class="message-time">${time}</div>
             </div>
         `;
         }).join('');
 
-        area.innerHTML = html;
+        if (isHistory) {
+            //giữ scroll
+            const oldHeight = area.scrollHeight;
+            const oldTop = area.scrollTop;
+
+            area.insertAdjacentHTML('afterbegin', html);
+
+            // Tính toán vị trí mới: Chiều cao mới - Chiều cao cũ + Vị trí cũ
+            // Giúp người dùng cảm giác như đang đứng yên
+            area.scrollTop = area.scrollHeight - oldHeight + oldTop;
+        } else {
+            area.innerHTML = html;
+            scrollToBottom(false); //Cuộn xuống đáy
+        }
     }
 
     // Hàm cắt chuỗi giờ: Bất chấp múi giờ, bất chấp trình duyệt
@@ -1189,6 +1217,46 @@ ViewData["Title"] = "Chat";
         </div>
     `;
     }
+    // ==== Scroll (pagination) ====
+    document.getElementById('messagesArea').addEventListener('scroll', async function() {
+        const area = this;
+
+        // Nếu cuộn lên sát đỉnh (còn 50px) VÀ chưa tải hết VÀ không đang bận tải VÀ đã có ID cũ nhất
+        if (area.scrollTop < 50 && !isAllLoaded && !isLoadingHistory && oldestMessageId) {
+
+            console.log("📥 Loading history...", oldestMessageId);
+            isLoadingHistory = true;
+
+            // 1. Tạo Spinner loading
+            const loaderId = 'history-loader';
+            let loader = document.getElementById(loaderId);
+            if (!loader) {
+                loader = document.createElement('div');
+                loader.id = loaderId;
+                loader.className = 'text-center p-2 small text-muted';
+                loader.innerHTML = '<div class="spinner-border spinner-border-sm text-primary"></div> Đang tải tin cũ...';
+                area.prepend(loader); // Chèn lên đỉnh
+            }
+
+            // 2. Gọi API
+            const messages = await loadMessagesAndReturn(currentConversationId, oldestMessageId);
+
+            // 3. Giải mã tin cũ (nếu cần)
+            if (messages.length > 0 && !recipientPinsCache.has(currentRecipientId?.toLowerCase())) {
+                await findKeyViaRSA(messages, currentRecipientId);
+            }
+
+            // 4. Xóa Loader TRƯỚC KHI RENDER để tính toán chiều cao scroll chính xác
+            loader.remove();
+
+            if (messages.length > 0) {
+                // Render chế độ History (Prepend & Keep Scroll)
+                displayMessages(messages, true);
+            }
+
+            isLoadingHistory = false;
+        }
+    });
     // ===== INIT =====
     window.addEventListener('load', async () => {
         if (await autoVerifyPin() && await loadCurrentUserInfo()) {
