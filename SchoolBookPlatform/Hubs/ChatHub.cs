@@ -196,7 +196,7 @@ namespace SchoolBookPlatform.Hubs
                     senderUsername = user.Username,
                     cipherText = request.CipherText,
                     messageType = request.MessageType,
-                    createdAt = DateTime.UtcNow,
+                    createdAt = DateTime.UtcNow.AddHours(7),
                     pinExchange = request.PinExchange
                 });
 
@@ -266,7 +266,7 @@ namespace SchoolBookPlatform.Hubs
                     senderId = user.Id,
                     senderUsername = user.Username,
                     encryptedPin = request.EncryptedPin,
-                    createdAt = DateTime.UtcNow
+                    createdAt = DateTime.UtcNow.AddHours(7)
                 });
                 //Fix: bắt buộc thành viên chat khác phải updateContactList (trường hợp A nhắn B, B chưa ở đoạn chat bao giờ)
                 await Clients.User(request.RecipientId).SendAsync("UpdateContactList");
@@ -370,7 +370,7 @@ namespace SchoolBookPlatform.Hubs
                     {
                         userId,
                         isOnline,
-                        timestamp = DateTime.UtcNow
+                        timestamp = DateTime.UtcNow.AddHours(7)
                     });
                 }
             }
@@ -444,7 +444,7 @@ namespace SchoolBookPlatform.Hubs
             senderUsername = user.Username,
             cipherText = request.CipherText,
             messageType = request.MessageType,
-            createdAt = DateTime.UtcNow,
+            createdAt = DateTime.UtcNow.AddHours(7),
             pinExchange = (string?)null,
             attachment = request.Attachment // ✅ GỬI KÈM ATTACHMENT DATA
         });

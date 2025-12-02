@@ -30,7 +30,7 @@ public class OtpService
             .Where(o => o.UserId == user.Id
                         && o.Type == type
                         && !o.IsUsed
-                        && o.ExpiresAt > DateTime.UtcNow);
+                        && o.ExpiresAt > DateTime.UtcNow.AddHours(7));
         _db.OtpCodes.RemoveRange(oldOtps);
         await _db.SaveChangesAsync();
 
@@ -40,9 +40,9 @@ public class OtpService
             UserId = user.Id,
             Code = code,
             Type = type,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(3),
+            ExpiresAt = DateTime.UtcNow.AddHours(7).AddMinutes(3),
             IsUsed = false,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow.AddHours(7)
         };
         _db.OtpCodes.Add(otp);
         await _db.SaveChangesAsync();
@@ -149,7 +149,7 @@ public class OtpService
             o.Code == code &&
             o.Type == type &&
             !o.IsUsed &&
-            o.ExpiresAt > DateTime.UtcNow
+            o.ExpiresAt > DateTime.UtcNow.AddHours(7)
         );
         if (otp == null) return false;
         otp.IsUsed = true;

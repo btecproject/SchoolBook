@@ -17,7 +17,7 @@ public class MessageAttachment
     public string? Format { get; set; } // jpg, mp4, pdf,...
     public string? FileName { get; set; }
 
-    public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UploadedAt { get; set; } = DateTime.UtcNow.AddHours(7);
 
     // Navigation
     public Message Message { get; set; } = null!;

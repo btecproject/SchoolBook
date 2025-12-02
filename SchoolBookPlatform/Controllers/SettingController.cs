@@ -155,7 +155,7 @@ public class SettingController(
                 return View(model);
             }
 
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow.AddHours(7);
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
             
             try
@@ -267,7 +267,7 @@ public class SettingController(
         
         //save và dtb
         user.TwoFactorEnabled = true;
-        user.UpdatedAt = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow.AddHours(7);
         user.TwoFactorSecret = secret;
 
         user.RecoveryCodesGenerated = true;
@@ -306,7 +306,7 @@ public class SettingController(
             //x
             user.TwoFactorEnabled = false;
             user.TwoFactorSecret = null;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow.AddHours(7);
         
             user.RecoveryCodesGenerated = false;
             user.RecoveryCodesLeft = 0;
@@ -347,7 +347,7 @@ public class SettingController(
         }
         user.TwoFactorEnabled = false;
         user.TwoFactorSecret = null;
-        user.UpdatedAt = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow.AddHours(7);
         
         user.RecoveryCodesGenerated = false;
         user.RecoveryCodesLeft = 0;

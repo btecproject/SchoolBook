@@ -49,7 +49,7 @@ namespace SchoolBookPlatform.Services
             {
                 // Update key nếu đã tồn tại
                 existingKey.EncryptedKey = encryptedKey;
-                existingKey.UpdatedAt = DateTime.UtcNow;
+                existingKey.UpdatedAt = DateTime.UtcNow.AddHours(7);
             }
             else
             {
@@ -60,7 +60,7 @@ namespace SchoolBookPlatform.Services
                     ConversationId = conversationId,
                     KeyVersion = version,
                     EncryptedKey = encryptedKey,
-                    UpdatedAt = DateTime.UtcNow
+                    UpdatedAt = DateTime.UtcNow.AddHours(7)
                 };
                 db.ConversationKeys.Add(newKey);
             }
@@ -179,7 +179,7 @@ namespace SchoolBookPlatform.Services
                 };
             }
 
-            if (rsaKey.ExpiresAt < DateTime.UtcNow)
+            if (rsaKey.ExpiresAt < DateTime.UtcNow.AddHours(7))
             {
                 // Key hết hạn -> đánh dấu không active
                 rsaKey.IsActive = false;
@@ -235,8 +235,8 @@ namespace SchoolBookPlatform.Services
                     Username = username,
                     DisplayName = displayName,
                     PinCodeHash = pinCodeHash,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow.AddHours(7),
+                    UpdatedAt = DateTime.UtcNow.AddHours(7)
                 };
 
                 db.ChatUsers.Add(chatUser);
@@ -298,7 +298,7 @@ namespace SchoolBookPlatform.Services
                     UserId = userId,
                     PublicKey = publicKey,
                     PrivateKeyEncrypted = privateKeyEncrypted,
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow.AddHours(7),
                     ExpiresAt = DateTime.UtcNow.AddYears(100), //tạm để 100 năm 
                     IsActive = true
                 };
@@ -394,7 +394,7 @@ namespace SchoolBookPlatform.Services
                 {
                     Id = Guid.NewGuid(),
                     Type = 0, // 1-1
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow.AddHours(7),
                     CreatorId = userId1,
                 };
 
@@ -405,7 +405,7 @@ namespace SchoolBookPlatform.Services
                 {
                     ConversationId = newConv.Id,
                     UserId = userId1,
-                    JoinedAt = DateTime.UtcNow,
+                    JoinedAt = DateTime.UtcNow.AddHours(7),
                     Role = 0
                 });
 
@@ -413,7 +413,7 @@ namespace SchoolBookPlatform.Services
                 {
                     ConversationId = newConv.Id,
                     UserId = userId2,
-                    JoinedAt = DateTime.UtcNow,
+                    JoinedAt = DateTime.UtcNow.AddHours(7),
                     Role = 0
                 });
 
@@ -465,7 +465,7 @@ namespace SchoolBookPlatform.Services
                     MessageType = 0, // Text
                     CipherText = "[PIN Exchange]", // Placeholder
                     PinExchange = encryptedPin,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow.AddHours(7)
                 };
 
                 db.Messages.Add(message);
@@ -570,7 +570,7 @@ namespace SchoolBookPlatform.Services
                     SenderId = senderId,
                     MessageType = messageType,
                     CipherText = cipherText,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow.AddHours(7)
                 };
 
                 db.Messages.Add(message);
@@ -624,7 +624,7 @@ namespace SchoolBookPlatform.Services
                     SenderId = senderId,
                     MessageType = messageType,
                     CipherText = cipherText,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow.AddHours(7)
                 };
 
                 db.Messages.Add(message);
@@ -697,7 +697,7 @@ namespace SchoolBookPlatform.Services
                     ResourceType = uploadResult.ResourceType ?? "raw",
                     Format = uploadResult.Format ?? "",
                     FileName = uploadResult.FileName ?? "",
-                    UploadedAt = DateTime.UtcNow
+                    UploadedAt = DateTime.UtcNow.AddHours(7)
                 };
 
                 db.MessageAttachments.Add(attachment);

@@ -9,7 +9,7 @@ public class MessageNotification
 
     public long? LastMessageId { get; set; }
 
-    public DateTime LastSentAt { get; set; } = DateTime.UtcNow;
+    public DateTime LastSentAt { get; set; } = DateTime.UtcNow.AddHours(7);
 
     // Navigation
     public User Recipient { get; set; } = null!;

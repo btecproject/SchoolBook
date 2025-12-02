@@ -28,7 +28,7 @@ public class AvatarService(
         {
             var uploadResult = await cloudinary.UploadAsync(uploadParams);
             userProfile.AvatarUrl = uploadResult.SecureUrl.ToString();
-            userProfile.UpdatedAt = DateTime.UtcNow;
+            userProfile.UpdatedAt = DateTime.UtcNow.AddHours(7);
             if (uploadResult.Error != null)
             {
                 logger.LogError("Avatar Service: Upload Avatar Failed");

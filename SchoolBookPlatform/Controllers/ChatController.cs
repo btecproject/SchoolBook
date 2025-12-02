@@ -212,7 +212,7 @@ namespace SchoolBookPlatform.Controllers
                 }
 
                 // Kiểm tra key có hết hạn không
-                if (rsaKey.expiresAt < DateTime.UtcNow)
+                if (rsaKey.expiresAt < DateTime.UtcNow.AddHours(7))
                 {
                     return BadRequest(new { message = "Khóa RSA đã hết hạn. Vui lòng tạo khóa mới." });
                 }

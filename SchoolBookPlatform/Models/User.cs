@@ -17,7 +17,7 @@ public class User
     public bool MustChangePassword { get; set; } = true;
     public int TokenVersion { get; set; } = 1;
     public bool IsActive { get; set; } = true;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
     public DateTime? UpdatedAt { get; set; }
 
     public bool? TwoFactorEnabled { get; set; } = false;

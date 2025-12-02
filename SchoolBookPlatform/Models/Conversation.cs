@@ -8,7 +8,7 @@ public class Conversation
 
     public string? Avatar { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
 
     public Guid CreatorId { get; set; }
     

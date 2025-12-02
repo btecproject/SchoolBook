@@ -427,7 +427,7 @@ public class AuthenController(
             return RedirectToAction(nameof(Login));
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
         user.MustChangePassword = false;
-        user.UpdatedAt = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow.AddHours(7);
         try
         {
             await db.SaveChangesAsync();

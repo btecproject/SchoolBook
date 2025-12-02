@@ -15,7 +15,7 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
         var token = new UserToken
         {
             UserId = user.Id,
-            ExpiredAt = DateTime.UtcNow.AddDays(7)
+            ExpiredAt = DateTime.UtcNow.AddHours(7).AddDays(7)
         };
 
         db.UserTokens.Add(token);
@@ -40,7 +40,7 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
         await ctx.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, new AuthenticationProperties
         {
             IsPersistent = true,
-            ExpiresUtc = DateTime.UtcNow.AddDays(7)
+            ExpiresUtc = DateTime.UtcNow.AddHours(7).AddDays(7)
         });
     }
 
@@ -101,7 +101,7 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == tokenId && t.UserId == userId);
 
-        if (token == null || token.IsRevoked || token.ExpiredAt < DateTime.UtcNow)
+        if (token == null || token.IsRevoked || token.ExpiredAt < DateTime.UtcNow.AddHours(7))
         {
             logger?.LogWarning("Invalid token {TokenId} for user {UserId}. Revoked: {IsRevoked}, Expired: {ExpiredAt}",
                 tokenId, userId, token?.IsRevoked, token?.ExpiredAt);
@@ -127,7 +127,7 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
 
             // Tăng TokenVersion để invalidate tất cả tokens hiện tại
             user.TokenVersion++;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow.AddHours(7);
 
             // Revoke tất cả tokens trong database
             var tokens = await db.UserTokens

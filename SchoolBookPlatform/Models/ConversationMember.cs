@@ -5,7 +5,7 @@ public class ConversationMember
     public Guid ConversationId { get; set; }
     public Guid UserId { get; set; }
 
-    public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+    public DateTime JoinedAt { get; set; } = DateTime.UtcNow.AddHours(7);
     
     /// 0 = Member, 1 = Admin (trưởng nhóm)
     public byte Role { get; set; } = 0;

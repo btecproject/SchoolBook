@@ -15,7 +15,7 @@ public class ConversationKey
     [Required]
     public string EncryptedKey { get; set; } = string.Empty;
 
-    public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
     
     [ForeignKey("UserId")]
     public virtual User? User { get; set; }

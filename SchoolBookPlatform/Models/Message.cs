@@ -12,7 +12,7 @@ public class Message
     public string CipherText { get; set; } = string.Empty;
     public string? PinExchange { get; set; }
     public long? ReplyToId { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
     
     //nav
     public Conversation Conversation { get; set; } = null!;
