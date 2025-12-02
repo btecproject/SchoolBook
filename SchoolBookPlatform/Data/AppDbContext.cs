@@ -19,11 +19,18 @@ public class AppDbContext : DbContext
     public DbSet<OtpCode> OtpCodes { get; set; } = null!;
     public DbSet<FaceProfile> FaceProfiles { get; set; } = null!;
     public DbSet<TrustedDevice> TrustedDevices { get; set; } = null!;
+    public DbSet<UserProfile> UserProfiles { get; set; }
+    public DbSet<Follower> Followers { get; set; }
+    public DbSet<Following> Following { get; set; }
+    public DbSet<RecoveryCode> RecoveryCodes { get; set; } = null!;
+    
+    public DbSet<UserEncryptionKey> UserEncryptionKeys { get; set; } = null!;
+    public DbSet<ThreadEncryptionKey> ThreadEncryptionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
+        
         // UserRole
         modelBuilder.Entity<UserRole>()
             .HasKey(ur => new { ur.UserId, ur.RoleId });
@@ -43,6 +50,60 @@ public class AppDbContext : DbContext
         {
             entity.HasIndex(e => new { e.UserId, e.IPAddress, e.DeviceInfo })
                 .IsUnique();
+        });
+        
+        //  USER ENCRYPTION KEY CONFIGURATION - FIXED
+        modelBuilder.Entity<UserEncryptionKey>(entity =>
+        {
+            entity.HasKey(k => k.Id);
+        
+            // UserId - Required
+            entity.Property(k => k.UserId)
+                .IsRequired();
+        
+            // PublicKey - Required, max length for safety
+            entity.Property(k => k.PublicKey)
+                .IsRequired()
+                .HasMaxLength(4000); // RSA 2048 public key ~392 chars base64
+        
+            //  CRITICAL FIX: These should be NULLABLE for client-side only encryption
+            entity.Property(k => k.EncryptedPrivateKey)
+                .IsRequired(false);
+        
+            entity.Property(k => k.PrivateKeySalt)
+                .IsRequired(false);
+
+            // Thêm FK đến User (assume User.Id là Guid)
+            entity.HasOne(k => k.User)  // Navigation property trong UserEncryptionKey
+                .WithMany()  // Nếu User không có navigation back (collection keys), dùng WithMany(). Nếu có, dùng WithOne(u => u.EncryptionKey)
+                .HasForeignKey(k => k.UserId)
+                .OnDelete(DeleteBehavior.Cascade);  // Xóa user → xóa key
+            
+            entity.HasIndex(k => k.UserId).IsUnique();
+        });
+        
+        // THREAD ENCRYPTION KEY CONFIGURATION
+        modelBuilder.Entity<ThreadEncryptionKey>(entity =>
+        {
+            entity.HasKey(k => k.Id);
+            
+            entity.Property(k => k.ThreadId).IsRequired();
+            entity.Property(k => k.UserId).IsRequired();
+            entity.Property(k => k.EncryptedThreadKey).IsRequired();
+            
+            // Composite index
+            entity.HasIndex(k => new { k.ThreadId, k.UserId });
+            
+            // Foreign keys
+            entity.HasOne(k => k.Thread)
+                .WithMany()
+                .HasForeignKey(k => k.ThreadId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            entity.HasOne(k => k.User)
+                .WithMany()
+                .HasForeignKey(k => k.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // UserToken
@@ -88,25 +149,20 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(s => s.Id);
             
-            // MessagesJson - Required with default
             entity.Property(s => s.MessagesJson)
                 .IsRequired()
                 .HasDefaultValueSql("'[]'");
             
-            // StartTime - Required with default
             entity.Property(s => s.StartTime)
                 .IsRequired()
                 .HasDefaultValueSql("GETUTCDATE()");
             
-            // IsProtected - Default false    
             entity.Property(s => s.IsProtected)
                 .HasDefaultValue(false);
                 
-            // PinHash - Optional (NULL when not protected)
             entity.Property(s => s.PinHash)
                 .IsRequired(false);
                 
-            // Salt - Optional (NULL when not protected)
             entity.Property(s => s.Salt)
                 .IsRequired(false);
         });
@@ -123,5 +179,29 @@ public class AppDbContext : DbContext
         
             entity.HasIndex(a => a.SegmentId);
         });
+        
+        modelBuilder.Entity<Follower>()
+            .HasOne(f => f.User)
+            .WithMany()
+            .HasForeignKey(f => f.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Follower>()
+            .HasOne(f => f.FollowerUser)
+            .WithMany()
+            .HasForeignKey(f => f.FollowerId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<Following>()
+            .HasOne(f => f.User)
+            .WithMany()
+            .HasForeignKey(f => f.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Following>()
+            .HasOne(f => f.FollowingUser)
+            .WithMany()
+            .HasForeignKey(f => f.FollowingId)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 }

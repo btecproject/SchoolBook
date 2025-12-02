@@ -67,7 +67,7 @@ namespace SchoolBookPlatform.Migrations
 
                     b.HasIndex("SegmentId");
 
-                    b.ToTable("ChatAttachments");
+                    b.ToTable("ChatAttachments", (string)null);
                 });
 
             modelBuilder.Entity("SchoolBookPlatform.Models.ChatSegment", b =>
@@ -112,7 +112,7 @@ namespace SchoolBookPlatform.Migrations
 
                     b.HasIndex("ThreadId");
 
-                    b.ToTable("ChatSegments");
+                    b.ToTable("ChatSegments", (string)null);
                 });
 
             modelBuilder.Entity("SchoolBookPlatform.Models.ChatThread", b =>
@@ -135,7 +135,7 @@ namespace SchoolBookPlatform.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ChatThreads");
+                    b.ToTable("ChatThreads", (string)null);
                 });
 
             modelBuilder.Entity("SchoolBookPlatform.Models.FaceProfile", b =>
@@ -160,7 +160,7 @@ namespace SchoolBookPlatform.Migrations
 
                     b.HasKey("UserId");
 
-                    b.ToTable("FaceProfiles");
+                    b.ToTable("FaceProfiles", (string)null);
                 });
 
             modelBuilder.Entity("SchoolBookPlatform.Models.OtpCode", b =>
@@ -194,7 +194,7 @@ namespace SchoolBookPlatform.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("OtpCodes");
+                    b.ToTable("OtpCodes", (string)null);
                 });
 
             modelBuilder.Entity("SchoolBookPlatform.Models.Role", b =>
@@ -213,7 +213,7 @@ namespace SchoolBookPlatform.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("SchoolBookPlatform.Models.TrustedDevice", b =>
@@ -247,7 +247,7 @@ namespace SchoolBookPlatform.Migrations
                     b.HasIndex("UserId", "IPAddress", "DeviceInfo")
                         .IsUnique();
 
-                    b.ToTable("TrustedDevices");
+                    b.ToTable("TrustedDevices", (string)null);
                 });
 
             modelBuilder.Entity("SchoolBookPlatform.Models.User", b =>
@@ -296,7 +296,7 @@ namespace SchoolBookPlatform.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("SchoolBookPlatform.Models.UserRole", b =>
@@ -311,7 +311,7 @@ namespace SchoolBookPlatform.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("UserRoles");
+                    b.ToTable("UserRoles", (string)null);
                 });
 
             modelBuilder.Entity("SchoolBookPlatform.Models.UserToken", b =>
@@ -338,7 +338,7 @@ namespace SchoolBookPlatform.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserTokens");
+                    b.ToTable("UserTokens", (string)null);
                 });
 
             modelBuilder.Entity("SchoolBookPlatform.Models.ChatSegment", b =>

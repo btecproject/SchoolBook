@@ -17,27 +17,23 @@ namespace SchoolBookPlatform.Hubs
             _logger = logger;
         }
 
-        public override async Task OnConnectedAsync()
-        {
-            var userId = Context.User?.Identity?.Name;
-            _logger.LogInformation($"User {userId} connected with connection ID: {Context.ConnectionId}");
-            await base.OnConnectedAsync();
-        }
-
-        public override async Task OnDisconnectedAsync(Exception exception)
-        {
-            var userId = Context.User?.Identity?.Name;
-            _logger.LogInformation($"User {userId} disconnected");
-            await base.OnDisconnectedAsync(exception);
-        }
-
-        public async Task SendMessage(int threadId, int segmentId, string content)
+        public async Task SendEncryptedMessage(
+            int threadId, 
+            int segmentId, 
+            string content,
+            string encryptionIV,
+            string encryptedKey,
+            bool isEncrypted,
+            int? attachmentId = null,
+            string attachmentType = null,
+            string attachmentName = null,
+            long? attachmentSize = null)
         {
             try
             {
                 var userId = Context.User?.Identity?.Name;
                 
-                _logger.LogInformation($"SendMessage START - Thread:{threadId}, Segment:{segmentId}, User:{userId}");
+                _logger.LogInformation($" SendEncryptedMessage - Thread:{threadId}, Segment:{segmentId}, Encrypted:{isEncrypted}");
                 
                 if (string.IsNullOrEmpty(userId))
                 {
@@ -45,71 +41,66 @@ namespace SchoolBookPlatform.Hubs
                     throw new HubException("User not authenticated");
                 }
                 
-                if (threadId <= 0)
+                if (threadId <= 0 || segmentId <= 0)
                 {
-                    _logger.LogError($"Invalid threadId: {threadId}");
-                    throw new HubException("Invalid thread ID");
-                }
-                
-                if (segmentId <= 0)
-                {
-                    _logger.LogError($"Invalid segmentId: {segmentId}");
-                    throw new HubException("Invalid segment ID");
-                }
-                
-                if (string.IsNullOrWhiteSpace(content))
-                {
-                    _logger.LogError("Message content is empty");
-                    throw new HubException("Message content cannot be empty");
+                    _logger.LogError($"Invalid IDs - Thread:{threadId}, Segment:{segmentId}");
+                    throw new HubException("Invalid thread or segment ID");
                 }
 
+                // Create message object with encryption metadata
                 var message = new ChatMessage 
                 { 
                     UserId = userId, 
                     Content = content, 
-                    Timestamp = DateTime.UtcNow 
+                    Timestamp = DateTime.UtcNow,
+                    IsEncrypted = isEncrypted,
+                    EncryptionIV = encryptionIV,
+                    EncryptedKey = encryptedKey,
+                    AttachmentId = attachmentId,
+                    AttachmentType = attachmentType,
+                    AttachmentName = attachmentName,
+                    AttachmentSize = attachmentSize
                 };
 
-                _logger.LogInformation($"Calling AddMessageToSegment...");
+                _logger.LogInformation($" Saving encrypted message to segment {segmentId}");
                 
                 try
                 {
                     await _chatService.AddMessageToSegment(segmentId, message);
-                    _logger.LogInformation($"Message saved to segment {segmentId}");
+                    _logger.LogInformation($" Encrypted message saved");
                 }
                 catch (Exception saveEx)
                 {
-                    _logger.LogError($"AddMessageToSegment failed: {saveEx.GetType().Name}: {saveEx.Message}");
-                    _logger.LogError($"Stack trace: {saveEx.StackTrace}");
-                    
-                    if (saveEx.InnerException != null)
-                    {
-                        _logger.LogError($"Inner exception: {saveEx.InnerException.Message}");
-                    }
-                    
+                    _logger.LogError($"Failed to save: {saveEx.Message}");
                     throw new HubException($"Failed to save message: {saveEx.Message}");
                 }
 
-                _logger.LogInformation($"Broadcasting message...");
+                _logger.LogInformation($" Broadcasting encrypted message to thread {threadId}");
                 
+                // Broadcast to all clients in the thread
                 await Clients.Group($"thread-{threadId}").SendAsync(
-                    "ReceiveMessage", 
+                    "ReceiveEncryptedMessage", 
                     userId, 
-                    content, 
-                    message.Timestamp.ToString("o")
+                    content,
+                    message.Timestamp.ToString("o"),
+                    isEncrypted,
+                    encryptionIV,
+                    encryptedKey,
+                    attachmentId,
+                    attachmentType,
+                    attachmentName,
+                    attachmentSize
                 );
 
-                _logger.LogInformation($"Message sent successfully");
+                _logger.LogInformation($" Encrypted message broadcast successfully");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"SendMessage ERROR: {ex.GetType().Name}: {ex.Message}");
-                _logger.LogError($"Stack: {ex.StackTrace}");
+                _logger.LogError($" SendEncryptedMessage ERROR: {ex.Message}");
                 throw new HubException($"Failed to send message: {ex.Message}");
             }
         }
         
-
         public async Task JoinThread(int threadId)
         {
             try
@@ -124,7 +115,7 @@ namespace SchoolBookPlatform.Hubs
 
                 await Groups.AddToGroupAsync(Context.ConnectionId, $"thread-{threadId}");
                 
-                _logger.LogInformation($"User {userId} joined thread {threadId}");
+                _logger.LogInformation($" User {userId} joined thread {threadId}");
 
                 await Clients.OthersInGroup($"thread-{threadId}").SendAsync(
                     "UserJoined", 
@@ -133,7 +124,7 @@ namespace SchoolBookPlatform.Hubs
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error joining thread: {ex.Message}");
+                _logger.LogError($" Error joining thread: {ex.Message}");
                 throw new HubException($"Failed to join thread: {ex.Message}");
             }
         }
@@ -170,7 +161,7 @@ namespace SchoolBookPlatform.Hubs
                 
                 var segment = await _chatService.CreateSegment(threadId, false);
                 
-                _logger.LogInformation($"Created segment {segment.Id} with MessagesJson: {segment.MessagesJson}");
+                _logger.LogInformation($" Created segment {segment.Id}");
                 
                 await Clients.Group($"thread-{threadId}").SendAsync(
                     "SegmentStarted", 
@@ -180,7 +171,7 @@ namespace SchoolBookPlatform.Hubs
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error creating segment: {ex.Message}");
+                _logger.LogError($" Error creating segment: {ex.Message}");
                 throw new HubException($"Failed to start segment: {ex.Message}");
             }
         }
@@ -193,7 +184,7 @@ namespace SchoolBookPlatform.Hubs
                 
                 var segment = await _chatService.CreateSegment(threadId, true, pin);
                 
-                _logger.LogInformation($"Created protected segment {segment.Id}");
+                _logger.LogInformation($" Created protected segment {segment.Id}");
                 
                 await Clients.Group($"thread-{threadId}").SendAsync(
                     "SegmentStarted",
@@ -203,77 +194,9 @@ namespace SchoolBookPlatform.Hubs
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error creating protected segment: {ex.Message}");
+                _logger.LogError($" Error creating protected segment: {ex.Message}");
                 throw new HubException($"Failed to start protected segment: {ex.Message}");
             }
-        }
-        
-        public async Task SendMessageWithAttachment(int threadId, int segmentId, string content, 
-            int attachmentId, string attachmentType, string attachmentName, long attachmentSize)
-        {
-            try
-            {
-                var userId = Context.User?.Identity?.Name;
-        
-                _logger.LogInformation($"SendMessageWithAttachment - AttachmentId: {attachmentId}");
-        
-                if (string.IsNullOrEmpty(userId))
-                    throw new HubException("User not authenticated");
-        
-                if (threadId <= 0 || segmentId <= 0)
-                    throw new HubException("Invalid thread or segment ID");
-
-                var message = new ChatMessage 
-                { 
-                    UserId = userId, 
-                    Content = content ?? "",
-                    Timestamp = DateTime.UtcNow,
-                    AttachmentId = attachmentId,
-                    AttachmentType = attachmentType,
-                    AttachmentName = attachmentName,
-                    AttachmentSize = attachmentSize
-                };
-
-                try
-                {
-                    await _chatService.AddMessageToSegment(segmentId, message);
-                    _logger.LogInformation($"Message with attachment saved");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Failed to save message: {ex.Message}");
-                    throw new HubException($"Failed to save message: {ex.Message}");
-                }
-
-                await Clients.Group($"thread-{threadId}").SendAsync(
-                    "ReceiveMessage", 
-                    userId, 
-                    content ?? "",
-                    message.Timestamp.ToString("o"),
-                    attachmentId,
-                    attachmentType,
-                    attachmentName,
-                    attachmentSize
-                );
-
-                _logger.LogInformation($"Message with attachment broadcast");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error: {ex.Message}");
-                throw new HubException($"Failed to send message: {ex.Message}");
-            }
-        }
-
-        public async Task MarkAsRead(int threadId, int segmentId)
-        {
-            var userId = Context.User?.Identity?.Name;
-            
-            await Clients.OthersInGroup($"thread-{threadId}").SendAsync(
-                "MessagesRead", 
-                userId, 
-                segmentId
-            );
         }
     }
 }

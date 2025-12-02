@@ -15,6 +15,7 @@ namespace SchoolBookPlatform.Views.Chat
         {
             _chatService = chatService;
         }
+        
 
         public IActionResult OnGet(int threadId)
         {

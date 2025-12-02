@@ -382,6 +382,7 @@ Layout = "~/Views/Shared/_Layout.cshtml";
                 resultsDiv.innerHTML = '<div class="list-group-item text-muted">No users found</div>';
                 return;
             }
+            
 
             resultsDiv.innerHTML = users.map(user => `
                     <button type="button" 

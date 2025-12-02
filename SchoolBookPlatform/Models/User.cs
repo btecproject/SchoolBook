@@ -20,8 +20,17 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
+    public bool? TwoFactorEnabled { get; set; } = false;
+    
+    public string? TwoFactorSecret { get; set; } 
+    public bool? RecoveryCodesGenerated { get; set; } = false;
+    public int? RecoveryCodesLeft { get;  set; } = 0;
+    
+    public virtual ICollection<RecoveryCode> RecoveryCodes { get; set; } = new List<RecoveryCode>();
     public ICollection<UserRole>? UserRoles { get; set; }
     public ICollection<UserToken>? Tokens { get; set; }
     public ICollection<OtpCode>? OtpCodes { get; set; }
     public FaceProfile? FaceProfile { get; set; }
+    
+    public UserProfile? UserProfile { get; set; }   
 }

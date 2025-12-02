@@ -247,7 +247,7 @@
         height: 40px;
         border-radius: 50%;
         border: none;
-        background: #0088cc;
+        background: #a8e39d;
         color: white;
         display: flex;
         align-items: center;
@@ -374,7 +374,6 @@
             <div class="date-separator">
                 <span>November 4</span>
             </div>
-            <!-- Messages will be loaded here -->
         </div>
         
         <!-- Chat Input -->
@@ -393,7 +392,7 @@
                    onkeypress="if(event.key === 'Enter') sendMessage()"
                    @(!hasSegment ? "disabled" : "") />
             <button type="button" id="sendBtn" onclick="sendMessage()" @(!hasSegment ? "disabled" : "")>
-                <i class="bi bi-send-fill"></i>
+                <img src="/uploads/image/send.png" style="width:22px; height:22px;">
             </button>
         </div>
         
@@ -519,9 +518,10 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/chat-encryption.js?v=@DateTime.Now.Ticks"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script>
+
         const threadId = parseInt('@Model.Id') || 0;
         const currentUser = '@currentUser' || 'Unknown';
         let currentSegmentId = parseInt('@(currentSegment?.Id ?? 0)') || 0;
@@ -531,7 +531,7 @@
 
         // Initialize SignalR
         function initializeSignalR() {
-            console.log("Initializing SignalR...");
+            console.log("🔌 Initializing SignalR...");
 
             connection = new signalR.HubConnectionBuilder()
                 .withUrl("/chatHub")
@@ -539,13 +539,31 @@
                 .configureLogging(signalR.LogLevel.Information)
                 .build();
 
-            connection.on("ReceiveMessage", (userId, content, timestamp, attachmentId, attachmentType, attachmentName, attachmentSize) => {
-                console.log("Received message:", userId, content, attachmentId);
-                appendMessage(userId, content, new Date(timestamp), attachmentId, attachmentType, attachmentName, attachmentSize);
+            //  FIXED: Receive encrypted message handler
+            connection.on("ReceiveEncryptedMessage", async (userId, encryptedContent, timestamp, isEncrypted, iv, encryptedKey, attachmentId, attachmentType, attachmentName, attachmentSize) => {
+                console.log(` Received message from ${userId}, encrypted: ${isEncrypted}`);
+
+                let displayText = encryptedContent;
+                
+                if (isEncrypted && chatEncryption && chatEncryption.isReady() && iv && encryptedKey) {
+                    try {
+                        console.log(` Attempting to decrypt message from ${userId}...`);
+                        displayText = await chatEncryption.decryptMessage(encryptedContent, iv, encryptedKey);
+                        console.log(` Decryption successful: "${displayText}"`);
+                    } catch (decErr) {
+                        console.warn(`Decryption failed for message from ${userId}:`, decErr);
+                        displayText = "[ Encrypted Message]";
+                    }
+                } else if (isEncrypted) {
+                    console.warn(` Message is encrypted but cannot decrypt - encryption not ready or missing keys`);
+                    displayText = "[ Encrypted Message]";
+                }
+
+                appendMessage(userId, displayText, new Date(timestamp), attachmentId, attachmentType, attachmentName, attachmentSize);
             });
 
             connection.on("SegmentStarted", (segmentId, message) => {
-                console.log("New segment started:", segmentId);
+                console.log(" New segment started:", segmentId);
                 currentSegmentId = segmentId;
                 messageIndex = 0;
                 alert(message);
@@ -553,36 +571,41 @@
             });
 
             connection.onreconnecting(error => {
-                console.log("SignalR reconnecting...", error);
+                console.log(" SignalR reconnecting...", error);
             });
 
             connection.onreconnected(connectionId => {
-                console.log("SignalR reconnected:", connectionId);
+                console.log(" SignalR reconnected:", connectionId);
             });
 
             connection.onclose(error => {
-                console.log("SignalR connection closed:", error);
+                console.log(" SignalR connection closed:", error);
             });
 
             connection.start()
                 .then(() => {
-                    console.log("SignalR connected successfully");
-                    console.log(`Joining thread: ${threadId}`);
+                    console.log(" SignalR connected successfully");
+                    console.log(` Joining thread: ${threadId}`);
                     return connection.invoke("JoinThread", threadId);
                 })
                 .then(() => {
-                    console.log("Joined thread successfully");
+                    console.log(" Joined thread successfully");
                 })
                 .catch(err => {
-                    console.error("SignalR connection error:", err);
+                    console.error(" SignalR connection error:", err);
                     alert("Failed to connect to chat. Please refresh the page.");
                 });
         }
 
         // Append message
-        function appendMessage(userId, content, timestamp, attachmentId, attachmentType, attachmentName, attachmentSize) {
+        function appendMessage(userId, content, timestamp, attachmentId, attachmentType, attachmentName, attachmentSize, isEncrypted = false) {
             const messagesDiv = document.getElementById("messages");
             const isSent = userId === currentUser;
+
+            let encryptionBadge = '';
+            if (isEncrypted && !isSent) {
+                encryptionBadge = '<span class="badge bg-dark ms-2" style="font-size: 10px;">🔒</span>';
+            }
 
             let attachmentHtml = '';
             if (attachmentId) {
@@ -590,69 +613,69 @@
 
                 if (attachmentType === 'image') {
                     attachmentHtml = `
-                <div class="attachment-preview">
-                    <img src="${fileUrl}" 
-                         alt="${attachmentName}" 
-                         style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer; display: block; margin-top: 5px;"
-                         onclick="window.open('${fileUrl}', '_blank')">
-                </div>`;
+        <div class="attachment-preview">
+            <img src="${fileUrl}" 
+                 alt="${attachmentName}" 
+                 style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer; display: block; margin-top: 5px;"
+                 onclick="window.open('${fileUrl}', '_blank')">
+        </div>`;
                 } else if (attachmentType === 'video') {
                     attachmentHtml = `
-                <div class="attachment-preview">
-                    <video controls style="max-width: 400px; border-radius: 8px; margin-top: 5px;">
-                        <source src="${fileUrl}">
-                    </video>
-                </div>`;
+        <div class="attachment-preview">
+            <video controls style="max-width: 400px; border-radius: 8px; margin-top: 5px;">
+                <source src="${fileUrl}">
+            </video>
+        </div>`;
                 } else {
                     attachmentHtml = `
-                <div class="attachment-file" style="margin-top: 5px;">
-                    <a href="${fileUrl}" download="${attachmentName}" 
-                       style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px;">
-                        <i class="bi bi-file-earmark" style="font-size: 24px;"></i>
-                        <div>
-                            <div style="font-weight: 600;">${escapeHtml(attachmentName)}</div>
-                            <small style="color: #666;">${formatFileSize(attachmentSize)}</small>
-                        </div>
-                    </a>
-                </div>`;
+        <div class="attachment-file" style="margin-top: 5px;">
+            <a href="${fileUrl}" download="${attachmentName}" 
+               style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-file-earmark" style="font-size: 24px;"></i>
+                <div>
+                    <div style="font-weight: 600;">${escapeHtml(attachmentName)}</div>
+                    <small style="color: #666;">${formatFileSize(attachmentSize)}</small>
+                </div>
+            </a>
+        </div>`;
                 }
             }
 
             const messageHtml = `
-        <div class="message ${isSent ? 'sent' : 'received'}">
-            <div class="message-bubble">
-                ${!isSent ? `<div class="message-sender">${escapeHtml(userId)}</div>` : ''}
-                ${content ? `<div class="message-content">${escapeHtml(content)}</div>` : ''}
-                ${attachmentHtml}
-                <div class="message-time">${formatTime(timestamp)}</div>
-            </div>
-        </div>
-    `;
+<div class="message ${isSent ? 'sent' : 'received'}">
+    <div class="message-bubble">
+        ${!isSent ? `<div class="message-sender">${escapeHtml(userId)}${encryptionBadge}</div>` : ''}
+        ${content ? `<div class="message-content">${escapeHtml(content)}</div>` : ''}
+        ${attachmentHtml}
+        <div class="message-time">${formatTime(timestamp)}</div>
+    </div>
+</div>
+`;
 
             messagesDiv.insertAdjacentHTML('beforeend', messageHtml);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        // Load messages
+        //  FIXED: Load messages with decryption
         async function loadMessages(segmentId, pin = null) {
             try {
-                console.log(`Loading messages for segment ${segmentId}...`);
+                console.log(` Loading messages for segment ${segmentId}...`);
 
                 if (!segmentId || segmentId <= 0) {
-                    console.error('Invalid segmentId:', segmentId);
+                    console.error(' Invalid segmentId:', segmentId);
                     const messagesDiv = document.getElementById("messages");
                     messagesDiv.innerHTML = `
-                <div style="text-align: center; color: #999; padding: 20px;">
-                    <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 10px;"></i>
-                    <p>No active segment. Please create one to start chatting.</p>
-                </div>`;
+        <div style="text-align: center; color: #999; padding: 20px;">
+            <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 10px;"></i>
+            <p>No active segment. Please create one to start chatting.</p>
+        </div>`;
                     return;
                 }
 
                 let url = `/api/chat/messages?segmentId=${segmentId}`;
                 if (pin) url += `&pin=${encodeURIComponent(pin)}`;
 
-                console.log(`📡 Fetching from: ${url}`);
+                console.log(` Fetching from: ${url}`);
 
                 const response = await fetch(url, {
                     method: 'GET',
@@ -665,10 +688,10 @@
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-                    console.error('Failed to load messages:', errorData);
+                    console.error(' Failed to load messages:', errorData);
 
                     if (response.status === 401) {
-                        alert('Invalid PIN. Please try again.');
+                        alert('PIN required for protected segment');
                         return;
                     }
 
@@ -676,23 +699,47 @@
                 }
 
                 const messages = await response.json();
-                console.log(`Loaded ${messages.length} messages`);
+                console.log(` Loaded ${messages.length} messages`);
 
                 const messagesDiv = document.getElementById("messages");
                 messagesDiv.innerHTML = '<div class="date-separator"><span>Today</span></div>';
 
                 if (Array.isArray(messages) && messages.length > 0) {
-                    messages.forEach((m, index) => {
+                    //  CRITICAL: Process messages sequentially to handle decryption
+                    for (let i = 0; i < messages.length; i++) {
+                        const m = messages[i];
+
+                        let displayContent = m.content;
+
+                        //  Decrypt if encrypted
+                        if (m.isEncrypted && chatEncryption && chatEncryption.isReady() && m.encryptionIV && m.encryptedKey) {
+                            try {
+                                console.log(` Decrypting message ${i + 1}/${messages.length}...`);
+                                displayContent = await chatEncryption.decryptMessage(
+                                    m.content,
+                                    m.encryptionIV,
+                                    m.encryptedKey
+                                );
+                                console.log(` Decrypted: "${displayContent}"`);
+                            } catch (decErr) {
+                                console.warn(` Failed to decrypt message ${i + 1}:`, decErr);
+                                displayContent = "[ Encrypted Message]";
+                            }
+                        } else if (m.isEncrypted) {
+                            displayContent = "[ Encrypted Message]";
+                        }
+
                         appendMessage(
                             m.userId,
-                            m.content,
+                            displayContent,
                             new Date(m.timestamp),
                             m.attachmentId,
                             m.attachmentType,
                             m.attachmentName,
                             m.attachmentSize
                         );
-                    });
+                    }
+
                     messageIndex = messages.length;
 
                     // Scroll to bottom
@@ -701,129 +748,85 @@
                     messagesDiv.innerHTML += '<div style="text-align: center; color: #999; padding: 20px;">No messages yet. Start the conversation!</div>';
                 }
             } catch (err) {
-                console.error("Error loading messages:", err);
+                console.error(" Error loading messages:", err);
                 const messagesDiv = document.getElementById("messages");
                 messagesDiv.innerHTML = `
-            <div style="text-align: center; color: #dc3545; padding: 20px;">
-                <i class="bi bi-exclamation-circle" style="font-size: 48px; margin-bottom: 10px;"></i>
-                <p>Failed to load messages</p>
-                <small>${escapeHtml(err.message)}</small>
-                <br><br>
-                <button class="btn btn-primary" onclick="loadMessages(${currentSegmentId})">
-                    <i class="bi bi-arrow-clockwise"></i> Retry
-                </button>
-            </div>`;
+    <div style="text-align: center; color: #dc3545; padding: 20px;">
+        <i class="bi bi-exclamation-circle" style="font-size: 48px; margin-bottom: 10px;"></i>
+        <p>Failed to load messages</p>
+        <small>${escapeHtml(err.message)}</small>
+        <br><br>
+        <button class="btn btn-primary" onclick="loadMessages(${currentSegmentId})">
+            <i class="bi bi-arrow-clockwise"></i> Retry
+        </button>
+    </div>`;
             }
 }
 
-        // File handling
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            selectedFile = file;
-
-            document.getElementById('filePreview').style.display = 'block';
-            document.getElementById('fileName').textContent = file.name;
-            document.getElementById('fileSize').textContent = formatFileSize(file.size);
-
-            const fileIcon = document.getElementById('fileIcon');
-            if (file.type.startsWith('image/')) {
-                fileIcon.className = 'bi bi-image';
-            } else if (file.type.startsWith('video/')) {
-                fileIcon.className = 'bi bi-camera-video';
-            } else {
-                fileIcon.className = 'bi bi-file-earmark';
-            }
-}
-
-        function cancelFile() {
-            selectedFile = null;
-            document.getElementById('fileInput').value = '';
-            document.getElementById('filePreview').style.display = 'none';
-        }
-
-        async function uploadFile() {
-            if (!selectedFile) return null;
-
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-            formData.append('segmentId', currentSegmentId);
-            formData.append('messageIndex', messageIndex);
-
-            const progressDiv = document.getElementById('uploadProgress');
-            const progressBar = document.getElementById('progressBar');
-            if (progressDiv) progressDiv.style.display = 'block';
-
-            try {
-                const response = await fetch('/api/files/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Upload failed: ${errorText}`);
-                }
-
-                const result = await response.json();
-                console.log('File uploaded to DB:', result);
-
-                if (progressDiv) progressDiv.style.display = 'none';
-
-                return result;
-            } catch (error) {
-                console.error('Upload error:', error);
-                alert('Failed to upload: ' + error.message);
-                if (progressDiv) progressDiv.style.display = 'none';
-                return null;
-            }
-}
-
-        // Send message - FIXED: Tích hợp upload file
+        // Send message
         async function sendMessage() {
             const input = document.getElementById("messageInput");
             const content = input.value.trim();
-
             if (!content && !selectedFile) return;
-            if (!currentSegmentId) {
-                alert("No active segment");
-                return;
-            }
-            if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
-                alert("Not connected");
-                return;
-            }
 
             try {
+                let attachmentId = null, attachmentType = null, attachmentName = null, attachmentSize = null;
                 if (selectedFile) {
-                    // Upload file trước
-                    const uploadResult = await uploadFile();
-                    if (!uploadResult) return; // Upload failed
-
-                    // Gửi message với attachment
-                    await connection.invoke("SendMessageWithAttachment",
-                        threadId,
-                        currentSegmentId,
-                        content,
-                        uploadResult.attachmentId,
-                        uploadResult.type,
-                        uploadResult.name,
-                        uploadResult.size
-                    );
-
-                    messageIndex++;
-                    cancelFile(); // Clear file after sending
-                } else {
-                    // Gửi message thường
-                    await connection.invoke("SendMessage", threadId, currentSegmentId, content);
+                    const res = await uploadFile();
+                    if (!res) return;
+                    attachmentId = res.attachmentId;
+                    attachmentType = res.type;
+                    attachmentName = res.name;
+                    attachmentSize = res.size;
+                    cancelFile();
                 }
 
-                console.log("Message sent");
+                //  CRITICAL: Build recipients list (exclude current user)
+                const allUsers = @Html.Raw(Json.Serialize(Model.UserIds.ToArray()));
+                const recipients = allUsers.filter(u => u !== currentUser);
+
+                console.log('👥 All thread users:', allUsers);
+                console.log('👤 Current user:', currentUser);
+                console.log('📨 Recipients (excluding self):', recipients);
+
+                let finalContent = content || "File";
+                let iv = "", encryptedKey = "";
+                let isEncrypted = false;
+
+                //  CRITICAL: Check if encryption is ready
+                if (encryptionReady && chatEncryption && chatEncryption.isReady() && recipients.length > 0) {
+                    try {
+                        console.log(' Encrypting message...');
+                        console.log('   Recipients:', recipients);
+                        const r = await chatEncryption.encryptMessage(finalContent, recipients);
+                        finalContent = r.encryptedContent;
+                        iv = r.iv;
+                        encryptedKey = r.encryptedKey;
+                        isEncrypted = true;
+                        console.log(' Message encrypted');
+                    } catch (encErr) {
+                        console.error(' Encryption failed, sending unencrypted:', encErr);
+                        isEncrypted = false;
+                    }
+                } else {
+                    console.warn('⚠ Encryption not ready, sending unencrypted message');
+                    console.warn('   Encryption ready:', encryptionReady);
+                    console.warn('   ChatEncryption exists:', !!chatEncryption);
+                    console.warn('   ChatEncryption isReady:', chatEncryption ? chatEncryption.isReady() : false);
+                    console.warn('   Recipients count:', recipients.length);
+                    isEncrypted = false;
+                }
+
+                await connection.invoke("SendEncryptedMessage",
+                    threadId, currentSegmentId, finalContent, iv, encryptedKey, isEncrypted,
+                    attachmentId, attachmentType, attachmentName, attachmentSize
+                );
+
                 input.value = "";
+                console.log(' Message sent');
             } catch (err) {
-                console.error("Error:", err);
-                alert("Failed: " + err.message);
+                console.error(' Send error:', err);
+                alert("Failed to send: " + err.message);
             }
 }
 
@@ -846,6 +849,7 @@
             div.textContent = text;
             return div.innerHTML;
         }
+        
 
         // Segment functions
         let pendingSegmentId = null;
@@ -966,28 +970,63 @@
 
         
         // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Initializing chat...');
+        let chatEncryption = null;
+        let encryptionReady = false;
+
+        // ================ KHỞI TẠO TOÀN BỘ ================
+        document.addEventListener('DOMContentLoaded', async function () {
+            console.log(' Initializing chat...');
             console.log('Thread ID:', threadId);
             console.log('Current Segment ID:', currentSegmentId);
             console.log('Current User:', currentUser);
 
-            // Initialize SignalR
-            initializeSignalR();
+            try {
+              
+                console.log(' Initializing ChatEncryption...');
+                chatEncryption = new ChatEncryption();
 
-            // Load messages if segment exists
-            if (currentSegmentId > 0) {
-                console.log('Loading messages for existing segment...');
-                loadMessages(currentSegmentId);
-            } else {
-                console.warn('⚠️ No active segment found');
-                const messagesDiv = document.getElementById("messages");
-                messagesDiv.innerHTML = `
-            <div style="text-align: center; color: #999; padding: 40px;">
-                <i class="bi bi-chat-dots" style="font-size: 64px; opacity: 0.3; margin-bottom: 20px;"></i>
-                <h5>No Active Chat Segment</h5>
-                <p>Create a segment to start messaging</p>
-            </div>`;
+                await chatEncryption.initialize();
+
+      
+                if (!chatEncryption.isReady()) {
+                    throw new Error('Encryption initialization failed');
+                }
+
+                encryptionReady = true;
+                console.log(' Encryption ready!');
+
+             
+                if (threadId > 0) {
+                    console.log(` Fetching public keys for thread ${threadId}...`);
+                    await chatEncryption.fetchPublicKeysForThread(threadId);
+                    console.log(` Public keys loaded: ${chatEncryption.publicKeys.size} keys`);
+                }
+                
+                initializeSignalR();
+               
+                if (currentSegmentId > 0) {
+                    console.log(` Loading messages for segment: ${currentSegmentId}`);
+                    setTimeout(() => loadMessages(currentSegmentId), 500);
+                } else {
+                    console.warn(' No active segment found');
+                    const messagesDiv = document.getElementById("messages");
+                    messagesDiv.innerHTML = `
+        <div style="text-align: center; color: #999; padding: 40px;">
+            <i class="bi bi-chat-dots" style="font-size: 64px; opacity: 0.3; margin-bottom: 20px;"></i>
+            <h5>No Active Chat Segment</h5>
+            <p>Create a segment to start messaging</p>
+        </div>`;
+                }
+            } catch (err) {
+                console.error(' Initialization error:', err);
+                encryptionReady = false;
+                alert(' Encryption initialization failed. Messages will not be encrypted.\n\nError: ' + err.message);
+
+                // Continue without encryption
+                initializeSignalR();
+                if (currentSegmentId > 0) {
+                    setTimeout(() => loadMessages(currentSegmentId), 500);
+                }
             }
 });
     </script>
