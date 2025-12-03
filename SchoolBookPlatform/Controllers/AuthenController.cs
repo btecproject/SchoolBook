@@ -521,11 +521,12 @@ public class AuthenController(
     [AllowAnonymous]
     public IActionResult FaceVerification()
     {
-        var userId = TempData.Peek("UserId")?.ToString();
-        if (string.IsNullOrEmpty(userId))
-            return RedirectToAction(nameof(Login));
-
-        return View(new FaceVerificationViewModel());
+        // var userId = TempData.Peek("UserId")?.ToString();
+        // if (string.IsNullOrEmpty(userId))
+        //     return RedirectToAction(nameof(Login));
+        //
+        // return View(new FaceVerificationViewModel());
+        return RedirectToAction(nameof(Login));
     }
 
     [HttpPost]
