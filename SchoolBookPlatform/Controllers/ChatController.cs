@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
@@ -282,6 +283,7 @@ namespace SchoolBookPlatform.Controllers
         
         // POST: xác thực mã Pin
         [HttpPost]
+        [EnableRateLimiting("ChatPinPolicy")]
         public async Task<IActionResult> VerifyPinCode([FromBody] string pinCodeHash)
         {
             var currentUser = await HttpContext.GetCurrentUserAsync(db);
@@ -621,6 +623,7 @@ namespace SchoolBookPlatform.Controllers
         // API: /Chat/SendMessage - Gửi tin nhắn
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [EnableRateLimiting("ChatPolicy")]
         public async Task<IActionResult> SendMessage([FromBody] SendMessageModel model)
         {
             if (!ModelState.IsValid)
@@ -660,6 +663,7 @@ namespace SchoolBookPlatform.Controllers
         // API: /Chat/UploadFile - Upload file attachment
         [HttpPost]
         [RequestSizeLimit(52428800)] // 50MB
+        [EnableRateLimiting("ChatPolicy")]
         public async Task<IActionResult> UploadFile(IFormFile file, [FromForm] Guid conversationId)
         {
             var currentUser = await HttpContext.GetCurrentUserAsync(db);

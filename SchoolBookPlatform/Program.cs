@@ -1,9 +1,12 @@
+using System.Threading.RateLimiting;
 using CloudinaryDotNet;
 using Ganss.Xss;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Filters;
 using SchoolBookPlatform.Hubs;
@@ -49,7 +52,100 @@ public class Program
             );
             return new Cloudinary(account);
         });
+        //Rate limiter
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.OnRejected = async (context, token) =>
+            {
+                var httpContext = context.HttpContext;
+    
+                // Lấy retryAfter
+                var retryAfter = "10";
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retry))
+                {
+                    retryAfter = ((int)retry.TotalSeconds).ToString();
+                }
+    
+                // Redirect đến static file với parameter
+                httpContext.Response.Redirect($"/429.html?retryAfter={retryAfter}");
+            };
+            
+            //login 10/10p (Ip)
+            options.AddPolicy("LoginPolicy", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(10),
+                        QueueLimit = 0 //ko xếp hàng, chặn luôn
+                    }));
+            
+            //Otp 5/3p
+            options.AddPolicy("OtpPolicy", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(3),
+                        QueueLimit = 0
+                    }));
+            
+            //Chat PIN : 5/30p Ip()
+            options.AddPolicy("ChatPinPolicy", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(30),
+                        QueueLimit = 0
+                    }));
+            // //Search user : 10/3s Ip()
+            // options.AddPolicy("SearchUserPolicy", httpContext =>
+            //     RateLimitPartition.GetFixedWindowLimiter(
+            //         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            //         factory: _ => new FixedWindowRateLimiterOptions
+            //         {
+            //             PermitLimit = 5,
+            //             Window = TimeSpan.FromMinutes(30),
+            //             QueueLimit = 0
+            //         }));
+            //Chat text: 20token +10/10sIp
+            options.AddPolicy("ChatPolicy", httpContext =>
+                RateLimitPartition.GetTokenBucketLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new TokenBucketRateLimiterOptions
+                    {
+                        TokenLimit = 20,         
+                        TokensPerPeriod = 10,      
+                        ReplenishmentPeriod = TimeSpan.FromSeconds(10), 
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 50,          
+                        AutoReplenishment = true   // Tự động bổ sung token
+                    }));
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            {
+                //Bỏ qua Rate Limit cho các file tĩnh hoặc API cụ thể nếu cần
+                if (context.Request.Path.StartsWithSegments("/lib") || 
+                    context.Request.Path.StartsWithSegments("/css") ||
+                    context.Request.Path.StartsWithSegments("/js") ||
+                    context.Request.Path.StartsWithSegments("/Admin"))
+                {
+                    return RateLimitPartition.GetNoLimiter("StaticFiles");
+                }
 
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown", 
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        AutoReplenishment = true,
+                        PermitLimit = 100, 
+                        Window = TimeSpan.FromMinutes(1)
+                    });
+            });
+        });
         // Logging
         builder.Logging.AddConsole();
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
@@ -135,6 +231,7 @@ public class Program
         });
         app.UseStaticFiles();
         app.UseRouting();
+        app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
         
