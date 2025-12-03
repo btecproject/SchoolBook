@@ -13,6 +13,7 @@
     <ItemGroup>
         <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
         <PackageReference Include="CloudinaryDotNet" Version="1.27.8" />
+        <PackageReference Include="HtmlSanitizer" Version="9.0.889" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.3.0" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.10" />
         <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1" />
@@ -31,6 +32,11 @@
 
     <ItemGroup>
       <Folder Include="wwwroot\images\avatars\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="Views\Chat\PartialScript\_ChatLogicScript.cshtml" />
+      <_ContentIncludedByDefault Remove="Views\Chat\PartialScript\_ChatUIScript.cshtml" />
     </ItemGroup>
 
 </Project>

@@ -16,7 +16,7 @@ public class RecoveryCode
     
     public bool IsUsed { get; set; } = false;
     
-    public DateTime CreatedAt { get; set; } =  DateTime.Now;
+    public DateTime CreatedAt { get; set; } =  DateTime.Now.AddHours(7);
     public DateTime UsedAt { get; set; }
 
     [ForeignKey("UserId")] 

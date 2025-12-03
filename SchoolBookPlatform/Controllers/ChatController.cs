@@ -1,0 +1,776 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Manager;
+using SchoolBookPlatform.Services;
+using SchoolBookPlatform.ViewModels.Chat;
+
+namespace SchoolBookPlatform.Controllers
+{
+    [Authorize]
+    public class ChatController(AppDbContext db, ChatService chatService, ILogger<ChatController> logger)
+        : Controller
+    {
+        
+        [HttpGet]
+        public async Task<IActionResult> GetConversationKey(Guid conversationId, Guid senderId)
+        {
+            // seảch PinExchange gần nhất
+            var keyMsg = await db.Messages
+                .Where(m => m.ConversationId == conversationId && m.SenderId == senderId && m.PinExchange != null)
+                .OrderByDescending(m => m.CreatedAt)
+                .Select(m => new { m.PinExchange })
+                .FirstOrDefaultAsync();
+
+            if (keyMsg == null) return NotFound();
+            return Ok(keyMsg);
+        }
+        
+        // [HttpGet]
+        // public async Task<IActionResult> GetConversationKey(Guid conversationId, int keyVersion = 1)
+        // {
+        //     var currentUser = await HttpContext.GetCurrentUserAsync(db);
+        //     if (currentUser == null) return Unauthorized();
+        //
+        //     try
+        //     {
+        //         var key = await chatService.GetConversationKeyAsync(currentUser.Id, conversationId, keyVersion);
+        //         
+        //         if (string.IsNullOrEmpty(key))
+        //         {
+        //             return NotFound(new { message = "Key not found" });
+        //         }
+        //
+        //         return Ok(new { encryptedKey = key });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         logger.LogError(ex, "Error getting conversation key");
+        //         return StatusCode(500, new { message = "Error getting key" });
+        //     }
+        // }
+
+        // API: /Chat/SaveConversationKey - Lưu key (cho Self-healing)
+        [HttpPost]
+        public async Task<IActionResult> SaveConversationKey([FromBody] ConversationKeyModel model)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null) return Unauthorized();
+
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            try
+            {
+                var result = await chatService.SaveConversationKeyAsync(
+                    currentUser.Id, 
+                    model.ConversationId, 
+                    model.EncryptedKey, 
+                    model.KeyVersion
+                );
+
+                if (!result)
+                {
+                    return BadRequest(new { message = "Could not save key" });
+                }
+
+                return Ok(new { message = "Key saved successfully" });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error saving conversation key");
+                return StatusCode(500, new { message = "Error saving key" });
+            }
+        }
+        
+        [HttpGet]
+        public async Task<IActionResult> GetRecentContacts()
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null) return Unauthorized();
+
+            try
+            {
+                var contacts = await chatService.GetRecentContactsAsync(currentUser.Id);
+                return Ok(contacts);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting recent contacts");
+                return StatusCode(500, new { message = "Error loading contacts" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> MarkRead([FromBody] Guid senderId)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null) return Unauthorized();
+            
+            await chatService.MarkMessagesAsReadAsync(currentUser.Id, senderId);
+            return Ok();
+        }
+        
+        // API: /Chat/UpdateMessageWithFile - Cập nhật message với file URL đã mã hóa
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateMessageWithFile([FromBody] UpdateMessageFileModel model)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var message = await db.Messages.FindAsync(model.MessageId);
+        
+                if (message == null)
+                {
+                    return NotFound(new { message = "Message không tồn tại" });
+                }
+
+                // Kiểm tra quyền: chỉ sender mới được update
+                if (message.SenderId != currentUser.Id)
+                {
+                    return Forbid();
+                }
+
+                // Update message với encrypted URL
+                message.CipherText = model.EncryptedUrl;
+        
+                await db.SaveChangesAsync();
+
+                logger.LogInformation("Message {MessageId} updated with encrypted file URL", model.MessageId);
+
+                return Ok(new { message = "Message updated successfully" });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating message {MessageId} with file", model.MessageId);
+                return StatusCode(500, new { message = "Lỗi khi cập nhật message" });
+            }
+        }
+        
+        // API: /Chat/GetCurrentUserInfo - Lấy thông tin user hiện tại
+        [HttpGet]
+        public async Task<IActionResult> GetCurrentUserInfo()
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            // Lấy thông tin ChatUser
+            var chatUser = await db.ChatUsers
+                .Where(cu => cu.UserId == currentUser.Id)
+                .Select(cu => new
+                {
+                    userId = cu.UserId,
+                    username = cu.Username,
+                    displayName = cu.DisplayName
+                })
+                .FirstOrDefaultAsync();
+
+            if (chatUser == null)
+            {
+                return NotFound(new { message = "ChatUser không tồn tại" });
+            }
+
+            return Ok(chatUser);
+        }
+        [HttpGet]
+        public async Task<IActionResult> GetMyPrivateKey()
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                var rsaKey = await db.UserRsaKeys
+                    .Where(k => k.UserId == currentUser.Id && k.IsActive)
+                    .Select(k => new
+                    {
+                        privateKeyEncrypted = k.PrivateKeyEncrypted,
+                        expiresAt = k.ExpiresAt
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (rsaKey == null)
+                {
+                    return NotFound(new { message = "Không tìm thấy khóa RSA hoặc khóa đã hết hạn" });
+                }
+
+                // Kiểm tra key có hết hạn không
+                if (rsaKey.expiresAt < DateTime.UtcNow.AddHours(7))
+                {
+                    return BadRequest(new { message = "Khóa RSA đã hết hạn. Vui lòng tạo khóa mới." });
+                }
+
+                return Ok(new 
+                { 
+                    privateKeyEncrypted = rsaKey.privateKeyEncrypted 
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting private key for user {UserId}", currentUser.Id);
+                return StatusCode(500, new { message = "Lỗi khi lấy private key" });
+            }
+        }
+        // GET: /Chat/Index - Kiểm tra và chuyển hướng
+        public async Task<IActionResult> Index()
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return RedirectToAction("Login", "Authen");
+            }
+
+            // Kiểm tra user đã kích hoạt chat chưa
+            var isChatActivated = await chatService.IsChatActivatedAsync(currentUser.Id);
+
+            if (!isChatActivated)
+            {
+                // Chưa kích hoạt -> chuyển đến trang đăng ký
+                return RedirectToAction("Register");
+            }
+
+            // Đã kích hoạt -> kiểm tra RSA key
+            var rsaStatus = await chatService.CheckRsaKeyStatusAsync(currentUser.Id);
+
+            if (!rsaStatus.IsValid)
+            {
+                // Key hết hạn hoặc không tồn tại
+                TempData["RequireNewKey"] = true;
+                TempData["KeyMessage"] = rsaStatus.Message;
+                return RedirectToAction("SetupKeys");
+            }
+
+            // Chuyển đến trang chat chính
+            return View();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> VerifyPinCode()
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return RedirectToAction("Login", "Authen");
+            }
+            // Kiểm tra user đã kích hoạt chat chưa
+            var isChatActivated = await chatService.IsChatActivatedAsync(currentUser.Id);
+
+            if (!isChatActivated)
+            {
+                // Chưa kích hoạt -> chuyển đến trang đăng ký
+                return RedirectToAction("Register");
+            }
+            return View();
+        }
+        
+        // POST: xác thực mã Pin
+        [HttpPost]
+        [EnableRateLimiting("ChatPinPolicy")]
+        public async Task<IActionResult> VerifyPinCode([FromBody] string pinCodeHash)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Json(new { success = false, message = "Unauthorized" });
+            }
+            
+            if (string.IsNullOrWhiteSpace(pinCodeHash))
+            {
+                return Json(new { success = false, message = "Mã PIN không hợp lệ" });
+            }
+            
+            logger.LogInformation("VerifyPinCode for user {Username} with hash: {Hash}", 
+                currentUser.Username, pinCodeHash);
+            
+            try
+            {
+                // Tìm ChatUser với UserId và PinCodeHash khớp
+                var chatUser = await db.ChatUsers
+                    .FirstOrDefaultAsync(u => u.UserId == currentUser.Id && u.PinCodeHash == pinCodeHash);
+                
+                if (chatUser == null)
+                {
+                    logger.LogWarning("PIN verification failed for user {Username}", currentUser.Username);
+                    return Json(new { success = false, message = "Mã PIN không đúng" });
+                }
+                
+                logger.LogInformation("PIN verified successfully for user {Username}", currentUser.Username);
+                return Json(new { success = true, message = "Xác thực thành công" });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error verifying PIN for user {Username}", currentUser.Username);
+                return Json(new { success = false, message = "Đã xảy ra lỗi khi xác thực" });
+            }
+        }
+        
+        // GET: /Chat/Register - Trang đăng ký chat
+        [HttpGet]
+        public async Task<IActionResult> Register()
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return RedirectToAction("Login", "Authen");
+            }
+
+            // Nếu đã kích hoạt rồi thì chuyển về trang chat
+            var isChatActivated = await chatService.IsChatActivatedAsync(currentUser.Id);
+            if (isChatActivated)
+            {
+                return RedirectToAction("VerifyPinCode");
+            }
+
+            var model = new ChatRegistrationViewModel
+            {
+                Username = currentUser.Username
+            };
+
+            return View(model);
+        }
+
+        // POST: /Chat/Register - Xử lý đăng ký chat
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Register(ChatRegistrationViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return RedirectToAction("Login", "Authen");
+            }
+
+            try
+            {
+                // Đăng ký ChatUser với PinCodeHash
+                var result = await chatService.RegisterChatUserAsync(
+                    currentUser.Id,
+                    currentUser.Username,
+                    model.DisplayName,
+                    model.PinCodeHash
+                );
+
+                if (!result.Success)
+                {
+                    ModelState.AddModelError("", result.Message);
+                    return View(model);
+                }
+
+                logger.LogInformation("User {UserId} registered for chat successfully", currentUser.Id);
+
+                // Chuyển sang trang để client tạo RSA key
+                return RedirectToAction("SetupKeys");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error registering chat for user {UserId}", currentUser.Id);
+                ModelState.AddModelError("", "Đã xảy ra lỗi khi đăng ký chat. Vui lòng thử lại.");
+                return View(model);
+            }
+        }
+
+        // GET: /Chat/SetupKeys - Trang để client tạo và upload RSA keys
+        [HttpGet]
+        public async Task<IActionResult> SetupKeys()
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return RedirectToAction("Login", "Authen");
+            }
+
+            // Kiểm tra đã đăng ký ChatUser chưa
+            var isChatActivated = await chatService.IsChatActivatedAsync(currentUser.Id);
+            if (!isChatActivated)
+            {
+                return RedirectToAction("Register");
+            }
+
+            // Kiểm tra đã có key chưa
+            var hasValidKey = await chatService.HasValidRsaKeyAsync(currentUser.Id);
+            if (hasValidKey)
+            {
+                return RedirectToAction("VerifyPinCode");
+            }
+
+            return View();
+        }
+
+        // POST: /Chat/UploadKeys - Nhận RSA keys từ client
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UploadKeys([FromBody] RsaKeysUploadModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                var result = await chatService.SaveUserRsaKeysAsync(
+                    currentUser.Id,
+                    model.PublicKey,
+                    model.PrivateKeyEncrypted
+                );
+
+                if (!result.Success)
+                {
+                    return BadRequest(new { message = result.Message });
+                }
+
+                logger.LogInformation("RSA keys uploaded successfully for user {UserId}", currentUser.Id);
+
+                return Ok(new { message = "Keys uploaded successfully", redirectUrl = Url.Action("Index") });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error uploading RSA keys for user {UserId}", currentUser.Id);
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi lưu keys." });
+            }
+        }
+
+        // API: /Chat/CheckActivation - Kiểm tra trạng thái kích hoạt
+        [HttpGet]
+        public async Task<IActionResult> CheckActivation()
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            var isActivated = await chatService.IsChatActivatedAsync(currentUser.Id);
+            var rsaStatus = await chatService.CheckRsaKeyStatusAsync(currentUser.Id);
+
+            return Ok(new
+            {
+                isActivated,
+                hasValidKey = rsaStatus.IsValid,
+                keyExpiry = rsaStatus.ExpiresAt,
+                message = rsaStatus.Message
+            });
+        }
+
+        // API: /Chat/SearchUsers - Tìm kiếm user
+        [HttpGet]
+        public async Task<IActionResult> SearchUsers(string searchTerm)
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Length < 3)
+            {
+                return BadRequest(new { message = "Search term must be at least 3 characters" });
+            }
+
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                var results = await chatService.SearchChatUsersAsync(searchTerm, currentUser.Id);
+                return Ok(results);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error searching users with term: {SearchTerm}", searchTerm);
+                return StatusCode(500, new { message = "Error searching users" });
+            }
+        }
+
+        // API: /Chat/GetUserPublicKey - Lấy public key của user
+        [HttpGet]
+        public async Task<IActionResult> GetUserPublicKey(Guid userId)
+        {
+            try
+            {
+                var publicKey = await chatService.GetUserPublicKeyAsync(userId);
+
+                if (string.IsNullOrEmpty(publicKey))
+                {
+                    return NotFound(new { message = "User không có public key hoặc key đã hết hạn" });
+                }
+
+                return Ok(new { publicKey });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting public key for user: {UserId}", userId);
+                return StatusCode(500, new { message = "Error getting public key" });
+            }
+        }
+
+        // API: /Chat/GetOrCreateConversation - Lấy hoặc tạo conversation 1-1
+        [HttpPost]
+        public async Task<IActionResult> GetOrCreateConversation(Guid recipientId)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                var result = await chatService.GetOrCreateConversationAsync(currentUser.Id, recipientId);
+
+                return Ok(new
+                {
+                    conversationId = result.ConversationId,
+                    isNew = result.IsNew,
+                    hasPinExchange = result.HasPinExchange
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting/creating conversation between {User1} and {User2}",
+                    currentUser.Id, recipientId);
+                return StatusCode(500, new { message = "Error creating conversation" });
+            }
+        }
+
+        // API: /Chat/SendPinExchange - Gửi PIN exchange message
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendPinExchange([FromBody] PinExchangeModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                var result = await chatService.SendPinExchangeMessageAsync(
+                    model.ConversationId,
+                    currentUser.Id,
+                    model.RecipientId,
+                    model.EncryptedPin
+                );
+
+                if (!result.Success)
+                {
+                    return BadRequest(new { message = result.Message });
+                }
+
+                return Ok(new { message = "PIN exchange sent successfully" });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error sending PIN exchange");
+                return StatusCode(500, new { message = "Error sending PIN exchange" });
+            }
+        }
+
+        // API: /Chat/GetMessages - Lấy tin nhắn
+        [HttpGet]
+        public async Task<IActionResult> GetMessages(Guid conversationId, int count = 20, long? beforeId = null)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                var messages = await chatService.GetMessagesAsync(conversationId, currentUser.Id, count, beforeId);
+                return Ok(messages);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting messages for conversation: {ConversationId}", conversationId);
+                return StatusCode(500, new { message = "Error loading messages" });
+            }
+        }
+
+        // API: /Chat/SendMessage - Gửi tin nhắn
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [EnableRateLimiting("ChatPolicy")]
+        public async Task<IActionResult> SendMessage([FromBody] SendMessageModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                var result = await chatService.SendMessageAsync(
+                    model.ConversationId,
+                    currentUser.Id,
+                    model.CipherText,
+                    model.MessageType
+                );
+
+                if (!result.Success)
+                {
+                    return BadRequest(new { message = result.Message });
+                }
+
+                return Ok(new { messageId = result.Data, message = "Message sent successfully" });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error sending message");
+                return StatusCode(500, new { message = "Error sending message" });
+            }
+        }
+
+        // API: /Chat/UploadFile - Upload file attachment
+        [HttpPost]
+        [RequestSizeLimit(52428800)] // 50MB
+        [EnableRateLimiting("ChatPolicy")]
+        public async Task<IActionResult> UploadFile(IFormFile file, [FromForm] Guid conversationId)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { message = "File không hợp lệ" });
+            }
+
+            try
+            {
+                // Validate file type
+                var allowedExtensions = new[]
+                {
+                    ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp",
+                    ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm",
+                    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+                    ".txt", ".zip", ".rar"
+                };
+
+                var fileExtension = Path.GetExtension(file.FileName).ToLower();
+                if (!allowedExtensions.Contains(fileExtension))
+                {
+                    return BadRequest(new { message = "Loại file không được hỗ trợ" });
+                }
+
+                // Create temporary message
+                var result = await chatService.CreateMessageAsync(
+                    conversationId,
+                    currentUser.Id,
+                    "[Uploading...]",
+                    CloudinaryService.GetMessageType(file.FileName)
+                );
+
+                if (!result.Success)
+                {
+                    return BadRequest(new { message = result.Message });
+                }
+
+                var messageId = result.Data;
+
+                // Upload to Cloudinary
+                var uploadResult = await chatService.UploadFileAsync(
+                    file,
+                    currentUser.Id,
+                    conversationId,
+                    messageId
+                );
+
+                if (!uploadResult.Success)
+                {
+                    await chatService.DeleteMessageAsync(messageId);
+                    return BadRequest(new { message = uploadResult.Message });
+                }
+
+                return Ok(new
+                {
+                    messageId,
+                    url = uploadResult.Url,
+                    fileName = uploadResult.FileName,
+                    fileSize = uploadResult.FileSize,
+                    resourceType = uploadResult.ResourceType,
+                    format = uploadResult.Format
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error uploading file");
+                return StatusCode(500, new { message = "Error uploading file" });
+            }
+        }
+    }
+    // Request Models
+    public class PinExchangeModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public Guid ConversationId { get; set; }
+        
+        [System.ComponentModel.DataAnnotations.Required]
+        public Guid RecipientId { get; set; }
+        
+        [System.ComponentModel.DataAnnotations.Required]
+        public string EncryptedPin { get; set; } = string.Empty;
+    }
+
+    public class SendMessageModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public Guid ConversationId { get; set; }
+        
+        [System.ComponentModel.DataAnnotations.Required]
+        public string CipherText { get; set; } = string.Empty;
+        
+        [System.ComponentModel.DataAnnotations.Required]
+        public byte MessageType { get; set; }
+    }
+    
+    public class UpdateMessageFileModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public long MessageId { get; set; }
+    
+        [System.ComponentModel.DataAnnotations.Required]
+        public string EncryptedUrl { get; set; } = string.Empty;
+    }
+}

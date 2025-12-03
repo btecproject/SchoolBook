@@ -1,9 +1,13 @@
-﻿namespace SchoolBookPlatform.ViewModels.Profile;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace SchoolBookPlatform.ViewModels.Profile;
 
 public class ProfileViewModel
 {
     public Guid UserId { get; set; }
     public string Username { get; set; } = null!;
+    [RegularExpression(@"^[a-zA-Z0-9\s\p{L}]+$", 
+        ErrorMessage = "Tên hiển thị chỉ được chứa chữ cái, số và khoảng trắng")]
     public string? FullName { get; set; }
     public string AvatarUrl { get; set; } = "/images/avatars/default.png";
     public string Bio { get; set; } = "Chưa có mô tả";

@@ -4,7 +4,10 @@ namespace SchoolBookPlatform.ViewModels.Authen;
 
 public class LoginViewModel
 {
-    [Required] public string Username { get; set; }
+    [Required] 
+    [RegularExpression(@"^[a-zA-Z0-9\s\p{L}]+$", 
+        ErrorMessage = "UserName chỉ được chứa chữ cái, số và khoảng trắng")]
+    public string Username { get; set; }
 
     [Required]
     [DataType(DataType.Password)]

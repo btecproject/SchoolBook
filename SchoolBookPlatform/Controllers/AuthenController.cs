@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
@@ -112,6 +113,7 @@ public class AuthenController(
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("LoginPolicy")]
     public async Task<IActionResult> Login(LoginViewModel model, string returnUrl = null)
     {
         try
@@ -225,6 +227,7 @@ public class AuthenController(
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("LoginPolicy")]
     public async Task<IActionResult> VerifyTwoFactor(TwoFactorVerifyViewModel model)
     {
         if (!ModelState.IsValid)
@@ -303,6 +306,7 @@ public class AuthenController(
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("OtpPolicy")]
     public async Task<IActionResult> VerifyOtp(OtpViewModel model)
     {
         logger.LogInformation("VerifyOtp POST - Code: {Code}, Type: {Type}", model.Code, model.Type);
@@ -359,6 +363,7 @@ public class AuthenController(
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("OtpPolicy")]
     public async Task<IActionResult> ResendOtp()
     {
         var userIdStr = TempData.Peek("UserId")?.ToString();
@@ -410,6 +415,7 @@ public class AuthenController(
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("LoginPolicy")]
     public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
     {
         if (!ModelState.IsValid)
@@ -427,7 +433,7 @@ public class AuthenController(
             return RedirectToAction(nameof(Login));
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
         user.MustChangePassword = false;
-        user.UpdatedAt = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow.AddHours(7);
         try
         {
             await db.SaveChangesAsync();
@@ -475,6 +481,7 @@ public class AuthenController(
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("OtpPolicy")]
     public async Task<IActionResult> LoginWithRecoveryCode(RecoveryCodeViewModel model)
     {
         if (!ModelState.IsValid)
@@ -521,16 +528,18 @@ public class AuthenController(
     [AllowAnonymous]
     public IActionResult FaceVerification()
     {
-        var userId = TempData.Peek("UserId")?.ToString();
-        if (string.IsNullOrEmpty(userId))
-            return RedirectToAction(nameof(Login));
-
-        return View(new FaceVerificationViewModel());
+        // var userId = TempData.Peek("UserId")?.ToString();
+        // if (string.IsNullOrEmpty(userId))
+        //     return RedirectToAction(nameof(Login));
+        //
+        // return View(new FaceVerificationViewModel());
+        return RedirectToAction(nameof(Login));
     }
 
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("OtpPolicy")]
     public async Task<IActionResult> FaceVerification(FaceVerificationViewModel model)
     {
         // TODO: Implement face verification logic

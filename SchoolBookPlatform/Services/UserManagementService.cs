@@ -5,19 +5,8 @@ using SchoolBookPlatform.Models;
 
 namespace SchoolBookPlatform.Services;
 
-public class UserManagementService
+public class UserManagementService(AppDbContext db, ILogger<UserManagementService> logger, TokenService tokenService)
 {
-    private readonly AppDbContext _db;
-    private readonly ILogger<UserManagementService> _logger;
-    private readonly TokenService _tokenService;
-
-    public UserManagementService(AppDbContext db, ILogger<UserManagementService> logger,  TokenService tokenService)
-    {
-        _db = db;
-        _logger = logger;
-        _tokenService = tokenService;
-    }
-
     /// <summary>
     /// Kiểm tra xem currentUser có quyền quản lý targetUser không
     /// HighAdmin: quản lý tất cả users
@@ -28,7 +17,7 @@ public class UserManagementService
         if (currentUserId == targetUserId)
             return false; // Không được quản lý chính mình
 
-        var currentUserRoles = await _db.GetUserRolesAsync(currentUserId);
+        var currentUserRoles = await db.GetUserRolesAsync(currentUserId);
     
         //HighAdmin có thể quản lý tất cả trừ chính mình
         if (currentUserRoles.Contains("HighAdmin"))
@@ -37,7 +26,7 @@ public class UserManagementService
         //Admin chỉ quản lý Moderator, Teacher, Student
         if (currentUserRoles.Contains("Admin"))
         {
-            var targetUserRoles = await _db.GetUserRolesAsync(targetUserId);
+            var targetUserRoles = await db.GetUserRolesAsync(targetUserId);
             if (targetUserRoles.Contains("HighAdmin") || targetUserRoles.Contains("Admin"))
                 return false;
             return true;
@@ -51,7 +40,7 @@ public class UserManagementService
     /// </summary>
     public async Task<bool> CanCreateUserWithRolesAsync(Guid currentUserId, List<Guid> roleIds)
     {
-        var currentUserRoles = await _db.GetUserRolesAsync(currentUserId);
+        var currentUserRoles = await db.GetUserRolesAsync(currentUserId);
         // HighAdmin có thể tạo user với bất kỳ role nào
         if (currentUserRoles.Contains("HighAdmin"))
             return true;
@@ -59,7 +48,7 @@ public class UserManagementService
         // Admin chỉ có thể tạo user với roles: Moderator, Teacher, Student
         if (currentUserRoles.Contains("Admin"))
         {
-            var roles = await _db.Roles
+            var roles = await db.Roles
                 .Where(r => roleIds.Contains(r.Id))
                 .Select(r => r.Name)
                 .ToListAsync();
@@ -78,12 +67,12 @@ public class UserManagementService
     /// </summary>
     public async Task<List<User>> GetManageableUsersAsync(Guid currentUserId)
     {
-        var currentUserRoles = await _db.GetUserRolesAsync(currentUserId);
+        var currentUserRoles = await db.GetUserRolesAsync(currentUserId);
         
         // HighAdmin: lấy tất cả users
         if (currentUserRoles.Contains("HighAdmin"))
         {
-            return await _db.Users
+            return await db.Users
                 .Include(u => u.UserRoles!)
                 .ThenInclude(ur => ur.Role)
                 .Include(u => u.UserProfile)
@@ -93,12 +82,12 @@ public class UserManagementService
         // Admin: chỉ lấy users có role Moderator, Teacher, Student
         if (currentUserRoles.Contains("Admin"))
         {
-            var manageableRoleIds = await _db.Roles
+            var manageableRoleIds = await db.Roles
                 .Where(r => r.Name == "Moderator" || r.Name == "Teacher" || r.Name == "Student")
                 .Select(r => r.Id)
                 .ToListAsync();
 
-            return await _db.Users
+            return await db.Users
                 .Include(u => u.UserRoles!)
                 .ThenInclude(ur => ur.Role)
                 .Include(u => u.UserProfile)
@@ -116,22 +105,22 @@ public class UserManagementService
     {
         try
         {
-            var user = await _db.Users.FindAsync(userId);
+            var user = await db.Users.FindAsync(userId);
             if (user == null)
                 return false;
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
             user.MustChangePassword = true;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow.AddHours(7);
             user.TokenVersion++; // Invalidate all existing tokens
 
-            await _db.SaveChangesAsync();
-            _logger.LogInformation("Password reset for user {UserId}", userId);
+            await db.SaveChangesAsync();
+            logger.LogInformation("Password reset for user {UserId}", userId);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error resetting password for user {UserId}", userId);
+            logger.LogError(ex, "Error resetting password for user {UserId}", userId);
             return false;
         }
     }
@@ -141,7 +130,7 @@ public class UserManagementService
     /// </summary>
     public async Task<bool> RevokeAllTokensAsync(Guid userId)
     {
-        if (await _tokenService.RevokeAllTokensAsync(userId))
+        if (await tokenService.RevokeAllTokensAsync(userId))
         {
             return true;
         }

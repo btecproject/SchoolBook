@@ -1,9 +1,14 @@
+using System.Threading.RateLimiting;
 using CloudinaryDotNet;
+using Ganss.Xss;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Filters;
 using SchoolBookPlatform.Hubs;
 using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
@@ -25,6 +30,7 @@ public class Program
         builder.Services.AddHttpClient();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddSignalR();
+        builder.Services.AddSingleton<HtmlSanitizer>(new HtmlSanitizer());
         builder.Services.AddScoped<TokenService>();
         builder.Services.AddScoped<FaceService>();
         builder.Services.AddScoped<OtpService>();
@@ -34,6 +40,8 @@ public class Program
         builder.Services.AddScoped<TwoFactorService>();
         builder.Services.AddScoped<AvatarService>();
         builder.Services.AddScoped<RecoveryCodeService>();
+        builder.Services.AddScoped<CloudinaryService>();
+        builder.Services.AddScoped<ChatService>();
         builder.Services.AddSingleton<Cloudinary>(sp =>
         {
             var config = builder.Configuration.GetSection("Cloudinary");
@@ -44,13 +52,109 @@ public class Program
             );
             return new Cloudinary(account);
         });
-        
+        //Rate limiter
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.OnRejected = async (context, token) =>
+            {
+                var httpContext = context.HttpContext;
+    
+                // Lấy retryAfter
+                var retryAfter = "10";
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retry))
+                {
+                    retryAfter = ((int)retry.TotalSeconds).ToString();
+                }
+    
+                // Redirect đến static file với parameter
+                httpContext.Response.Redirect($"/429.html?retryAfter={retryAfter}");
+            };
+            
+            //login 10/10p (Ip)
+            options.AddPolicy("LoginPolicy", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(10),
+                        QueueLimit = 0 //ko xếp hàng, chặn luôn
+                    }));
+            
+            //Otp 5/3p
+            options.AddPolicy("OtpPolicy", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(3),
+                        QueueLimit = 0
+                    }));
+            
+            //Chat PIN : 5/30p Ip()
+            options.AddPolicy("ChatPinPolicy", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(30),
+                        QueueLimit = 0
+                    }));
+            // //Search user : 10/3s Ip()
+            // options.AddPolicy("SearchUserPolicy", httpContext =>
+            //     RateLimitPartition.GetFixedWindowLimiter(
+            //         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            //         factory: _ => new FixedWindowRateLimiterOptions
+            //         {
+            //             PermitLimit = 5,
+            //             Window = TimeSpan.FromMinutes(30),
+            //             QueueLimit = 0
+            //         }));
+            //Chat text: 20token +10/10sIp
+            options.AddPolicy("ChatPolicy", httpContext =>
+                RateLimitPartition.GetTokenBucketLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new TokenBucketRateLimiterOptions
+                    {
+                        TokenLimit = 20,         
+                        TokensPerPeriod = 10,      
+                        ReplenishmentPeriod = TimeSpan.FromSeconds(10), 
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 50,          
+                        AutoReplenishment = true   // Tự động bổ sung token
+                    }));
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            {
+                //Bỏ qua Rate Limit cho các file tĩnh hoặc API cụ thể nếu cần
+                if (context.Request.Path.StartsWithSegments("/lib") || 
+                    context.Request.Path.StartsWithSegments("/css") ||
+                    context.Request.Path.StartsWithSegments("/js") ||
+                    context.Request.Path.StartsWithSegments("/Admin"))
+                {
+                    return RateLimitPartition.GetNoLimiter("StaticFiles");
+                }
+
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown", 
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        AutoReplenishment = true,
+                        PermitLimit = 100, 
+                        Window = TimeSpan.FromMinutes(1)
+                    });
+            });
+        });
         // Logging
         builder.Logging.AddConsole();
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
         
-        builder.Services.AddControllersWithViews();
-        
+        builder.Services.AddControllersWithViews(options =>
+        {
+            //Dky xss filter 
+            options.Filters.Add<AntiXssFilter>();
+        });        
         // Authentication
         builder.Services.AddAuthentication(options =>
             {
@@ -65,9 +169,9 @@ public class Program
                 options.AccessDeniedPath = "/Authen/AccessDenied";
                 options.ExpireTimeSpan = TimeSpan.FromDays(7);
                 options.SlidingExpiration = true;
-                options.Cookie.HttpOnly = true;
-                options.Cookie.SameSite = SameSiteMode.Lax;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Cookie.HttpOnly = true; //js ko đụng cookies
+                options.Cookie.SameSite = SameSiteMode.Lax; // chỉ get hợp lệ từ link
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always; //chỉ https
 
                 options.Events = new CookieAuthenticationEvents
                 {
@@ -100,8 +204,34 @@ public class Program
         }
 
         app.UseHttpsRedirection();
+        app.Use(async (context, next) =>
+        {
+            // Cấu hình CSP chặt chẽ
+            context.Response.Headers.Append("Content-Security-Policy",
+                "default-src 'self'; " + 
+                // Chỉ cho phép script từ domain mình và các CDN tin cậy
+                "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com; " +
+                // Chỉ cho phép style từ domain mình và CDN
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " +
+                // Cho phép ảnh từ Cloudinary, Google
+                "img-src 'self' data: https://res.cloudinary.com https://*.googleusercontent.com; " +
+                // Font chữ
+                "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
+                // Cho phép kết nối WebSocket (SignalR)
+                "connect-src 'self' wss: https:; " +
+                // Chặn nhúng web vào iframe (Chống Clickjacking)
+                "frame-ancestors 'self';");
+
+            // Các header bảo mật khác nên có
+            context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+            context.Response.Headers.Append("X-Frame-Options", "SAMEORIGIN");
+            context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
+
+            await next();
+        });
         app.UseStaticFiles();
         app.UseRouting();
+        app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
         
@@ -113,6 +243,7 @@ public class Program
             "{controller=Home}/{action=Index}");
         
         app.MapHub<ImportExcelHub>("/importExcelHub");
+        app.MapHub<ChatHub>("/chatHub");
         
         // Route cho TokenManager
         // app.MapControllerRoute(

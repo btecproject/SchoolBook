@@ -1,4 +1,4 @@
-CREATE TABLE Users (
+CREATE table Users (
                        Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
                        Username NVARCHAR(50) NOT NULL UNIQUE,
                        PasswordHash NVARCHAR(MAX) NOT NULL,
@@ -10,7 +10,11 @@ CREATE TABLE Users (
                        TokenVersion INT DEFAULT 1,
                        IsActive BIT DEFAULT 1,
                        CreatedAt DATETIME DEFAULT GETUTCDATE(),
-                       UpdatedAt DATETIME NULL
+                       UpdatedAt DATETIME NULL,
+                       TwoFactorEnabled BIT DEFAULT 0,
+                       TwoFactorSecret NVARCHAR(200) NULL,
+                       RecoveryCodesGenerated BIT DEFAULT 0,
+                       RecoveryCodesLeft INT DEFAULT 0
 );
 
 CREATE TABLE Roles (
@@ -23,7 +27,7 @@ CREATE TABLE UserRoles (
                            UserId UNIQUEIDENTIFIER NOT NULL,
                            RoleId UNIQUEIDENTIFIER NOT NULL,
                            PRIMARY KEY (UserId, RoleId),
-                           FOREIGN KEY (UserId) REFERENCES Users(Id),
+                           FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
                            FOREIGN KEY (RoleId) REFERENCES Roles(Id)
 );
 
@@ -35,7 +39,7 @@ CREATE TABLE UserTokens (
                             IsRevoked BIT DEFAULT 0,
                             FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
--- Index để tìm nhanh
+
 CREATE INDEX IX_UserTokens_UserId ON UserTokens (UserId);
 
 CREATE TABLE OtpCodes (
@@ -46,8 +50,9 @@ CREATE TABLE OtpCodes (
                           ExpiresAt DATETIME NOT NULL,
                           IsUsed BIT DEFAULT 0,
                           CreatedAt DATETIME DEFAULT GETUTCDATE(),
-                          FOREIGN KEY (UserId) REFERENCES Users(Id)
+                          FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
+
 
 CREATE TABLE FaceProfiles (
                               UserId UNIQUEIDENTIFIER PRIMARY KEY,
@@ -68,36 +73,9 @@ CREATE TABLE TrustedDevices (
                                 IsRevoked BIT DEFAULT 0,
                                 FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
-
--- Index để tìm nhanh
 CREATE INDEX IX_TrustedDevices_UserId_IP_Device
     ON TrustedDevices (UserId, IPAddress, DeviceInfo);
 
-INSERT INTO Roles (Name, Description)
-VALUES
-    ('HighAdmin', 'Super admin with full control'),
-    ('Admin', 'System administrator'),
-    ('Moderator', 'Content moderator'),
-    ('Teacher', 'Content creator'),
-    ('Student', 'Basic user');
-
-
-DECLARE @highAdminId UNIQUEIDENTIFIER = NEWID();
-INSERT INTO Users (Id, Username, PasswordHash, Email, PhoneNumber, FaceRegistered, MustChangePassword, TokenVersion, IsActive)
-VALUES
-    (@highAdminId, 'highadmin', '$2a$12$1z0WFrouH5JZdDkmpjQPiuyOcYIOeswMPhJMDa7VwJe9uT/d0QoD.', 'highadmin@mail.com', 0123456789, 0, 1, 1, 1);
-
-
-INSERT INTO UserRoles (UserId, RoleId)
-SELECT @highAdminId, Id FROM Roles WHERE Name = 'HighAdmin';
-
------------------------------Thêm gg/ms authenticator----------------------------------
-ALTER TABLE Users
-    ADD TwoFactorEnabled BIT DEFAULT 0,
-    TwoFactorSecret NVARCHAR(200) NULL;
-
------------------------------Thêm User profile--------------------------------
--- Bảng UserProfiles
 CREATE TABLE UserProfiles (
                               UserId UNIQUEIDENTIFIER PRIMARY KEY,
                               FullName NVARCHAR(100),
@@ -151,6 +129,8 @@ CREATE TABLE Following (
 CREATE NONCLUSTERED INDEX IX_Followers_FollowerId   ON Followers(FollowerId);
 CREATE NONCLUSTERED INDEX IX_Following_FollowingId ON Following(FollowingId);
 
+
+
 CREATE PROCEDURE usp_DeleteUser @userId UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -168,23 +148,6 @@ COMMIT TRAN;
 END
 
 
-ALTER TABLE UserRoles DROP CONSTRAINT FK__UserRoles__UserI__693CA210;
-ALTER TABLE UserRoles
-    ADD CONSTRAINT FK_UserRoles_UserId
-        FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE;
-
-ALTER TABLE OtpCodes DROP CONSTRAINT FK__OtpCodes__UserId__778AC167;
-ALTER TABLE OtpCodes
-    ADD CONSTRAINT FK_OtpCodes_UserId
-        FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE;
-        
-
------------------------------------Thêm Recovery Code-----------------------------------
-ALTER TABLE Users
-    ADD
-        RecoveryCodesGenerated BIT DEFAULT 0,        -- Đã từng tạo code chưa
-    RecoveryCodesLeft       INT  DEFAULT 0;       -- Còn bao nhiêu code chưa dùng
-
 CREATE TABLE RecoveryCodes (
                                Id         UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
                                UserId     UNIQUEIDENTIFIER NOT NULL,
@@ -200,3 +163,156 @@ CREATE TABLE RecoveryCodes (
 CREATE NONCLUSTERED INDEX IX_RecoveryCodes_UserId_IsUsed 
 ON RecoveryCodes (UserId, IsUsed) 
 INCLUDE (HashedCode);
+
+
+
+INSERT INTO Roles (Name, Description)
+VALUES
+    ('HighAdmin', 'Super admin with full control'),
+    ('Admin', 'System administrator'),
+    ('Moderator', 'Content moderator'),
+    ('Teacher', 'Content creator'),
+    ('Student', 'Basic user');
+
+
+DECLARE @highAdminId UNIQUEIDENTIFIER = NEWID();
+INSERT INTO Users (Id, Username, PasswordHash, Email, PhoneNumber, FaceRegistered, MustChangePassword, TokenVersion, IsActive)
+VALUES
+    (@highAdminId, 'highadmin', '$2a$12$1z0WFrouH5JZdDkmpjQPiuyOcYIOeswMPhJMDa7VwJe9uT/d0QoD.', 'highadmin@mail.com', 0123456789, 0, 1, 1, 1);
+
+--- highadmin, Admin123.
+INSERT INTO UserRoles (UserId, RoleId)
+SELECT @highAdminId, Id FROM Roles WHERE Name = 'HighAdmin';
+
+------------------------------------Chat--------------------------------------------
+-- 1. Conversations (đoạn chat 1-1 hoặc nhóm)
+CREATE TABLE Conversations (
+                               Id            UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                               Type          TINYINT NOT NULL,           -- 0 = 1-1, 1 = Group
+                               Name          NVARCHAR(100) NULL,         -- NULL nếu 1-1, chỉ bắt nhập khi chat nhóm
+                               Avatar        NVARCHAR(500) NULL,
+                               CreatedAt     DATETIME2 DEFAULT GETUTCDATE(),
+                               CreatorId     UNIQUEIDENTIFIER NULL ,         -- FK Users(Id)
+);
+
+-- 2. ConversationMembers (ai trong đoạn chat nào)
+CREATE TABLE ConversationMembers (
+                                     ConversationId UNIQUEIDENTIFIER NOT NULL,
+                                     UserId			UNIQUEIDENTIFIER NOT NULL,
+                                     JoinedAt       DATETIME2 DEFAULT GETUTCDATE(),
+                                     Role           TINYINT DEFAULT 0,          -- 0=member, 1=Admin(chỉ có nếu là nhóm)
+                                     PRIMARY KEY (ConversationId, UserId),
+                                     FOREIGN KEY (ConversationId) REFERENCES Conversations(Id) ON DELETE CASCADE,
+                                     --FOREIGN KEY (UserId) REFERENCES Users(Id)   -- XEM xét nên xóa
+);
+
+-- 3. Messages (tin nhắn + attachment)
+CREATE TABLE Messages (
+                          Id            BIGINT IDENTITY(1,1) PRIMARY KEY,
+                          ConversationId UNIQUEIDENTIFIER NOT NULL,
+                          SenderId      UNIQUEIDENTIFIER NOT NULL,
+                          MessageType   TINYINT NOT NULL,           -- 0=text, 1=image, 2=video, 3=file
+                          CipherText    NVARCHAR(MAX) NOT NULL,     -- nội dung hoặc URL đã E2EE
+                          PinExchange   NVARCHAR(MAX) NULL,         -- RSA encrypted PIN (chỉ lần đầu hoặc đổi PIN)
+                          ReplyToId     BIGINT NULL,                -- trích dẫn tin (trả lời)
+                          CreatedAt     DATETIME2 DEFAULT GETUTCDATE(),
+
+                          FOREIGN KEY (ConversationId) REFERENCES Conversations(Id) ON DELETE CASCADE,
+                        --  FOREIGN KEY (SenderId) REFERENCES Users(Id),
+                          FOREIGN KEY (ReplyToId) REFERENCES Messages(Id),
+
+                          INDEX IX_Conv_Created (ConversationId, CreatedAt DESC),
+                          INDEX IX_Sender_Created (SenderId, CreatedAt DESC)
+);
+
+-- 6. Message Attachments - Metadata file từ Cloudinary
+CREATE TABLE MessageAttachments (
+                                    Id              UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                                    MessageId       BIGINT NOT NULL,
+                                    CloudinaryUrl   NVARCHAR(1000) NOT NULL,
+                                    ResourceType    NVARCHAR(20) NOT NULL,
+                                    Format          NVARCHAR(20) NOT NULL,
+                                    FileName        NVARCHAR(255) NULL,
+                                    UploadedAt      DATETIME2 DEFAULT SYSUTCDATETIME(),
+
+                                    CONSTRAINT FK_MessageAttachments_MessageId
+                                        FOREIGN KEY (MessageId) REFERENCES Messages(Id) ON DELETE CASCADE
+);
+
+
+
+-- 6. MessageNotifications (Chấm đỏ + sắp xếp danh sách chat) – Chỉ dùng cho UI hiện thông báo, không ảnh hưởng đến code
+CREATE TABLE MessageNotifications (
+                                      RecipientId   UNIQUEIDENTIFIER NOT NULL,
+                                      SenderId      UNIQUEIDENTIFIER NOT NULL,
+                                      UnreadCount   INT NOT NULL DEFAULT 1,
+                                      LastMessageId BIGINT NULL,
+                                      LastSentAt    DATETIME2 DEFAULT GETUTCDATE(),
+                                      PRIMARY KEY (RecipientId, SenderId),
+                                      FOREIGN KEY (LastMessageId) REFERENCES Messages(Id),
+                                      INDEX IX_Recipient_Unread (RecipientId, UnreadCount DESC)
+);
+
+-------------------------------------Mã Hóa--------------------------------------------------------
+
+-- 1. Bảng ChatUsers – bắt buộc phải có để kích hoạt tính năng chat
+-- Chỉ user có trong bảng này mới được tìm kiếm và chat
+CREATE TABLE ChatUsers (
+                           UserId		 UNIQUEIDENTIFIER PRIMARY KEY,
+                           Username      NVARCHAR(256) NOT NULL,        -- trùng với Users.UserName
+                           DisplayName   NVARCHAR(100) NOT NULL,        -- tên hiển thị trong chat
+                           PinCodeHash   NVARCHAR(256) NOT NULL,        -- SHA-256 của PIN (client băm trước khi gửi)
+                           CreatedAt     DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
+                           UpdatedAt     DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
+
+                           CONSTRAINT FK_ChatUsers_UserId
+                               FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
+
+    -- Đảm bảo 1 user chỉ xuất hiện 1 lần
+                           UNIQUE (Username)
+);
+
+-- Index để tìm kiếm nhanh theo DisplayName hoặc Username
+CREATE INDEX IX_ChatUsers_Search ON ChatUsers (DisplayName);
+CREATE INDEX IX_ChatUsers_Username ON ChatUsers (Username);
+
+--------------------------------------------------------------------
+
+-- 2. Bảng UserRsaKeys – đúng theo mô tả của bạn
+-- Lưu PublicKey và PrivateKey đã được mã hóa AES bằng PIN (phía client)
+CREATE TABLE UserRsaKeys (
+                             UserId               UNIQUEIDENTIFIER PRIMARY KEY,
+                             PublicKey            NVARCHAR(MAX) NOT NULL,        -- PEM format
+                             PrivateKeyEncrypted  NVARCHAR(MAX) NOT NULL,        -- đã AES bằng PIN (client encrypt)
+                             CreatedAt            DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
+                             ExpiresAt            DATETIME2     NOT NULL,          -- 30 ngày
+                             IsActive             BIT           NOT NULL DEFAULT 1,
+
+                             CONSTRAINT FK_UserRsaKeys_UserId
+                                 FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
+
+);
+-- Filtered Unique Index để đảm bảo chỉ có 1 bản ghi active tại 1 thời điểm
+CREATE UNIQUE INDEX IX_UserRsaKeys_Active_User
+    ON UserRsaKeys (UserId)
+    WHERE IsActive = 1;
+-- Index để kiểm tra key hết hạn nhanh
+CREATE INDEX IX_UserRsaKeys_ExpiresAt ON UserRsaKeys (ExpiresAt);
+CREATE INDEX IX_UserRsaKeys_IsActive ON UserRsaKeys (IsActive);
+
+
+CREATE TABLE ConversationKeys (
+                                  UserId          UNIQUEIDENTIFIER NOT NULL,
+                                  ConversationId  UNIQUEIDENTIFIER NOT NULL,
+
+                                  KeyVersion      INT NOT NULL DEFAULT 1,
+
+                                  EncryptedKey    NVARCHAR(MAX) NOT NULL,
+
+                                  UpdatedAt       DATETIME2 DEFAULT GETUTCDATE(),
+
+                                  CONSTRAINT PK_ConversationKeys PRIMARY KEY (UserId, ConversationId, KeyVersion),
+
+                                  CONSTRAINT FK_ConversationKeys_ConversationId
+                                      FOREIGN KEY (ConversationId) REFERENCES Conversations(Id) ON DELETE CASCADE
+);

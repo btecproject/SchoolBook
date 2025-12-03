@@ -56,7 +56,7 @@ public class RecoveryCodeService(
             if (BCrypt.Net.BCrypt.Verify(cleanCode, rc.HashedCode))
             {
                 rc.IsUsed = true;
-                rc.UsedAt = DateTime.UtcNow;
+                rc.UsedAt = DateTime.UtcNow.AddHours(7);
                 await db.SaveChangesAsync();
                 return true;
             }
