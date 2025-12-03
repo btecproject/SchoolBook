@@ -1,9 +1,13 @@
-﻿namespace SchoolBookPlatform.Models;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace SchoolBookPlatform.Models;
 
 public class Conversation
 {
     public Guid Id { get; set; }
     public byte Type { get; set; } //0: chat 1 1      // 1: chat group
+    [RegularExpression(@"^[a-zA-Z0-9\s\p{L}]+$", 
+        ErrorMessage = "Tên được chứa chữ cái, số và khoảng trắng")]
     public string? Name { get; set; } //bắt buộc nếu là chat group
 
     public string? Avatar { get; set; }

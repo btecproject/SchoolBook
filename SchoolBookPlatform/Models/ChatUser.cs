@@ -11,10 +11,13 @@ public class ChatUser
     
     [Required]
     [MaxLength(256)]
+    
     public string Username { get; set; } = string.Empty;
     
     [Required]
     [MaxLength(100)]
+    [RegularExpression(@"^[a-zA-Z0-9\s\p{L}]+$", 
+        ErrorMessage = "Tên hiển thị chỉ được chứa chữ cái, số và khoảng trắng")]
     public string DisplayName { get; set; } = string.Empty;
     
     [Required]

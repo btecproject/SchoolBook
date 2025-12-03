@@ -10,6 +10,8 @@ public class ChatRegistrationViewModel
     [Required(ErrorMessage = "Vui lòng nhập tên hiển thị")]
     [StringLength(100, MinimumLength = 2, ErrorMessage = "Tên hiển thị phải từ 2-100 ký tự")]
     [Display(Name = "Tên hiển thị")]
+    [RegularExpression(@"^[a-zA-Z0-9\s\p{L}]+$", 
+        ErrorMessage = "Tên hiển thị chỉ được chứa chữ cái, số và khoảng trắng")]
     public string DisplayName { get; set; } = string.Empty;
     
     [Required(ErrorMessage = "Vui lòng nhập mã PIN hash")]
