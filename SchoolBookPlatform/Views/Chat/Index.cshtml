@@ -550,7 +550,7 @@ ViewData["Title"] = "Chat";
             });
         }
     }
-//            const resp = await fetch(`@Url.Action("GetMessages", "Chat")?conversationId=${convId}&count=20`);
+// const resp = await fetch(`@Url.Action("GetMessages", "Chat")?conversationId=${convId}&count=20`);
     async function loadMessagesAndReturn(convId, beforeId = null) {
         try {
             let url = `@Url.Action("GetMessages", "Chat")?conversationId=${convId}&count=20`;

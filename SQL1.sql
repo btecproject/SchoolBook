@@ -203,7 +203,7 @@ CREATE TABLE ConversationMembers (
                                      Role           TINYINT DEFAULT 0,          -- 0=member, 1=Admin(chỉ có nếu là nhóm)
                                      PRIMARY KEY (ConversationId, UserId),
                                      FOREIGN KEY (ConversationId) REFERENCES Conversations(Id) ON DELETE CASCADE,
-                                     FOREIGN KEY (UserId) REFERENCES Users(Id)
+                                     --FOREIGN KEY (UserId) REFERENCES Users(Id)   -- XEM xét nên xóa
 );
 
 -- 3. Messages (tin nhắn + attachment)
@@ -218,7 +218,7 @@ CREATE TABLE Messages (
                           CreatedAt     DATETIME2 DEFAULT GETUTCDATE(),
 
                           FOREIGN KEY (ConversationId) REFERENCES Conversations(Id) ON DELETE CASCADE,
-                          FOREIGN KEY (SenderId) REFERENCES Users(Id),
+                        --  FOREIGN KEY (SenderId) REFERENCES Users(Id),
                           FOREIGN KEY (ReplyToId) REFERENCES Messages(Id),
 
                           INDEX IX_Conv_Created (ConversationId, CreatedAt DESC),
