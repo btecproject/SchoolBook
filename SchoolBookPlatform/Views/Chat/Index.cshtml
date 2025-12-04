@@ -160,6 +160,8 @@ ViewData["Title"] = "Chat";
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 <script src="js/site.js"></script>
+<script src="js/aesHelper.js"></script>
+<script src="lib/signalr"></script>
 <script>
     // ===== GLOBAL VARIABLES =====
     let currentConversationId = null;
@@ -574,7 +576,7 @@ ViewData["Title"] = "Chat";
         } catch { return []; }
     }
     //isHistory = true (chèn lên đầu), false (load mới)
-    function displayMessages(messages, isHistory = false) {
+    async function displayMessages(messages, isHistory = false) {
         const area = document.getElementById('messagesArea');
         const visibleMessages = messages.filter(msg => !msg.pinExchange);
 
@@ -586,30 +588,33 @@ ViewData["Title"] = "Chat";
         }
 
         const myPinLocal = getMyPin();
+        let html = ''
 
-        const html = visibleMessages.map(msg => {
+        for (const msg of visibleMessages) {
             let content = msg.cipherText;
             let isFile = msg.messageType !== 0;
-            let decryptedUrl = '';
+            let decryptedText = null;
 
             try {
                 let pinToUse = msg.isMine ? myPinLocal : recipientPinsCache.get(msg.senderId.toLowerCase());
 
                 if (pinToUse) {
-                    if (isFile) {
-                        decryptedUrl = CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8);
-                        if (!decryptedUrl) {
-                            content = '[Lỗi giải mã file]';
-                        } else {
+                    decryptedText = await AesGcmHelper.decrypt(msg.cipherText, pinToUse);
+
+                    if (decryptedText) {
+                        if (isFile) {
+                            // decryptedText lúc này là URL file
                             if (msg.attachment) {
-                                content = renderFileAttachment(decryptedUrl, msg.attachment, msg.messageType);
+                                content = renderFileAttachment(decryptedText, msg.attachment, msg.messageType);
                             } else {
-                                content = `<a href="${decryptedUrl}" target="_blank" class="text-white">📎 File đính kèm</a>`;
+                                content = `<a href="${decryptedText}" target="_blank" class="text-white">📎 File đính kèm</a>`;
                             }
+                        } else {
+                            // Text thường
+                            content = escapeHtml(decryptedText);
                         }
                     } else {
-                        content = escapeHtml(CryptoJS.AES.decrypt(msg.cipherText, pinToUse).toString(CryptoJS.enc.Utf8));
-                        if (!content) content = '[Lỗi giải mã]';
+                        content = '[Lỗi giải mã hoặc sai PIN]';
                     }
                 } else {
                     content = '[Đang tải khóa...]';
@@ -621,13 +626,13 @@ ViewData["Title"] = "Chat";
             const bubbleClass = msg.isMine ? 'message-mine' : 'message-theirs';
             const time = formatTime(msg.createdAt);
 
-            return `
+            html +=`
             <div class="message ${bubbleClass}" id="msg-${msg.messageId}">
                 <div class="message-bubble">${content}</div>
                 <div class="message-time">${time}</div>
             </div>
         `;
-        }).join('');
+        }
 
         if (isHistory) {
             //giữ scroll
@@ -732,60 +737,55 @@ ViewData["Title"] = "Chat";
                 ? getMyPin()
                 : recipientPinsCache.get(msg.senderId.toLowerCase());
 
-            console.log("🔑 PIN available:", !!pinToUse); // Debug log
+            console.log("🔑 PIN available:", !!pinToUse);
 
             if (pinToUse) {
-                if (isFile) {
-                    // FILE MESSAGE
-                    console.log("📎 Processing file message"); // Debug log
+                const decryptedData = await AesGcmHelper.decrypt(msg.cipherText, pinToUse);
 
-                    const decryptedUrl = CryptoJS.AES.decrypt(msg.cipherText, pinToUse)
-                        .toString(CryptoJS.enc.Utf8);
+                if (decryptedData) {
+                    // Giải mã THÀNH CÔNG
+                    if (isFile) {
+                        console.log("🔓 Decrypted URL length:", decryptedData.length);
 
-                    console.log("🔓 Decrypted URL length:", decryptedUrl.length); // Debug log
-
-                    if (!decryptedUrl) {
-                        content = '[Lỗi giải mã file]';
-                    } else if (msg.attachment) {
-                        // CÓ ATTACHMENT DATA - Render ngay
-                        console.log("✅ Rendering with attachment data"); // Debug log
-                        content = renderFileAttachment(decryptedUrl, msg.attachment, msg.messageType);
+                        if (msg.attachment) {
+                            console.log("✅ Rendering with attachment data");
+                            content = renderFileAttachment(decryptedData, msg.attachment, msg.messageType);
+                        } else {
+                            console.log("⚠️ No attachment data, using placeholder");
+                            content = createFileAttachmentPlaceholder(decryptedData, msg.messageType);
+                        }
                     } else {
-                        // KHÔNG CÓ ATTACHMENT - Tạo placeholder
-                        console.log("⚠️ No attachment data, using placeholder"); // Debug log
-                        content = createFileAttachmentPlaceholder(decryptedUrl, msg.messageType);
+                        content = escapeHtml(decryptedData);
                     }
                 } else {
-                    // TEXT MESSAGE
-                    content = escapeHtml(CryptoJS.AES.decrypt(msg.cipherText, pinToUse)
-                        .toString(CryptoJS.enc.Utf8));
-                    if (!content) content = '[Lỗi giải mã]';
+                    console.error("❌ Decryption returned null (Wrong PIN or Integrity check failed)");
+                    content = '[Lỗi giải mã hoặc sai mã PIN]';
                 }
+                
             } else {
                 content = '[Đang tải khóa...]';
-                // Tìm key và reload
                 findKeyViaRSA([msg], msg.senderId).then(k => {
                     if(k) {
+                        // Load lại toàn bộ tin nhắn để cập nhật hiển thị
                         loadMessagesAndReturn(currentConversationId).then(displayMessages);
                     }
                 });
             }
         } catch (e) {
-            console.error('❌ Decrypt error:', e);
-            content = '[Lỗi giải mã]';
+            console.error('❌ Append UI Error:', e);
+            content = '[Lỗi hiển thị]';
         }
 
-        // Render message
         const area = document.getElementById('messagesArea');
         const div = document.createElement('div');
         div.className = `message ${msg.senderId === currentUserId ? 'message-mine' : 'message-theirs'}`;
         div.innerHTML = `
-        <div class="message-bubble">${content}</div>
-        <div class="message-time">${formatTime(msg.createdAt)}</div>
-    `;
+    <div class="message-bubble">${content}</div>
+    <div class="message-time">${formatTime(msg.createdAt)}</div>
+`;
         area.appendChild(div);
 
-        console.log("✅ Message appended to UI"); // Debug log
+        console.log("✅ Message appended to UI");
 
         // Remove typing indicator
         hideTypingIndicator();
@@ -882,7 +882,7 @@ ViewData["Title"] = "Chat";
         if (text) {
             try {
                 const pin = getMyPin();
-                const encrypted = CryptoJS.AES.encrypt(text, pin).toString();
+                const encrypted = await AesGcmHelper.encrypt(text, pin);
 
                 await connection.invoke("SendMessage", {
                     conversationId: currentConversationId,
@@ -1047,8 +1047,7 @@ ViewData["Title"] = "Chat";
             progressBar.style.width = '80%';
 
             // 2. Mã hóa URL
-            const encryptedUrl = CryptoJS.AES.encrypt(uploadResult.url, pin).toString();
-
+            const encryptedUrl = await AesGcmHelper.encrypt(uploadResult.url, pin);
             // 3. Update message
             const updateResponse = await fetch('@Url.Action("UpdateMessageWithFile", "Chat")', {
                 method: 'POST',
@@ -1174,7 +1173,7 @@ ViewData["Title"] = "Chat";
                      style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer;"
                      onclick="window.open('${url}', '_blank')"
                      onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='[Lỗi tải ảnh]';"/>
-                <div class="small mt-1 opacity-75">${fileName}</div>
+                <div class="small mt-1 opacity-75">${escapeHtml(fileName)}</div>
             </div>
         `;
         }
@@ -1187,7 +1186,7 @@ ViewData["Title"] = "Chat";
                     <source src="${url}" type="video/${attachment.format || 'mp4'}">
                     Your browser does not support the video tag.
                 </video>
-                <div class="small mt-1 opacity-75">${fileName}</div>
+                <div class="small mt-1 opacity-75">${escapeHtml(fileName)}</div>
             </div>
         `;
         }
@@ -1211,7 +1210,7 @@ ViewData["Title"] = "Chat";
             <a href="${url}" target="_blank" class="text-decoration-none text-inherit d-flex align-items-center p-2 rounded" style="background: rgba(0,0,0,0.05);">
                 <i class="bi ${iconClass} fs-4 me-2"></i>
                 <div>
-                    <div class="fw-semibold">${fileName}</div>
+                    <div class="fw-semibold">${escapeHtml(fileName)}</div>
                     <div class="small opacity-75">${ext.toUpperCase()}</div>
                 </div>
             </a>
