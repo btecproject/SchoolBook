@@ -85,6 +85,7 @@ namespace SchoolBookPlatform.Controllers
         }
         
         [HttpGet]
+        [EnableRateLimiting("ChatPolicy")]
         public async Task<IActionResult> GetRecentContacts()
         {
             var currentUser = await HttpContext.GetCurrentUserAsync(db);
@@ -320,6 +321,46 @@ namespace SchoolBookPlatform.Controllers
                 logger.LogError(ex, "Error verifying PIN for user {Username}", currentUser.Username);
                 return Json(new { success = false, message = "Đã xảy ra lỗi khi xác thực" });
             }
+        }
+        
+        [HttpPost("VerifyPinCodeAuto")]
+        [EnableRateLimiting("ChatPolicy")]
+        public async Task<IActionResult> VerifyPinCodeAuto([FromBody] string pinCodeHash)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null)
+            {
+                return Json(new { success = false, message = "Unauthorized" });
+            }
+            
+            if (string.IsNullOrWhiteSpace(pinCodeHash))
+            {
+                return Json(new { success = false, message = "Mã PIN không hợp lệ" });
+            }
+            
+            logger.LogInformation("VerifyPinCode for user {Username} with hash: {Hash}", 
+                currentUser.Username, pinCodeHash);
+            
+            try
+            {
+                // Tìm ChatUser với UserId và PinCodeHash khớp
+                var chatUser = await db.ChatUsers
+                    .FirstOrDefaultAsync(u => u.UserId == currentUser.Id && u.PinCodeHash == pinCodeHash);
+                
+                if (chatUser == null)
+                {
+                    logger.LogWarning("PIN verification failed for user {Username}", currentUser.Username);
+                    return Json(new { success = false, message = "Mã PIN không đúng" });
+                }
+                
+                logger.LogInformation("PIN verified successfully for user {Username}", currentUser.Username);
+                return Json(new { success = true, message = "Xác thực thành công" });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error verifying PIN for user {Username}", currentUser.Username);
+                return Json(new { success = false, message = "Đã xảy ra lỗi khi xác thực" });
+            }        
         }
         
         // GET: /Chat/Register - Trang đăng ký chat

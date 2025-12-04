@@ -191,6 +191,7 @@ ViewData["Title"] = "Chat";
     async function autoVerifyPin() {
         const storageKey = `pinCode_${currentUsername}`;
         const savedPin = localStorage.getItem(storageKey);
+        console.log("AutoVerifyPin Called!");
         if (!savedPin) {
             document.getElementById('autoVerifyMessage').textContent = 'Chưa có mã PIN...';
             setTimeout(() => window.location.href = '@Url.Action("VerifyPinCode", "Chat")', 1000);
@@ -199,7 +200,7 @@ ViewData["Title"] = "Chat";
         document.getElementById('autoVerifyMessage').textContent = 'Đang xác thực...';
         try {
             const hashedPin = CryptoJS.SHA256(savedPin).toString();
-            const response = await fetch('@Url.Action("VerifyPinCode", "Chat")', {
+            const response = await fetch('@Url.Action("VerifyPinCodeAuto", "Chat")', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
                 body: JSON.stringify(hashedPin)
@@ -782,7 +783,7 @@ ViewData["Title"] = "Chat";
         div.innerHTML = `
     <div class="message-bubble">${content}</div>
     <div class="message-time">${formatTime(msg.createdAt)}</div>
-`;
+        `;
         area.appendChild(div);
 
         console.log("✅ Message appended to UI");

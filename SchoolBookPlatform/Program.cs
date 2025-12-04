@@ -92,14 +92,14 @@ public class Program
                         QueueLimit = 0
                     }));
             
-            //Chat PIN : 5/30p Ip()
+            //Chat PIN : 5/3p Ip()
             options.AddPolicy("ChatPinPolicy", httpContext =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 5,
-                        Window = TimeSpan.FromMinutes(30),
+                        Window = TimeSpan.FromMinutes(3),
                         QueueLimit = 0
                     }));
             // //Search user : 10/3s Ip()
@@ -112,15 +112,15 @@ public class Program
             //             Window = TimeSpan.FromMinutes(30),
             //             QueueLimit = 0
             //         }));
-            //Chat text: 20token +10/10sIp
+            //Chat text: 20token +10/5s Ip
             options.AddPolicy("ChatPolicy", httpContext =>
                 RateLimitPartition.GetTokenBucketLimiter(
                     partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                     factory: _ => new TokenBucketRateLimiterOptions
                     {
-                        TokenLimit = 20,         
-                        TokensPerPeriod = 10,      
-                        ReplenishmentPeriod = TimeSpan.FromSeconds(10), 
+                        TokenLimit = 25,         
+                        TokensPerPeriod = 15,      
+                        ReplenishmentPeriod = TimeSpan.FromSeconds(5), 
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                         QueueLimit = 50,          
                         AutoReplenishment = true   // Tự động bổ sung token
@@ -141,7 +141,7 @@ public class Program
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
                         AutoReplenishment = true,
-                        PermitLimit = 100, 
+                        PermitLimit = 200, 
                         Window = TimeSpan.FromMinutes(1)
                     });
             });

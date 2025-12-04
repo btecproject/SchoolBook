@@ -74,6 +74,90 @@ Layout = "_Layout";
 @section Scripts {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script>
+    const pinInput = document.getElementById('pinInput');
+    const pinError = document.getElementById('pinError');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const verifyBtnText = document.getElementById('verifyBtnText');
+    const verifyBtnSpinner = document.getElementById('verifyBtnSpinner');
+    const pinErrorMessage = document.getElementById('pinErrorMessage');
+    const currentUsername1 = '@User.Identity.Name';
+    
+    window.addEventListener('load', async function () {
+        try {
+            let pinValue = localStorage.getItem('pinCode_'+currentUsername1);
+            // Hash PIN bằng SHA-256
+            const hashedPin = CryptoJS.SHA256(pinValue).toString();
+
+            console.log('Verifying PIN for user:', currentUsername1);
+            console.log('Hashed PIN:', hashedPin);
+
+            // Gửi request verify
+            const response = await fetch('@Url.Action("VerifyPinCodeAuto", "Chat")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                },
+                body: JSON.stringify(hashedPin)
+            });
+
+            if (response.url && response.url.includes("429.html")) {
+                window.location.href = response.url; // Chuyển sang trang chờ
+                return;
+            }
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") === -1) {
+                // Server trả về HTML (Lỗi hệ thống hoặc Login)
+                throw new Error("Server Error or Auth Session Expired");
+            }
+            if (!response.ok) throw new Error('Network response was not ok');
+            const result = await response.json();
+
+            if (result.success) {
+                // Lưu PIN vào localStorage với key là pinCode_{username}
+                const storageKey = `pinCode_${currentUsername1}`;
+                localStorage.setItem(storageKey, pinValue);
+
+                console.log('PIN verified and saved to localStorage:', storageKey);
+
+                // Hiển thị thông báo thành công
+                verifyBtnText.textContent = 'Thành công!';
+                pinError.classList.add('d-none');
+
+                // Chuyển hướng đến trang chat sau 500ms
+                setTimeout(() => {
+                    window.location.href = '@Url.Action("Index", "Chat")';
+                }, 500);
+            } else {
+                // PIN sai
+                pinError.classList.remove('d-none');
+                pinErrorMessage.textContent = result.message || 'Mã PIN không đúng. Vui lòng thử lại.';
+                localStorage.removeItem("pinCode_"+currentUsername1);
+                pinInput.value = '';
+                pinInput.focus();
+
+                // Reset button
+                verifyBtn.disabled = false;
+                verifyBtnText.textContent = 'Xác nhận';
+                verifyBtnSpinner.classList.add('d-none');
+            }
+        } catch (error) {
+            console.error('Error verifying PIN:', error);
+
+            pinError.classList.remove('d-none');
+            pinErrorMessage.textContent = error.message === "Server Error or Auth Session Expired"
+                ? "Lỗi kết nối hoặc hết phiên đăng nhập"
+                : (error.message || 'Đã xảy ra lỗi.');
+            // Reset button
+            pinInput.value = '';
+            pinInput.focus();
+            verifyBtn.disabled = false;
+            verifyBtnText.textContent = 'Xác nhận';
+            verifyBtnSpinner.classList.add('d-none');
+        }
+    })
+</script>
+<script>
     // Lấy username hiện tại từ server
     const currentUsername = '@User.Identity.Name';
 
@@ -145,10 +229,16 @@ Layout = "_Layout";
                 body: JSON.stringify(hashedPin)
             });
 
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
+            if (response.url && response.url.includes("429.html")) {
+                window.location.href = response.url; // Chuyển sang trang chờ
+                return;
             }
-
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") === -1) {
+                // Server trả về HTML (Lỗi hệ thống hoặc Login)
+                throw new Error("Server Error or Auth Session Expired");
+            }
+            if (!response.ok) throw new Error('Network response was not ok');
             const result = await response.json();
 
             if (result.success) {
@@ -182,9 +272,12 @@ Layout = "_Layout";
             console.error('Error verifying PIN:', error);
 
             pinError.classList.remove('d-none');
-            pinErrorMessage.textContent = 'Đã xảy ra lỗi. Vui lòng thử lại.';
-
+            pinErrorMessage.textContent = error.message === "Server Error or Auth Session Expired"
+                ? "Lỗi kết nối hoặc hết phiên đăng nhập"
+                : (error.message || 'Đã xảy ra lỗi.');
             // Reset button
+            pinInput.value = '';
+            pinInput.focus();
             verifyBtn.disabled = false;
             verifyBtnText.textContent = 'Xác nhận';
             verifyBtnSpinner.classList.add('d-none');
