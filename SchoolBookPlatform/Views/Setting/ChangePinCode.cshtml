@@ -1,0 +1,148 @@
+﻿@{
+    ViewData["Title"] = "Đổi mã PIN Chat";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-key-fill"></i> Đổi mã PIN bảo mật</h4>
+                </div>
+                <div class="card-body">
+                    <form id="changePinForm">
+                        @Html.AntiForgeryToken()
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Mã PIN hiện tại</label>
+                            <input type="password" id="oldPin" class="form-control" minlength="6" maxlength="8" pattern="\d{6,8}" required placeholder="******">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Mã PIN mới</label>
+                            <input type="password" id="newPin" class="form-control" minlength="6" maxlength="8" pattern="\d{6,8}" required placeholder="******">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Xác nhận mã PIN mới</label>
+                            <input type="password" id="confirmPin" class="form-control" minlength="6" maxlength="8" pattern="\d{6,8}" required placeholder="******">
+                        </div>
+
+                        <div class="alert alert-danger d-none" id="errorMessage"></div>
+                        <div class="alert alert-success d-none" id="successMessage"></div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" id="btnSubmit">
+                                <span class="spinner-border spinner-border-sm d-none" id="spinner"></span>
+                                Đổi PIN
+                            </button>
+                            <a asp-action="Index" class="btn btn-outline-secondary">Quay lại Chat</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="~/js/aesHelper.js"></script> 
+    <script>
+        document.getElementById('changePinForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const oldPin = document.getElementById('oldPin').value;
+            const newPin = document.getElementById('newPin').value;
+            const confirmPin = document.getElementById('confirmPin').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const successDiv = document.getElementById('successMessage');
+            const btn = document.getElementById('btnSubmit');
+            const spinner = document.getElementById('spinner');
+
+            errorDiv.classList.add('d-none');
+            successDiv.classList.add('d-none');
+            
+            if (newPin !== confirmPin) {
+                showError("Mã PIN xác nhận không khớp.");
+                return;
+            }
+            if (newPin.length < 6 || newPin.length >8 || isNaN(newPin)) {
+                showError("Mã PIN mới phải có 6 - 8 chữ số.");
+                return;
+            }
+            if (oldPin === newPin) {
+                showError("Mã PIN mới không được trùng với mã PIN cũ.");
+                return;
+            }
+
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+
+            try {
+                const keyResp = await fetch('@Url.Action("GetMyPrivateKey", "Chat")');
+                if (!keyResp.ok) throw new Error("Không thể lấy khóa bảo mật.");
+                const keyData = await keyResp.json();
+                const currentEncryptedKey = keyData.privateKeyEncrypted;
+                
+                let privateKeyPlain = "";
+                try {
+                    const decryptedBytes = CryptoJS.AES.decrypt(currentEncryptedKey, oldPin);
+                    privateKeyPlain = decryptedBytes.toString(CryptoJS.enc.Utf8);
+                } catch (e) {
+                    throw new Error("Mã PIN cũ không chính xác (Giải mã thất bại).");
+                }
+
+                if (!privateKeyPlain) {
+                    throw new Error("Mã PIN cũ không chính xác.");
+                }
+
+                const newEncryptedKey = CryptoJS.AES.encrypt(privateKeyPlain, newPin).toString();
+
+                const oldPinHash = CryptoJS.SHA256(oldPin).toString();
+                const newPinHash = CryptoJS.SHA256(newPin).toString();
+
+                const payload = {
+                    oldPinHash: oldPinHash,
+                    newPinHash: newPinHash,
+                    newEncryptedPrivateKey: newEncryptedKey
+                };
+
+                const updateResp = await fetch('@Url.Action("ChangePinCode", "Setting")', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await updateResp.json();
+
+                if (updateResp.ok) {
+                    const currentUsername = '@User.Identity.Name';
+                    localStorage.setItem('pinCode_' + currentUsername, newPin);
+                    
+                    successDiv.textContent = result.message;
+                    successDiv.classList.remove('d-none');
+                    
+                    document.getElementById('changePinForm').reset();
+                } else {
+                    throw new Error(result.message || "Lỗi khi cập nhật PIN.");
+                }
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+            }
+        });
+
+        function showError(msg) {
+            const el = document.getElementById('errorMessage');
+            el.textContent = msg;
+            el.classList.remove('d-none');
+        }
+    </script>
+}

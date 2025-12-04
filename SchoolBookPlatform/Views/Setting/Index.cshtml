@@ -37,6 +37,9 @@
 <div>
     <a class="accordion-button" asp-action="DisableGoogleAuthenticator" asp-controller="Setting">Disable Google 2FA</a>
 </div>
+<div>
+    <a class="accordion-button" asp-action="ChangePinCode" asp-controller="Setting">Change PinCode (Chat)</a>
+</div>
 @if (Model.user.TwoFactorEnabled == true)
 {
     <div class="alert alert-warning">

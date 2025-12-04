@@ -724,7 +724,49 @@ namespace SchoolBookPlatform.Services
                 };
             }
         }
+        
+        // Trong ChatService.cs
 
+        public async Task<ServiceResult> ChangePinAsync(Guid userId, string oldPinHash, string newPinHash, string newEncryptedPrivateKey)
+        {
+            using var transaction = await db.Database.BeginTransactionAsync();
+            try
+            {
+                // 1. Kiểm tra ChatUser và PIN cũ
+                var chatUser = await db.ChatUsers.FirstOrDefaultAsync(u => u.UserId == userId);
+                if (chatUser == null)
+                {
+                    return new ServiceResult { Success = false, Message = "Người dùng chưa đăng ký chat." };
+                }
+
+                if (chatUser.PinCodeHash != oldPinHash)
+                {
+                    return new ServiceResult { Success = false, Message = "Mã PIN cũ không chính xác." };
+                }
+
+                // 2. Kiểm tra UserRsaKey
+                var rsaKey = await db.UserRsaKeys.FirstOrDefaultAsync(k => k.UserId == userId && k.IsActive);
+                if (rsaKey == null)
+                {
+                    return new ServiceResult { Success = false, Message = "Không tìm thấy khóa RSA." };
+                }
+
+                chatUser.PinCodeHash = newPinHash;
+                chatUser.UpdatedAt = DateTime.UtcNow.AddHours(7);
+                rsaKey.PrivateKeyEncrypted = newEncryptedPrivateKey;
+
+                await db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return new ServiceResult { Success = true, Message = "Đổi mã PIN thành công." };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                logger.LogError(ex, "Lỗi khi đổi PIN cho user {UserId}", userId);
+                return new ServiceResult { Success = false, Message = "Lỗi hệ thống khi đổi PIN." };
+            }
+        }
+        
         // Delete message with attachment
         public async Task<bool> DeleteMessageWithAttachmentAsync(long messageId, Guid userId)
         {
