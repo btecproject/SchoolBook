@@ -738,6 +738,38 @@ namespace SchoolBookPlatform.Controllers
                 return StatusCode(500, new { message = "Error uploading file" });
             }
         }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetChatAccount()
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null) return Unauthorized();
+
+            try
+            {
+                var result = await chatService.ResetChatAccountAsync(currentUser.Id);
+        
+                if (result.Success)
+                {
+                    TempData["SuccessMessage"] = "Đã reset tài khoản chat. Vui lòng thiết lập mã PIN mới.";
+                    return RedirectToAction("Register");
+                }
+        
+                ModelState.AddModelError("", result.Message);
+                return View("ForgotPin");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error resetting chat");
+                return StatusCode(500, "Lỗi server.");
+            }
+        }
+        
+        [HttpGet]
+        public IActionResult ForgotPin()
+        {
+            return View();
+        }
     }
     // Request Models
     public class SendMessageModel

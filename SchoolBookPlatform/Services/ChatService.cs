@@ -766,6 +766,36 @@ namespace SchoolBookPlatform.Services
                 return new ServiceResult { Success = false, Message = "Lỗi hệ thống khi đổi PIN." };
             }
         }
+        public async Task<ServiceResult> ResetChatAccountAsync(Guid userId)
+        {
+            await using var transaction = await db.Database.BeginTransactionAsync();
+            try
+            {
+                var chatUser = await db.ChatUsers.FirstOrDefaultAsync(u => u.UserId == userId);
+                if (chatUser != null)
+                {
+                    db.ChatUsers.Remove(chatUser);
+                }
+
+                // var rsaKeys = await db.UserRsaKeys.Where(k => k.UserId == userId).ToListAsync();
+                // db.UserRsaKeys.RemoveRange(rsaKeys);
+
+                var convKeys = await db.ConversationKeys.Where(k => k.UserId == userId).ToListAsync();
+                db.ConversationKeys.RemoveRange(convKeys);
+
+                await db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                logger.LogInformation("User {UserId} has reset their chat account.", userId);
+                return new ServiceResult { Success = true, Message = "Reset tài khoản chat thành công." };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                logger.LogError(ex, "Error resetting chat account for user {UserId}", userId);
+                return new ServiceResult { Success = false, Message = "Lỗi hệ thống khi reset tài khoản." };
+            }
+        }
         
         // Delete message with attachment
         public async Task<bool> DeleteMessageWithAttachmentAsync(long messageId, Guid userId)
@@ -778,7 +808,6 @@ namespace SchoolBookPlatform.Services
 
                 if (message == null) return false;
 
-                // Check permission
                 var isMember = await db.ConversationMembers
                     .AnyAsync(cm => cm.ConversationId == message.ConversationId && cm.UserId == userId);
 
@@ -793,17 +822,13 @@ namespace SchoolBookPlatform.Services
 
                 if (attachment != null)
                 {
-                    // Extract public ID from URL
                     var publicId = ExtractPublicIdFromUrl(attachment.CloudinaryUrl);
 
-                    // Delete from Cloudinary
                     await cloudinaryService.DeleteChatFileAsync(publicId, attachment.ResourceType);
 
-                    // Delete attachment record
                     db.MessageAttachments.Remove(attachment);
                 }
 
-                // Delete message
                 db.Messages.Remove(message);
                 await db.SaveChangesAsync();
 
