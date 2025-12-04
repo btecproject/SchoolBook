@@ -22,9 +22,10 @@ Layout = "_Layout";
                         <input type="password"
                                class="form-control form-control-lg"
                                id="pinInput"
-                               placeholder="Nhập 6 số"
-                               maxlength="6"
-                               pattern="[0-9]{6}"
+                               placeholder="Nhập mã pin"
+                               minlength="6"
+                               maxlength="8"
+                               pattern="[0-9]{6,8}"
                                required
                                autocomplete="off">
                         <button class="btn btn-outline-secondary"
@@ -33,8 +34,8 @@ Layout = "_Layout";
                             <i class="bi bi-eye" id="togglePinIcon"></i>
                         </button>
                     </div>
-                    <small class="text-muted">Mã PIN gồm 6 chữ số</small>
-                </div>
+                    <small class="text-muted">Mã PIN từ 6 đến 8 chữ số</small>               
+                    </div>
 
                 <div id="pinError" class="alert alert-danger d-none" role="alert">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -191,15 +192,15 @@ Layout = "_Layout";
         const pinValue = pinInput.value.trim();
 
         // Validate độ dài PIN
-        if (pinValue.length !== 6) {
+        if (pinValue.length < 6 || pinValue.length > 8) {
             pinError.classList.remove('d-none');
-            pinErrorMessage.textContent = 'Mã PIN phải có đúng 6 chữ số';
+            pinErrorMessage.textContent = 'Mã PIN phải từ 6 đến 8 chữ số';
             pinInput.focus();
             return;
         }
 
         // Validate chỉ chứa số
-        if (!/^\d{6}$/.test(pinValue)) {
+        if (!/^\d{6,8}$/.test(pinValue)) {
             pinError.classList.remove('d-none');
             pinErrorMessage.textContent = 'Mã PIN chỉ được chứa số';
             pinInput.focus();
@@ -293,7 +294,7 @@ Layout = "_Layout";
     document.getElementById('pinInput').addEventListener('paste', function(e) {
         e.preventDefault();
         const pastedText = (e.clipboardData || window.clipboardData).getData('text');
-        const numericText = pastedText.replace(/\D/g, '').substring(0, 6);
+        const numericText = pastedText.replace(/\D/g, '').substring(0, 8);
         this.value = numericText;
     });
 

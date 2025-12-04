@@ -209,17 +209,14 @@ public class Program
             // Cấu hình CSP chặt chẽ
             context.Response.Headers.Append("Content-Security-Policy",
                 "default-src 'self'; " + 
-                // Chỉ cho phép script từ domain mình và các CDN tin cậy
                 "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com; " +
-                // Chỉ cho phép style từ domain mình và CDN
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " +
-                // Cho phép ảnh từ Cloudinary, Google
                 "img-src 'self' data: https://res.cloudinary.com https://*.googleusercontent.com; " +
-                // Font chữ
+                "media-src 'self' https://res.cloudinary.com; " +
                 "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
                 // Cho phép kết nối WebSocket (SignalR)
                 "connect-src 'self' wss: https:; " +
-                // Chặn nhúng web vào iframe (Chống Clickjacking)
+                //ko nhúng web vào iframe (Clickjacking)
                 "frame-ancestors 'self';");
 
             // Các header bảo mật khác nên có

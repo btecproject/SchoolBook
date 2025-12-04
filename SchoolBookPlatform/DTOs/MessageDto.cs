@@ -3,6 +3,7 @@
 public class MessageDto
 {
     public long MessageId { get; set; }
+    public Guid ConversationId { get; set; }
     public Guid SenderId { get; set; }
     public string CipherText { get; set; } = string.Empty;
     public string? PinExchange { get; set; }

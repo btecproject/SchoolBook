@@ -213,7 +213,7 @@ CREATE TABLE Messages (
                           SenderId      UNIQUEIDENTIFIER NOT NULL,
                           MessageType   TINYINT NOT NULL,           -- 0=text, 1=image, 2=video, 3=file
                           CipherText    NVARCHAR(MAX) NOT NULL,     -- nội dung hoặc URL đã E2EE
-                          PinExchange   NVARCHAR(MAX) NULL,         -- RSA encrypted PIN (chỉ lần đầu hoặc đổi PIN)
+--                           PinExchange   NVARCHAR(MAX) NULL,         -- RSA encrypted PIN (chỉ lần đầu hoặc đổi PIN)
                           ReplyToId     BIGINT NULL,                -- trích dẫn tin (trả lời)
                           CreatedAt     DATETIME2 DEFAULT GETUTCDATE(),
 

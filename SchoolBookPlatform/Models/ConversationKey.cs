@@ -13,7 +13,7 @@ public class ConversationKey
     public int KeyVersion { get; set; } = 1;
 
     [Required]
-    public string EncryptedKey { get; set; } = string.Empty;
+    public string EncryptedKey { get; set; } = string.Empty; //key AES(ko phai pincode) đã mã hóa bằng RSA Public Key của UserId
 
     public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
     

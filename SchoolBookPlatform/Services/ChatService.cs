@@ -12,7 +12,71 @@ namespace SchoolBookPlatform.Services
         ILogger<ChatService> logger,
         CloudinaryService cloudinaryService)
     {
-    // Lấy Conversation Key
+        public async Task<ServiceResult> InitializeConversationKeysAsync(Guid currentUserId,
+            InitializeConversationKeyRequest request)
+        {
+            try
+            {
+                var isMember = await db.ConversationMembers
+                    .AnyAsync(cm => cm.ConversationId == request.ConversationId && cm.UserId == currentUserId);
+
+                if (!isMember)
+                {
+                    return new ServiceResult
+                        { Success = false, Message = "Bạn không phải thành viên của cuộc trò chuyện này." };
+                }
+
+                var newKeys = new List<ConversationKey>();
+                var now = DateTime.UtcNow.AddHours(7);
+
+                foreach (var item in request.Keys)
+                {
+                    var existingKey = await db.ConversationKeys
+                        .FirstOrDefaultAsync(ck => ck.ConversationId == request.ConversationId
+                                                   && ck.UserId == item.UserId
+                                                   && ck.KeyVersion == 1); // Mặc định version 1
+
+                    if (existingKey == null)
+                    {
+                        newKeys.Add(new ConversationKey
+                        {
+                            ConversationId = request.ConversationId,
+                            UserId = item.UserId,
+                            KeyVersion = 1,
+                            EncryptedKey = item.EncryptedKey,
+                            UpdatedAt = now
+                        });
+                    }
+                }
+
+                if (newKeys.Any())
+                {
+                    await db.ConversationKeys.AddRangeAsync(newKeys);
+                    await db.SaveChangesAsync();
+                }
+
+                return new ServiceResult { Success = true, Message = "Khởi tạo khóa thành công." };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Lỗi khi khởi tạo Conversation Keys cho ConversationId: {Id}",
+                    request.ConversationId);
+                return new ServiceResult { Success = false, Message = "Lỗi hệ thống khi lưu khóa." };
+            }
+        }
+    
+        public async Task<string?> GetMyConversationKeyAsync(Guid conversationId, Guid userId, int version = 1)
+        {
+            var keyData = await db.ConversationKeys
+                .AsNoTracking() // Tối ưu hiệu năng vì chỉ đọc
+                .Where(ck => ck.ConversationId == conversationId && ck.UserId == userId && ck.KeyVersion == version)
+                .Select(ck => ck.EncryptedKey)
+                .FirstOrDefaultAsync();
+
+            return keyData;
+        }
+        
+        // Lấy Conversation Key
         public async Task<string?> GetConversationKeyAsync(Guid userId, Guid conversationId, int version)
         {
             // Kiểm tra user có trong conversation không để bảo mật
@@ -123,13 +187,9 @@ namespace SchoolBookPlatform.Services
             if (users.TryGetValue(partner.UserId, out var userInfo))
             {
                 string prefix = msg.SenderId == currentUserId ? "Bạn: " : "";
-                string preview = msg.MessageType == 0 
-                    ? (msg.PinExchange != null ? "Tin nhắn bảo mật" : "Tin nhắn văn bản")
+                string preview = msg.MessageType == 0
+                    ? "Tin nhắn văn bản"
                     : "Đã gửi tệp đính kèm";
-
-                // Nếu tin nhắn văn bản, cố gắng cắt ngắn nếu quá dài (Optional)
-                // Lưu ý: CipherText ở đây là mã hóa, nên cắt chuỗi mã hóa không có ý nghĩa lắm về mặt hiển thị
-                // Nhưng cứ để nguyên để client giải mã hoặc hiển thị text placeholder.
 
                 result.Add(new ContactDto
                 {
@@ -361,7 +421,6 @@ namespace SchoolBookPlatform.Services
         {
             try
             {
-                // Tìm conversation 1-1 đã tồn tại
                 var existingConv = await db.Conversations
                     .Where(c => c.Type == 0) // Type 0 = 1-1
                     .Where(c => db.ConversationMembers
@@ -376,20 +435,17 @@ namespace SchoolBookPlatform.Services
 
                 if (existingConv != null)
                 {
-                    // ✅ FIX: Kiểm tra có PIN exchange CỦA TỪNG USER chưa
-                    var hasPinExchangeFromUser1 = await db.Messages
-                        .Where(m => m.ConversationId == existingConv.Id && m.SenderId == userId1)
-                        .AnyAsync(m => m.PinExchange != null);
+                    var hasValidKey = await db.ConversationKeys
+                        .AnyAsync(ck => ck.ConversationId == existingConv.Id && ck.UserId == userId1);
 
                     return new ConversationResult
                     {
                         ConversationId = existingConv.Id,
                         IsNew = false,
-                        HasPinExchange = hasPinExchangeFromUser1  // ✅ Chỉ check PIN của user hiện tại
+                        IsKeyInitialized = hasValidKey // True nếu user đã có key, False nếu cần tạo mới
                     };
                 }
 
-                // Tạo conversation mới
                 var newConv = new Conversation
                 {
                     Id = Guid.NewGuid(),
@@ -400,7 +456,6 @@ namespace SchoolBookPlatform.Services
 
                 db.Conversations.Add(newConv);
 
-                // Thêm members
                 db.ConversationMembers.Add(new ConversationMember
                 {
                     ConversationId = newConv.Id,
@@ -426,68 +481,13 @@ namespace SchoolBookPlatform.Services
                 {
                     ConversationId = newConv.Id,
                     IsNew = true,
-                    HasPinExchange = false
+                    IsKeyInitialized = false // Mới tạo chắc chắn chưa có key
                 };
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error creating conversation between {User1} and {User2}", userId1, userId2);
                 throw;
-            }
-        }
-
-        // Send PIN Exchange Message
-        public async Task<ServiceResult> SendPinExchangeMessageAsync(
-            Guid conversationId,
-            Guid senderId,
-            Guid recipientId,
-            string encryptedPin)
-        {
-            try
-            {
-                // Kiểm tra conversation tồn tại và user có quyền
-                var isMember = await db.ConversationMembers
-                    .AnyAsync(cm => cm.ConversationId == conversationId && cm.UserId == senderId);
-
-                if (!isMember)
-                {
-                    return new ServiceResult
-                    {
-                        Success = false,
-                        Message = "Bạn không có quyền gửi tin trong conversation này"
-                    };
-                }
-
-                var message = new Message
-                {
-                    ConversationId = conversationId,
-                    SenderId = senderId,
-                    MessageType = 0, // Text
-                    CipherText = "[PIN Exchange]", // Placeholder
-                    PinExchange = encryptedPin,
-                    CreatedAt = DateTime.UtcNow.AddHours(7)
-                };
-
-                db.Messages.Add(message);
-                await db.SaveChangesAsync();
-
-                logger.LogInformation("PIN exchange sent by user {UserId} in conversation {ConvId}", 
-                    senderId, conversationId);
-
-                return new ServiceResult
-                {
-                    Success = true,
-                    Message = "PIN exchange sent successfully"
-                };
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error sending PIN exchange");
-                return new ServiceResult
-                {
-                    Success = false,
-                    Message = "Đã xảy ra lỗi khi gửi PIN exchange"
-                };
             }
         }
 
@@ -521,9 +521,9 @@ namespace SchoolBookPlatform.Services
                     .Select(m => new MessageDto
                     {
                         MessageId = m.Id,
+                        ConversationId = m.ConversationId,
                         SenderId = m.SenderId,
                         CipherText = m.CipherText,
-                        PinExchange = m.PinExchange,
                         MessageType = m.MessageType,
                         CreatedAt = m.CreatedAt,
                         IsMine = m.SenderId == userId,
@@ -692,9 +692,6 @@ namespace SchoolBookPlatform.Services
                     return uploadResult;
                 }
 
-                // ✅ KHÔNG CẬP NHẬT message.CipherText ở đây nữa
-                // Để Controller UpdateMessageWithFile lo việc đó
-        
                 // Chỉ lưu attachment metadata
                 var attachment = new MessageAttachment
                 {

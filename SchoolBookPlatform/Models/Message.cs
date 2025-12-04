@@ -10,7 +10,7 @@ public class Message
     public byte MessageType { get; set; } //0 =text, 1=image, 2=video, 3=file
     [Required]  
     public string CipherText { get; set; } = string.Empty;
-    public string? PinExchange { get; set; }
+    // public string? PinExchange { get; set; }
     public long? ReplyToId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
     

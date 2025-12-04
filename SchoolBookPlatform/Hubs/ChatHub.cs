@@ -120,7 +120,29 @@ namespace SchoolBookPlatform.Hubs
                 username = user.Username
             });
         }
+        
+        // Helper: Gửi thông báo cập nhật danh bạ cho danh sách user
+        private async Task NotifyUsersUpdateContact(List<Guid> userIds)
+        {
+            foreach (var userId in userIds)
+            {
+                await Clients.User(userId.ToString()).SendAsync("UpdateContactList");
 
+                List<string>? connections = null;
+                lock (_lock)
+                {
+                    if (_userConnections.TryGetValue(userId, out var set))
+                    {
+                        connections = set.ToList();
+                    }
+                }
+
+                if (connections != null && connections.Count > 0)
+                {
+                    await Clients.Clients(connections).SendAsync("UpdateContactList");
+                }
+            }
+        }
         // Leave conversation room
         public async Task LeaveConversation(string conversationId)
         {
@@ -200,16 +222,12 @@ namespace SchoolBookPlatform.Hubs
                     pinExchange = request.PinExchange
                 });
 
-                //Fix: bắt buộc thành viên chat khác phải updateContactList (trường hợp A nhắn B, B chưa ở đoạn chat bao giờ)
-                var otherMembers = await _db.ConversationMembers
+                var otherMemberIds = await _db.ConversationMembers
                     .Where(cm => cm.ConversationId == convId && cm.UserId != user.Id)
-                    .Select(cm => cm.UserId.ToString())
+                    .Select(cm => cm.UserId)
                     .ToListAsync();
 
-                foreach (var memberId in otherMembers)
-                {
-                    await Clients.User(memberId).SendAsync("UpdateContactList");
-                }
+                await NotifyUsersUpdateContact(otherMemberIds);
 
                 _logger.LogInformation("Message {MsgId} sent by user {UserId} in conversation {ConvId}",
                     result.Data, user.Id, convId);
@@ -220,66 +238,7 @@ namespace SchoolBookPlatform.Hubs
                 await Clients.Caller.SendAsync("Error", "Failed to send message");
             }
         }
-
-        // Gửi PIN Exchange
-        public async Task SendPinExchange(PinExchangeRequest request)
-        {
-            var user = await Context.GetHttpContext()!.GetCurrentUserAsync(_db);
-            if (user == null)
-            {
-                await Clients.Caller.SendAsync("Error", "User not authenticated");
-                return;
-            }
-
-            try
-            {
-                if (!Guid.TryParse(request.ConversationId, out var convId))
-                {
-                    await Clients.Caller.SendAsync("Error", "Invalid conversation ID");
-                    return;
-                }
-
-                if (!Guid.TryParse(request.RecipientId, out var recipientId))
-                {
-                    await Clients.Caller.SendAsync("Error", "Invalid recipient ID");
-                    return;
-                }
-
-                // Send PIN exchange through service
-                var result = await _chatService.SendPinExchangeMessageAsync(
-                    convId,
-                    user.Id,
-                    recipientId,
-                    request.EncryptedPin
-                );
-
-                if (!result.Success)
-                {
-                    await Clients.Caller.SendAsync("Error", result.Message);
-                    return;
-                }
-
-                // Broadcast PIN exchange to conversation members
-                await Clients.Group(request.ConversationId).SendAsync("ReceivePinExchange", new
-                {
-                    conversationId = convId,
-                    senderId = user.Id,
-                    senderUsername = user.Username,
-                    encryptedPin = request.EncryptedPin,
-                    createdAt = DateTime.UtcNow.AddHours(7)
-                });
-                //Fix: bắt buộc thành viên chat khác phải updateContactList (trường hợp A nhắn B, B chưa ở đoạn chat bao giờ)
-                await Clients.User(request.RecipientId).SendAsync("UpdateContactList");
-                _logger.LogInformation("PIN exchange sent by user {UserId} in conversation {ConvId}",
-                    user.Id, convId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending PIN exchange in SignalR");
-                await Clients.Caller.SendAsync("Error", "Failed to send PIN exchange");
-            }
-        }
-
+        
         // User đang typing
         public async Task UserTyping(string conversationId)
         {
@@ -450,15 +409,12 @@ namespace SchoolBookPlatform.Hubs
         });
         
         // Thông báo cho các members khác cập nhật contact list
-        var otherMembers = await _db.ConversationMembers
+        var otherMemberIds = await _db.ConversationMembers
             .Where(cm => cm.ConversationId == convId && cm.UserId != user.Id)
-            .Select(cm => cm.UserId.ToString())
+            .Select(cm => cm.UserId)
             .ToListAsync();
 
-        foreach (var memberId in otherMembers)
-        {
-            await Clients.User(memberId).SendAsync("UpdateContactList");
-        }
+        await NotifyUsersUpdateContact(otherMemberIds);
         
         _logger.LogInformation("File message {MsgId} (type: {Type}) sent by user {UserId} in conversation {ConvId}", 
             request.MessageId, request.MessageType, user.Id, convId);
@@ -494,13 +450,6 @@ namespace SchoolBookPlatform.Hubs
             public string CipherText { get; set; } = string.Empty;
             public byte MessageType { get; set; }
             public string? PinExchange { get; set; }
-        }
-
-        public class PinExchangeRequest
-        {
-            public string ConversationId { get; set; } = string.Empty;
-            public string RecipientId { get; set; } = string.Empty;
-            public string EncryptedPin { get; set; } = string.Empty;
         }
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.DTOs;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels.Chat;
@@ -13,45 +14,41 @@ namespace SchoolBookPlatform.Controllers
     public class ChatController(AppDbContext db, ChatService chatService, ILogger<ChatController> logger)
         : Controller
     {
-        
-        [HttpGet]
-        public async Task<IActionResult> GetConversationKey(Guid conversationId, Guid senderId)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> InitializeKeys([FromBody] InitializeConversationKeyRequest request)
         {
-            // seảch PinExchange gần nhất
-            var keyMsg = await db.Messages
-                .Where(m => m.ConversationId == conversationId && m.SenderId == senderId && m.PinExchange != null)
-                .OrderByDescending(m => m.CreatedAt)
-                .Select(m => new { m.PinExchange })
-                .FirstOrDefaultAsync();
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            if (keyMsg == null) return NotFound();
-            return Ok(keyMsg);
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null) return Unauthorized();
+
+            var result = await chatService.InitializeConversationKeysAsync(currentUser.Id, request);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { message = result.Message });
+            }
+
+            return Ok(new { message = "Keys initialized successfully" });
+        }
+        [HttpGet]
+        public async Task<IActionResult> GetConversationKey(Guid conversationId)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null) return Unauthorized();
+
+            //lấy key version 1(default)
+            var encryptedKey = await chatService.GetMyConversationKeyAsync(conversationId, currentUser.Id);
+
+            if (string.IsNullOrEmpty(encryptedKey))
+            {
+                return NotFound(new { message = "Key not found", needInit = true });
+            }
+
+            return Ok(new { encryptedKey });
         }
         
-        // [HttpGet]
-        // public async Task<IActionResult> GetConversationKey(Guid conversationId, int keyVersion = 1)
-        // {
-        //     var currentUser = await HttpContext.GetCurrentUserAsync(db);
-        //     if (currentUser == null) return Unauthorized();
-        //
-        //     try
-        //     {
-        //         var key = await chatService.GetConversationKeyAsync(currentUser.Id, conversationId, keyVersion);
-        //         
-        //         if (string.IsNullOrEmpty(key))
-        //         {
-        //             return NotFound(new { message = "Key not found" });
-        //         }
-        //
-        //         return Ok(new { encryptedKey = key });
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         logger.LogError(ex, "Error getting conversation key");
-        //         return StatusCode(500, new { message = "Error getting key" });
-        //     }
-        // }
-
         // API: /Chat/SaveConversationKey - Lưu key (cho Self-healing)
         [HttpPost]
         public async Task<IActionResult> SaveConversationKey([FromBody] ConversationKeyModel model)
@@ -589,7 +586,7 @@ namespace SchoolBookPlatform.Controllers
                 {
                     conversationId = result.ConversationId,
                     isNew = result.IsNew,
-                    hasPinExchange = result.HasPinExchange
+                    isKeyInitialized = result.IsKeyInitialized
                 });
             }
             catch (Exception ex)
@@ -599,46 +596,7 @@ namespace SchoolBookPlatform.Controllers
                 return StatusCode(500, new { message = "Error creating conversation" });
             }
         }
-
-        // API: /Chat/SendPinExchange - Gửi PIN exchange message
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SendPinExchange([FromBody] PinExchangeModel model)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            var currentUser = await HttpContext.GetCurrentUserAsync(db);
-            if (currentUser == null)
-            {
-                return Unauthorized();
-            }
-
-            try
-            {
-                var result = await chatService.SendPinExchangeMessageAsync(
-                    model.ConversationId,
-                    currentUser.Id,
-                    model.RecipientId,
-                    model.EncryptedPin
-                );
-
-                if (!result.Success)
-                {
-                    return BadRequest(new { message = result.Message });
-                }
-
-                return Ok(new { message = "PIN exchange sent successfully" });
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error sending PIN exchange");
-                return StatusCode(500, new { message = "Error sending PIN exchange" });
-            }
-        }
-
+        
         // API: /Chat/GetMessages - Lấy tin nhắn
         [HttpGet]
         public async Task<IActionResult> GetMessages(Guid conversationId, int count = 20, long? beforeId = null)
@@ -782,18 +740,6 @@ namespace SchoolBookPlatform.Controllers
         }
     }
     // Request Models
-    public class PinExchangeModel
-    {
-        [System.ComponentModel.DataAnnotations.Required]
-        public Guid ConversationId { get; set; }
-        
-        [System.ComponentModel.DataAnnotations.Required]
-        public Guid RecipientId { get; set; }
-        
-        [System.ComponentModel.DataAnnotations.Required]
-        public string EncryptedPin { get; set; } = string.Empty;
-    }
-
     public class SendMessageModel
     {
         [System.ComponentModel.DataAnnotations.Required]

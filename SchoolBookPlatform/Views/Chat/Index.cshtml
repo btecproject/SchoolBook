@@ -170,12 +170,12 @@ ViewData["Title"] = "Chat";
     let currentUserId = null;
     let searchTimeout = null;
     let myPin = null;
+    let conversationKeysCache = new Map();
     let myPrivateKeyEncrypted = null;
     let typingTimeout = null;
     let connection = null;
     // let selectedFile = null;
     let selectedFiles = [];
-    let recipientPinsCache = new Map();
     // pagination
     let oldestMessageId = null;
     let isLoadingHistory = false;
@@ -184,6 +184,65 @@ ViewData["Title"] = "Chat";
     const currentUsername = '@User.Identity!.Name';
 
     // ===== PIN & AUTH =====
+    function generateRandomKey(length = 32) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@@#$%^&*()';
+        let result = '';
+        const randomValues = new Uint32Array(length);
+        window.crypto.getRandomValues(randomValues);
+        for (let i = 0; i < length; i++) {
+            result += chars[randomValues[i] % chars.length];
+        }
+        return result;
+    }
+
+    async function getConversationKey(convId) {
+        if (conversationKeysCache.has(convId)) {
+            return conversationKeysCache.get(convId);
+        }
+
+        try {
+            // 2. Gọi API GetConvKey (API mới bạn vừa tạo ở Controller)
+            const resp = await fetch(`@Url.Action("GetConversationKey", "Chat")?conversationId=${convId}`);
+
+            if (resp.ok) {
+                const data = await resp.json();
+                // data.encryptedKey là AES Key được mã hóa bằng RSA Public Key của MÌNH
+
+                // 3. Lấy Private Key của mình (đã được PIN bảo vệ) để giải mã
+                const myPrivateKeyEnc = await getMyPrivateKey();
+                const myPin = getMyPin();
+
+                if (!myPrivateKeyEnc || !myPin) return null;
+
+                // Giải mã Private Key bằng PIN
+                const decryptedBytes = CryptoJS.AES.decrypt(myPrivateKeyEnc, myPin);
+                let myPrivateKey;
+                try {
+                    myPrivateKey = decryptedBytes.toString(CryptoJS.enc.Utf8);
+                } catch (e) { return null; }
+
+                if (!myPrivateKey){
+                    console.error("GetConversationKey: private Key null!");
+                    return null;
+                }
+
+                // 4. Dùng Private Key giải mã ra Conversation Key (AES Key)
+                const decrypt = new JSEncrypt();
+                decrypt.setPrivateKey(myPrivateKey);
+                const plainConvKey = decrypt.decrypt(data.encryptedKey);
+
+                if (plainConvKey) {
+                    // Lưu vào cache để dùng lại
+                    conversationKeysCache.set(convId, plainConvKey);
+                    return plainConvKey;
+                }
+            }
+        } catch (e) {
+            console.error("Lỗi khi lấy Conversation Key:", e);
+        }
+        return null;
+    }
+    
     function getToken() {
         return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
     }
@@ -409,58 +468,63 @@ ViewData["Title"] = "Chat";
     }
 
     // ===== DECRYPT LOGIC =====
-    async function decryptAndCachePinExchange(encryptedPin, senderId) {
-        try {
-            const myPrivateKeyEnc = await getMyPrivateKey();
-            const myPinLocal = getMyPin();
-            if (!myPrivateKeyEnc || !myPinLocal) return null;
-
-            const decryptedBytes = CryptoJS.AES.decrypt(myPrivateKeyEnc, myPinLocal);
-            let myPrivateKeyDecrypted;
-            try { myPrivateKeyDecrypted = decryptedBytes.toString(CryptoJS.enc.Utf8); }
-            catch (e) { throw new Error("UTF8_PARSE_ERROR"); }
-
-            if (!myPrivateKeyDecrypted) throw new Error("EMPTY_KEY");
-
-            const decrypt = new JSEncrypt();
-            decrypt.setPrivateKey(myPrivateKeyDecrypted);
-            const senderPin = decrypt.decrypt(encryptedPin);
-
-            if (senderPin) {
-                recipientPinsCache.set(senderId.toLowerCase(), senderPin);
-                return senderPin;
-            }
-        } catch (e) {
-            if (e.message === "UTF8_PARSE_ERROR") {
-                hideLoading();
-                alert("Mã PIN không khớp Private Key. Vui lòng tạo lại khóa.");
-                window.location.href = '@Url.Action("SetupKeys", "Chat")';
-            }
-        }
-        return null;
-    }
-
-    // Tìm và giải mã RSA từ danh sách tin nhắn
-    async function findKeyViaRSA(messages, partnerId) {
-        const pinExchanges = messages.filter(m => m.pinExchange && !m.isMine && m.senderId === partnerId);
-        pinExchanges.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-        // for (const msg of pinExchanges) {
-        //     const pin = await decryptAndCachePinExchange(msg.pinExchange, msg.senderId);
-        //     if (pin) return pin;
-        // }
-
-        try {
-            const resp = await fetch(`@Url.Action("GetConversationKey", "Chat")?conversationId=${currentConversationId}&senderId=${partnerId}`);
-            if (resp.ok) {
-                const data = await resp.json();
-                return await decryptAndCachePinExchange(data.pinExchange, partnerId);
-            }
-        } catch(e) { console.error("Không lấy được key từ server", e); }
-        return null;
-    }
 
     // ===== MAIN CHAT FUNCTIONS =====
+    async function setupNewConversation(convId, partnerId, partnerPublicKey) {
+        console.log("🛠 Đang khởi tạo khóa hội thoại mới...");
+
+        // 1. Sinh AES Key ngẫu nhiên
+        const newAesKey = generateRandomKey(32);
+
+        // 2. Lấy Public Key của chính mình
+        let myPublicKey = null;
+        try {
+            const myResp = await fetch(`@Url.Action("GetUserPublicKey", "Chat")?userId=${currentUserId}`);
+            if (myResp.ok) myPublicKey = (await myResp.json()).publicKey;
+        } catch(e) {}
+
+        if (!myPublicKey || !partnerPublicKey) {
+            alert("Không thể lấy Public Key để khởi tạo bảo mật.");
+            return;
+        }
+
+        const encryptor = new JSEncrypt();
+
+        // 3. Mã hóa Key cho MÌNH (dùng Public Key của mình)
+        encryptor.setPublicKey(myPublicKey);
+        const keyForMe = encryptor.encrypt(newAesKey);
+
+        // 4. Mã hóa Key cho ĐỐI PHƯƠNG (dùng Public Key của họ)
+        encryptor.setPublicKey(partnerPublicKey);
+        const keyForPartner = encryptor.encrypt(newAesKey);
+
+        // 5. Gửi cả 2 key lên server
+        const payload = {
+            conversationId: convId,
+            keys: [
+                { userId: currentUserId, encryptedKey: keyForMe },
+                { userId: partnerId, encryptedKey: keyForPartner }
+            ]
+        };
+
+        const resp = await fetch('/Chat/InitializeKeys', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getToken()
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (resp.ok) {
+            // Lưu ngay key gốc vào cache để dùng luôn
+            conversationKeysCache.delete(convId);
+            await getConversationKey(convId);            
+            console.log("✅ Đã khởi tạo Conversation Key thành công!");
+        } else {
+            console.error("❌ Lỗi khởi tạo key trên server");
+        }
+}
     async function startChatWithUser(userId, username, displayName) {
         if (!currentUserId) return;
 
@@ -494,27 +558,20 @@ ViewData["Title"] = "Chat";
             if (connection?.state === signalR.HubConnectionState.Connected) {
                 await connection.invoke("JoinConversation", currentConversationId);
             }
+            
+            if (!convData.isKeyInitialized) {
+                console.log("🆕 Chưa có key, đang khởi tạo...");
+                if (currentRecipientPublicKey) {
+                    await setupNewConversation(currentConversationId, userId, currentRecipientPublicKey);
+                }
+            }
+            // Đảm bảo key đã được load vào cache
+            await getConversationKey(currentConversationId);
 
-            // 3. Load & Decrypt
             const messages = await loadMessagesAndReturn(currentConversationId);
-            let cachedKey = recipientPinsCache.get(userId.toLowerCase());
-
-            if (!cachedKey) {
-                await findKeyViaRSA(messages, userId);
-            }
-
-            displayMessages(messages);
+            await displayMessages(messages);
             showChatWindow(username, displayName);
-
-            // Auto scroll bottom
             setTimeout(() => scrollToBottom(false), 100);
-
-            // 4. Self-healing
-            cachedKey = recipientPinsCache.get(userId.toLowerCase());
-            if ((!cachedKey || convData.isNew || !convData.hasPinExchange) && currentRecipientPublicKey) {
-                console.log("🔄 Sending initial PIN Exchange...");
-                await sendPinExchange();
-            }
 
         } catch (e) { console.error(e); }
         finally { hideLoading(); }
@@ -530,30 +587,7 @@ ViewData["Title"] = "Chat";
             loadRecentContacts(); // Reload sidebar quietly
         } catch(e) {}
     }
-
-    async function sendPinExchange() {
-        const pin = getMyPin();
-        if (!pin || !connection) return;
-
-        try {
-            const resp = await fetch(`@Url.Action("GetUserPublicKey", "Chat")?userId=${currentRecipientId}`);
-            if (resp.ok) currentRecipientPublicKey = (await resp.json()).publicKey;
-        } catch(e) {}
-
-        if (!currentRecipientPublicKey) return;
-
-        const encrypt = new JSEncrypt();
-        encrypt.setPublicKey(currentRecipientPublicKey.trim());
-        const encryptedPin = encrypt.encrypt(pin);
-
-        if(encryptedPin) {
-            await connection.invoke("SendPinExchange", {
-                conversationId: currentConversationId,
-                recipientId: currentRecipientId,
-                encryptedPin: encryptedPin
-            });
-        }
-    }
+    
 // const resp = await fetch(`@Url.Action("GetMessages", "Chat")?conversationId=${convId}&count=20`);
     async function loadMessagesAndReturn(convId, beforeId = null) {
         try {
@@ -597,11 +631,9 @@ ViewData["Title"] = "Chat";
             let decryptedText = null;
 
             try {
-                let pinToUse = msg.isMine ? myPinLocal : recipientPinsCache.get(msg.senderId.toLowerCase());
-
-                if (pinToUse) {
-                    decryptedText = await AesGcmHelper.decrypt(msg.cipherText, pinToUse);
-
+                let convKey = await getConversationKey(msg.conversationId);
+                if (convKey) {
+                    decryptedText = await AesGcmHelper.decrypt(msg.cipherText, convKey);
                     if (decryptedText) {
                         if (isFile) {
                             // decryptedText lúc này là URL file
@@ -619,6 +651,7 @@ ViewData["Title"] = "Chat";
                     }
                 } else {
                     content = '[Đang tải khóa...]';
+                    convKey = getConversationKey(msg.conversationId)
                 }
             } catch (e) {
                 content = '[Lỗi dữ liệu]';
@@ -726,22 +759,12 @@ ViewData["Title"] = "Chat";
 
         let content = msg.cipherText;
         let isFile = msg.messageType !== 0;
-
-        // Nếu là PIN Exchange, bỏ qua
-        if (msg.pinExchange) {
-            console.log("⏭️ Skipping PIN Exchange message");
-            return;
-        }
-
         try {
-            let pinToUse = msg.senderId === currentUserId
-                ? getMyPin()
-                : recipientPinsCache.get(msg.senderId.toLowerCase());
+            let convKey = await getConversationKey(msg.conversationId);
+            console.log("🔑 ConvKey available");
 
-            console.log("🔑 PIN available:", !!pinToUse);
-
-            if (pinToUse) {
-                const decryptedData = await AesGcmHelper.decrypt(msg.cipherText, pinToUse);
+            if (convKey) {
+                const decryptedData = await AesGcmHelper.decrypt(msg.cipherText, convKey);
 
                 if (decryptedData) {
                     // Giải mã THÀNH CÔNG
@@ -825,21 +848,6 @@ ViewData["Title"] = "Chat";
             console.log("Received UpdateContactList signal");
             await loadRecentContacts();
         });
-        connection.on("ReceivePinExchange", async (data) => {
-            if (data.senderId === currentUserId) return;
-            const senderPin = await decryptAndCachePinExchange(data.encryptedPin, data.senderId);
-            if (senderPin) {
-                const key = `hs_${data.conversationId}_${data.senderId}`;
-                if (!sessionStorage.getItem(key)) {
-                    sessionStorage.setItem(key, "1");
-                    setTimeout(() => sendPinExchange(), 500);
-                }
-                if (data.conversationId === currentConversationId) {
-                    const msgs = await loadMessagesAndReturn(currentConversationId);
-                    displayMessages(msgs);
-                }
-            }
-        });
 
         connection.on("UserTyping", (data) => {
             if (data.conversationId === currentConversationId && data.userId !== currentUserId) showTypingIndicator();
@@ -882,9 +890,13 @@ ViewData["Title"] = "Chat";
         //Text
         if (text) {
             try {
-                const pin = getMyPin();
-                const encrypted = await AesGcmHelper.encrypt(text, pin);
-
+                const convKey = conversationKeysCache.get(currentConversationId);
+                if (!convKey) {
+                    alert("Chưa có khóa bảo mật. Vui lòng tải lại trang.");
+                    return;
+                }
+                const encrypted = await AesGcmHelper.encrypt(text, convKey);
+                
                 await connection.invoke("SendMessage", {
                     conversationId: currentConversationId,
                     cipherText: encrypted,
@@ -1005,11 +1017,8 @@ ViewData["Title"] = "Chat";
             return;
         }
 
-        const pin = getMyPin();
-        if (!pin) {
-            alert('Không tìm thấy mã PIN');
-            return;
-        }
+        const convKey = conversationKeysCache.get(currentConversationId);
+        if (!convKey) { alert('Lỗi Key'); return; }
 
         try {
             console.log("📤 Starting file upload..."); // Debug log
@@ -1048,7 +1057,7 @@ ViewData["Title"] = "Chat";
             progressBar.style.width = '80%';
 
             // 2. Mã hóa URL
-            const encryptedUrl = await AesGcmHelper.encrypt(uploadResult.url, pin);
+            const encryptedUrl = await AesGcmHelper.encrypt(uploadResult.url, convKey);            
             // 3. Update message
             const updateResponse = await fetch('@Url.Action("UpdateMessageWithFile", "Chat")', {
                 method: 'POST',
