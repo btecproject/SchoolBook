@@ -258,11 +258,13 @@ CREATE TABLE MessageNotifications (
 -- 1. Bảng ChatUsers – bắt buộc phải có để kích hoạt tính năng chat
 -- Chỉ user có trong bảng này mới được tìm kiếm và chat
 CREATE TABLE ChatUsers (
+--                            Id            UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
                            UserId		 UNIQUEIDENTIFIER PRIMARY KEY,
                            Username      NVARCHAR(256) NOT NULL,        -- trùng với Users.UserName
                            DisplayName   NVARCHAR(100) NOT NULL,        -- tên hiển thị trong chat
                            PinCodeHash   NVARCHAR(256) NOT NULL,        -- SHA-256 của PIN (client băm trước khi gửi)
                            CreatedAt     DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
+--                            IsActive     BIT DEFAULT 1,
                            UpdatedAt     DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
 
                            CONSTRAINT FK_ChatUsers_UserId
@@ -270,6 +272,7 @@ CREATE TABLE ChatUsers (
 
     -- Đảm bảo 1 user chỉ xuất hiện 1 lần
                            UNIQUE (Username)
+                            CREATE UNIQUE INDEX IX_ChatUsers_Active ON ChatUsers(UserId) WHERE IsActive = 1;
 );
 
 -- Index để tìm kiếm nhanh theo DisplayName hoặc Username
