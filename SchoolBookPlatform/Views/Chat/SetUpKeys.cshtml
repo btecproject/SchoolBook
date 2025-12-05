@@ -1,0 +1,215 @@
+﻿@using System.Security.Claims
+@{
+    ViewData["Title"] = "Thiết lập mã hóa";
+}
+@{
+    var userName = User.FindFirst(ClaimTypes.Name).Value;
+}
+<h2>Trang Chat/SetUpKeys</h2>
+<input id="thisUserName" type="hidden" value="@userName"/>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="bi bi-shield-lock"></i> Thiết lập mã hóa đầu cuối</h4>
+                </div>
+                <div class="card-body">
+                    <div id="loadingState" class="text-center py-4">
+                        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h5>Đang tạo cặp khóa RSA...</h5>
+                        <p class="text-muted">Vui lòng đợi trong giây lát</p>
+                        <div class="progress" style="height: 25px;">
+                            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+
+                    <div id="successState" style="display: none;">
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle-fill"></i> 
+                            Cặp khóa RSA đã được tạo và mã hóa thành công!
+                        </div>
+                        <div class="mb-3">
+                            <h6>Chi tiết:</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-key"></i> Độ dài khóa: <strong>2048 bits</strong></li>
+                                <li><i class="bi bi-calendar-check"></i> Thời hạn: <strong>30 ngày</strong></li>
+                                <li><i class="bi bi-shield-check"></i> Trạng thái: <strong>Đã mã hóa bằng PIN</strong></li>
+                            </ul>
+                        </div>
+                        <div class="d-grid">
+                            <a href="@Url.Action("Index", "Chat")" class="btn btn-primary btn-lg">
+                                <i class="bi bi-chat-dots"></i> Bắt đầu Chat
+                            </a>
+                        </div>
+                    </div>
+
+                    <div id="errorState" style="display: none;">
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle-fill"></i> 
+                            <strong>Lỗi:</strong> <span id="errorMessage"></span>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-warning" onclick="retryKeyGeneration()">
+                                <i class="bi bi-arrow-clockwise"></i> Thử lại
+                            </button>
+                            <a href="@Url.Action("Register", "Chat")" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Quay lại đăng ký
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6><i class="bi bi-info-circle"></i> Thông tin về mã hóa</h6>
+                    <ul class="small text-muted mb-0">
+                        <li>Tin nhắn được mã hóa đầu cuối (E2EE) bằng AES</li>
+                        <li>Private key được mã hóa bằng PIN của bạn</li>
+                        <li>Khóa RSA tự động làm mới sau 30 ngày</li>
+                        <li>Không ai có thể đọc tin nhắn nếu không có PIN</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>
+    <script>
+        let retryCount = 0;
+        const maxRetries = 3;
+        const ChatPin = "pinCode_"+document.getElementById("thisUserName").value;
+        // Update progress bar
+        function updateProgress(percent, message) {
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = percent + '%';
+            progressBar.textContent = percent + '%';
+        }
+
+        // Show state
+        function showState(state) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('successState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'none';
+            
+            if (state === 'loading') {
+                document.getElementById('loadingState').style.display = 'block';
+            } else if (state === 'success') {
+                document.getElementById('successState').style.display = 'block';
+            } else if (state === 'error') {
+                document.getElementById('errorState').style.display = 'block';
+            }
+        }
+
+        // Generate RSA keys
+        async function generateRsaKeys() {
+            try {
+                showState('loading');
+                updateProgress(10, 'Đang khởi tạo...');
+
+                // Get PIN from localStorage
+                const pin = localStorage.getItem(ChatPin);
+                if (!pin) {
+                    throw new Error('Không tìm thấy mã PIN. Vui lòng đăng ký lại.');
+                }
+
+                updateProgress(25, 'Đang tạo cặp khóa RSA...');
+
+                // Generate RSA key pair (2048 bits)
+                const crypt = new JSEncrypt({ default_key_size: 2048 });
+                
+                // This is computationally intensive, so we simulate progress
+                await new Promise(resolve => setTimeout(resolve, 500));
+                updateProgress(50, 'Đang tạo khóa...');
+
+                const publicKey = crypt.getPublicKey();
+                const privateKey = crypt.getPrivateKey();
+
+                if (!publicKey || !privateKey) {
+                    throw new Error('Không thể tạo cặp khóa RSA');
+                }
+
+                updateProgress(75, 'Đang mã hóa private key...');
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                // Encrypt private key with PIN using AES
+                const privateKeyEncrypted = CryptoJS.AES.encrypt(privateKey, pin).toString();
+
+                updateProgress(90, 'Đang lưu khóa lên server...');
+
+                // Upload keys to server
+                const response = await fetch('@Url.Action("UploadKeys", "Chat")', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                    },
+                    body: JSON.stringify({
+                        publicKey: publicKey,
+                        privateKeyEncrypted: privateKeyEncrypted
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Lỗi khi upload keys');
+                }
+
+                updateProgress(100, 'Hoàn thành!');
+                
+                await new Promise(resolve => setTimeout(resolve, 500));
+                showState('success');
+
+            } catch (error) {
+                console.error('Error generating RSA keys:', error);
+                document.getElementById('errorMessage').textContent = error.message;
+                showState('error');
+            }
+        }
+
+        // Retry key generation
+        function retryKeyGeneration() {
+            retryCount++;
+            if (retryCount > maxRetries) {
+                alert('Đã thử quá nhiều lần. Vui lòng liên hệ hỗ trợ.');
+                return;
+            }
+            generateRsaKeys();
+        }
+
+        // Start generation on page load
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                generateRsaKeys();
+            }, 500);
+        });
+    </script>
+}
+
+@section Styles {
+    <style>
+        .card {
+            border-radius: 10px;
+        }
+        
+        .progress {
+            border-radius: 8px;
+        }
+        
+        .spinner-border {
+            animation-duration: 0.75s;
+        }
+        
+        .list-unstyled li {
+            padding: 5px 0;
+        }
+    </style>
+}

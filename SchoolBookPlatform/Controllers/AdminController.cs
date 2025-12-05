@@ -215,7 +215,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
                 PhoneNumber = phone,
                 MustChangePassword = true,
                 IsActive = true,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow.AddHours(7)
             };
 
             db.Users.Add(newUser);
@@ -422,7 +422,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
                 PhoneNumber = model.PhoneNumber,
                 MustChangePassword = model.MustChangePassword,
                 IsActive = model.IsActive,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow.AddHours(7)
             };
 
             db.Users.Add(user);
@@ -662,7 +662,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
             user.PhoneNumber = model.PhoneNumber;
             user.MustChangePassword = model.MustChangePassword;
             user.IsActive = model.IsActive;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow.AddHours(7);
 
             // Cập nhật roles
             var currentRoleIds = user.UserRoles?.Select(ur => ur.RoleId).ToList() ?? new List<Guid>();
@@ -839,7 +839,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
                 return Json(new { success = false, message = "User đã bị vô hiệu hóa." });
 
             user.IsActive = false;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow.AddHours(7);
 
             // Revoke all tokens
             await userManagementService.RevokeAllTokensAsync(request.Id);
@@ -882,7 +882,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
                 return Json(new { success = false, message = "User đã hoạt động." });
 
             user.IsActive = true;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow.AddHours(7);
 
             await db.SaveChangesAsync();
             logger.LogInformation("User {UserId} enabled by {CurrentUserId}", request.Id, currentUserId);

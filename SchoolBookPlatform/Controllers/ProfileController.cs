@@ -182,7 +182,7 @@ public class ProfileController(
 
             if (updated)
             {
-                profile.UpdatedAt = DateTime.UtcNow;
+                profile.UpdatedAt = DateTime.UtcNow.AddHours(7);
                 await db.SaveChangesAsync();
             
                 logger.LogInformation("Privacy updated: {Field} = {Value} for user {UserId}", 
@@ -240,14 +240,14 @@ public class ProfileController(
             { 
                 UserId = request.UserId, 
                 FollowerId = currentUser.Id,
-                FollowedAt = DateTime.UtcNow
+                FollowedAt = DateTime.UtcNow.AddHours(7)
             });
 
             db.Following.Add(new Following 
             { 
                 UserId = currentUser.Id, 
                 FollowingId = request.UserId,
-                FollowedAt = DateTime.UtcNow
+                FollowedAt = DateTime.UtcNow.AddHours(7)
             });
 
             await db.SaveChangesAsync();
@@ -394,7 +394,7 @@ public class ProfileController(
 
             if (updated)
             {
-                profile.UpdatedAt = DateTime.UtcNow;
+                profile.UpdatedAt = DateTime.UtcNow.AddHours(7);
                 
                 var result = await db.SaveChangesAsync();
                 logger.LogInformation("Profile updated successfully. Rows affected: {Rows}", result);

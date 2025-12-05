@@ -9,6 +9,8 @@ public class EditUserViewModel
     [Required(ErrorMessage = "Username là bắt buộc")]
     [MaxLength(50, ErrorMessage = "Username tối đa 50 ký tự")]
     [Display(Name = "Tên đăng nhập")]
+    [RegularExpression(@"^[a-zA-Z0-9\s\p{L}]+$", 
+        ErrorMessage = "Tên hiển thị chỉ được chứa chữ cái, số và khoảng trắng")]
     public string Username { get; set; } = null!;
 
     [EmailAddress(ErrorMessage = "Email không hợp lệ")]

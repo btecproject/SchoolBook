@@ -12,7 +12,7 @@ public class TrustedService(AppDbContext db, ILogger<TrustedService> logger)
             t.IPAddress == ip &&
             t.DeviceInfo == device &&
             !t.IsRevoked &&
-            t.ExpiresAt > DateTime.UtcNow);
+            t.ExpiresAt > DateTime.UtcNow.AddHours(7));
     }
     public string GetDeviceIpAsync(HttpContext context)
     {
@@ -44,7 +44,7 @@ public class TrustedService(AppDbContext db, ILogger<TrustedService> logger)
 
         if (existing != null)
         {
-            existing.ExpiresAt = DateTime.UtcNow.AddDays(30);
+            existing.ExpiresAt = DateTime.UtcNow.AddHours(7).AddDays(30);
             existing.IsRevoked = false;
         }
         else
@@ -54,7 +54,7 @@ public class TrustedService(AppDbContext db, ILogger<TrustedService> logger)
                 UserId = userId,
                 IPAddress = ip.Truncate(50),
                 DeviceInfo = device.Truncate(200),
-                ExpiresAt = DateTime.UtcNow.AddDays(3)
+                ExpiresAt = DateTime.UtcNow.AddHours(7).AddDays(3)
             };
             db.TrustedDevices.Add(trusted);
         }

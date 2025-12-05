@@ -21,13 +21,14 @@ public class AppDbContext : DbContext
     public DbSet<Following> Following { get; set; }
     public DbSet<RecoveryCode> RecoveryCodes { get; set; } = null!;
     
-    // Post feature - DbSets
-    public DbSet<Post> Posts { get; set; } = null!;
-    public DbSet<PostComment> PostComments { get; set; } = null!;
-    public DbSet<PostVote> PostVotes { get; set; } = null!;
-    public DbSet<PostReport> PostReports { get; set; } = null!;
-    public DbSet<PostAttachment> PostAttachments { get; set; } = null!;
-
+    public DbSet<UserRsaKey> UserRsaKeys { get; set; }
+    public DbSet<ChatUser> ChatUsers { get; set; }
+    public DbSet<Conversation> Conversations { get; set; }
+    public DbSet<ConversationMember> ConversationMembers { get; set; }
+    public DbSet<Message> Messages { get; set; }
+    public DbSet<MessageAttachment> MessageAttachments { get; set; }
+    public DbSet<MessageNotification> MessageNotifications { get; set; }
+    public DbSet<ConversationKey>  ConversationKeys { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -109,60 +110,45 @@ public class AppDbContext : DbContext
             .HasForeignKey(f => f.FollowingId)
             .OnDelete(DeleteBehavior.NoAction);
         
-        // Post feature - Entity configurations
-        // Post entity configuration
-        modelBuilder.Entity<Post>(entity =>
-        {
-            // Index cho UserId để query nhanh
-            entity.HasIndex(p => p.UserId);
-            // Composite index cho IsVisible và IsDeleted để filter nhanh
-            entity.HasIndex(p => new { p.IsVisible, p.IsDeleted });
-            // Giới hạn độ dài VisibleToRoles
-            entity.Property(p => p.VisibleToRoles).HasMaxLength(50);
-        });
+        // CHAT
+        // ConversationMember composite PK
+        modelBuilder.Entity<ConversationMember>()
+            .HasKey(cm => new { cm.ConversationId, cm.ChatUserId });
 
-        // PostComment entity configuration
-        modelBuilder.Entity<PostComment>(entity =>
-        {
-            // Index cho PostId để query comments của post nhanh
-            entity.HasIndex(pc => pc.PostId);
-            // Index cho ParentCommentId để query replies nhanh
-            entity.HasIndex(pc => pc.ParentCommentId);
-            // Cấu hình relationship cho nested comments
-            entity.HasOne(pc => pc.ParentComment)
-                .WithMany(pc => pc.Replies)
-                .HasForeignKey(pc => pc.ParentCommentId)
-                .OnDelete(DeleteBehavior.NoAction); // Không cascade để tránh xóa nhầm
-        });
+        // MessageNotification composite PK
+        modelBuilder.Entity<MessageNotification>()
+            .HasKey(mn => new { mn.RecipientId, mn.SenderId });
 
-        // PostVote entity configuration
-        modelBuilder.Entity<PostVote>(entity =>
-        {
-            // Composite key: PostId + UserId (mỗi user chỉ vote 1 lần cho 1 post)
-            entity.HasKey(pv => new { pv.PostId, pv.UserId });
-        });
+        // Unique active RSA key per user
+        modelBuilder.Entity<UserRsaKey>()
+            .HasIndex(k => k.ChatUserId)
+            .IsUnique()
+            .HasFilter("[IsActive] = 1");
 
-        // PostReport entity configuration
-        modelBuilder.Entity<PostReport>(entity =>
-        {
-            // Index cho PostId để query reports của post nhanh
-            entity.HasIndex(pr => pr.PostId);
-            // Index cho Status để filter reports theo trạng thái nhanh
-            entity.HasIndex(pr => pr.Status);
-            // Giới hạn độ dài Status
-            entity.Property(pr => pr.Status).HasMaxLength(20);
-        });
+        // Các index khác theo schema
+        modelBuilder.Entity<Message>()
+            .HasIndex(m => new { m.ConversationId, m.CreatedAt });
+
+        modelBuilder.Entity<Message>()
+            .HasIndex(m => new { m.SenderId, m.CreatedAt });
+
+        modelBuilder.Entity<MessageNotification>()
+            .HasIndex(mn => new { mn.RecipientId, mn.UnreadCount });
+
+        modelBuilder.Entity<ChatUser>()
+            .HasIndex(cu => cu.DisplayName);
+
+        modelBuilder.Entity<ChatUser>()
+            .HasIndex(cu => cu.Username);
+
+        modelBuilder.Entity<UserRsaKey>()
+            .HasIndex(k => k.ExpiresAt);
+
+        modelBuilder.Entity<UserRsaKey>()
+            .HasIndex(k => k.IsActive);
         
-        //RecoveryCodes
-        // modelBuilder.Entity<RecoveryCode>(entity =>
-        // {
-        //     entity.HasIndex(e => new { e.UserId, e.IsUsed })
-        //         .HasDatabaseName("IX_RecoveryCodes_UserId_IsUsed")
-        //         .IncludeProperties(e => e.HashedCode); // Covering index siêu nhanh
-        //
-        //     entity.Property(e => e.HashedCode)
-        //         .IsRequired()
-        //         .HasMaxLength(255);
-        // });
+        modelBuilder.Entity<ConversationKey>()
+            .HasKey(k => new { k.ChatUserId, k.ConversationId, k.KeyVersion });
+        base.OnModelCreating(modelBuilder);
     }
 }

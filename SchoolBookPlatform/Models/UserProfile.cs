@@ -18,7 +18,7 @@ public class UserProfile
     public bool IsBirthDatePublic { get; set; } = false;
     public bool IsFollowersPublic { get; set; } = true;
 
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
 
     public User User { get; set; } = null!;
 }

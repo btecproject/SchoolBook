@@ -13,6 +13,7 @@
     <ItemGroup>
         <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
         <PackageReference Include="CloudinaryDotNet" Version="1.27.8" />
+        <PackageReference Include="HtmlSanitizer" Version="9.0.889" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.3.0" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.10" />
         <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1" />
@@ -34,8 +35,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <_ContentIncludedByDefault Remove="wwwroot\uploads\posts\83136903-070d-4a8e-858d-7c6953ec58ae.webp" />
-      <_ContentIncludedByDefault Remove="wwwroot\uploads\posts\e67a5e25-8e07-4750-8838-8516895a3401.png" />
+      <_ContentIncludedByDefault Remove="Views\Chat\PartialScript\_ChatLogicScript.cshtml" />
+      <_ContentIncludedByDefault Remove="Views\Chat\PartialScript\_ChatUIScript.cshtml" />
     </ItemGroup>
 
 </Project>

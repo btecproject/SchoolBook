@@ -8,7 +8,7 @@ public class TrustedDevice
 
     public string IPAddress { get; set; } = null!;
     public string DeviceInfo { get; set; } = null!;
-    public DateTime TrustedAt { get; set; } = DateTime.UtcNow;
+    public DateTime TrustedAt { get; set; } = DateTime.UtcNow.AddHours(7);
     public DateTime ExpiresAt { get; set; }
     public bool IsRevoked { get; set; } = false;
 }

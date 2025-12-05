@@ -14,7 +14,7 @@ public class OtpCode
     public string Type { get; set; } // 'SMS' or 'Email'
     public DateTime ExpiresAt { get; set; }
     public bool IsUsed { get; set; } = false;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
 
     [ForeignKey(nameof(UserId))] public User User { get; set; }
 }

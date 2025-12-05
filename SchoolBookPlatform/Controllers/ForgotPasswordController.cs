@@ -170,7 +170,7 @@ public class ForgotPasswordController(
         {
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
             user.MustChangePassword = false;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow.AddHours(7);
             // user.TokenVersion++;
             await tokenService.RevokeAllTokensAsync(user.Id);
 

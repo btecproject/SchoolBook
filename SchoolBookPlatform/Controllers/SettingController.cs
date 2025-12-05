@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Manager;
@@ -18,6 +19,7 @@ public class SettingController(
     AppDbContext db,
     RecoveryCodeService recoveryCodeService,
     OtpService otpService,
+    ChatService chatService,
     TokenService tokenService,
     FaceService faceService) : Controller
 {
@@ -155,7 +157,7 @@ public class SettingController(
                 return View(model);
             }
 
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow.AddHours(7);
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
             
             try
@@ -267,7 +269,7 @@ public class SettingController(
         
         //save và dtb
         user.TwoFactorEnabled = true;
-        user.UpdatedAt = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow.AddHours(7);
         user.TwoFactorSecret = secret;
 
         user.RecoveryCodesGenerated = true;
@@ -306,7 +308,7 @@ public class SettingController(
             //x
             user.TwoFactorEnabled = false;
             user.TwoFactorSecret = null;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow.AddHours(7);
         
             user.RecoveryCodesGenerated = false;
             user.RecoveryCodesLeft = 0;
@@ -347,7 +349,7 @@ public class SettingController(
         }
         user.TwoFactorEnabled = false;
         user.TwoFactorSecret = null;
-        user.UpdatedAt = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow.AddHours(7);
         
         user.RecoveryCodesGenerated = false;
         user.RecoveryCodesLeft = 0;
@@ -438,7 +440,43 @@ public class SettingController(
 
         return View("ShowRecoveryCodes");
     }
-    
+
+    [HttpGet]
+    public IActionResult ChangePinCode()
+    {
+        return View();
+    }
+
+    [HttpPost]
+    [EnableRateLimiting("ChatPinPolicy")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePinCode([FromBody] ChangePinViewModel model)
+    {
+        var currentUser = await HttpContext.GetCurrentUserAsync(db);
+        if (currentUser == null) return RedirectToAction("Login", "Authen");
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        try
+        {
+            var result = await chatService.ChangePinAsync(
+                currentUser.Id,
+                model.OldPinHash,
+                model.NewPinHash,
+                model.NewEncryptedPrivateKey
+            );
+
+            if (!result.Success)
+            {
+                return BadRequest(new { message = result.Message });
+            }
+
+            return Ok(new { message = "Đổi mã PIN thành công!" });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error changing PIN");
+            return StatusCode(500, new { message = "Lỗi server khi đổi PIN" });
+        }
+    }
     [HttpGet]
     public async Task<IActionResult> Index()
     {

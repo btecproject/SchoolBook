@@ -1,0 +1,458 @@
+﻿@model SchoolBookPlatform.ViewModels.Chat.ChatRegistrationViewModel
+@{
+    ViewData["Title"] = "Đăng ký Chat";
+}
+<h2>Trang Chat/Register</h2>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg">
+                <div class="card-header bg-gradient text-white text-center py-4">
+                    <i class="bi bi-chat-dots-fill" style="font-size: 3rem;"></i>
+                    <h3 class="mt-2 mb-0">Kích hoạt tính năng Chat</h3>
+                    <p class="mb-0 small">Thiết lập tài khoản chat an toàn của bạn</p>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Alert thông tin -->
+                    <div class="alert alert-info border-0 shadow-sm">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+                            <div>
+                                <strong>Lưu ý quan trọng:</strong>
+                                <ul class="mb-0 mt-2 small">
+                                    <li>Mã PIN dùng để mã hóa toàn bộ tin nhắn của bạn</li>
+                                    <li>Không ai có thể đọc tin nhắn nếu không có PIN này</li>
+                                    <li><strong class="text-danger">Nếu quên PIN, toàn bộ tin nhắn cũ sẽ bị xóa vĩnh viễn</strong></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form id="chatRegistrationForm" asp-action="Register" method="post">
+                        @Html.AntiForgeryToken()
+                        
+                        <!-- Username (readonly) -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-person"></i> Tài khoản
+                            </label>
+                            <input id="thisUserName" type="text" class="form-control form-control-lg bg-light" 
+                                   value="@Model.Username" readonly />
+                            <small class="text-muted">Tài khoản hiện tại của bạn</small>
+                        </div>
+
+                        <!-- Display Name -->
+                        <div class="mb-4">
+                            <label asp-for="DisplayName" class="form-label fw-bold">
+                                <i class="bi bi-badge-fill"></i> Tên hiển thị trong Chat
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="DisplayName" 
+                                   class="form-control form-control-lg" 
+                                   placeholder="VD: Nguyễn Văn A"
+                                   maxlength="100" />
+                            <span asp-validation-for="DisplayName" class="text-danger"></span>
+                            <small class="text-muted">Tên này sẽ hiển thị cho người khác khi chat với bạn</small>
+                        </div>
+
+                        <!-- PIN Code -->
+                        <div class="mb-4">
+                            <label for="pinCodeInput" class="form-label fw-bold">
+                                <i class="bi bi-shield-lock-fill"></i> Mã PIN bảo mật
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text bg-white">
+                                    <i class="bi bi-key-fill text-primary"></i>
+                                </span>
+                                <input type="password" 
+                                       id="pinCodeInput" 
+                                       class="form-control" 
+                                       placeholder="Nhập 6-8 chữ số" 
+                                       maxlength="8" 
+                                       pattern="\d{6,8}" />
+                                <button class="btn btn-outline-secondary" type="button" id="togglePin">
+                                    <i class="bi bi-eye" id="togglePinIcon"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted d-flex align-items-center mt-1">
+                                <i class="bi bi-shield-check text-success me-1"></i>
+                                PIN sẽ được lưu trên thiết bị của bạn, không gửi lên server
+                            </small>
+                            <div id="pinError" class="text-danger mt-2 fw-bold" style="display: none;"></div>
+                            
+                            <!-- PIN Strength Indicator -->
+                            <div id="pinStrength" class="mt-2" style="display: none;">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted">Độ mạnh:</small>
+                                    <small id="pinStrengthText" class="fw-bold"></small>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div id="pinStrengthBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Confirm PIN -->
+                        <div class="mb-4">
+                            <label for="pinCodeConfirmInput" class="form-label fw-bold">
+                                <i class="bi bi-shield-check"></i> Xác nhận mã PIN
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text bg-white">
+                                    <i class="bi bi-key text-secondary"></i>
+                                </span>
+                                <input type="password" 
+                                       id="pinCodeConfirmInput" 
+                                       class="form-control" 
+                                       placeholder="Nhập lại mã PIN" 
+                                       maxlength="8" />
+                                <button class="btn btn-outline-secondary" type="button" id="togglePinConfirm">
+                                    <i class="bi bi-eye" id="togglePinConfirmIcon"></i>
+                                </button>
+                            </div>
+                            <div id="pinConfirmError" class="text-danger mt-2 fw-bold" style="display: none;"></div>
+                            <div id="pinMatch" class="text-success mt-2 fw-bold" style="display: none;">
+                                <i class="bi bi-check-circle-fill"></i> PIN khớp!
+                            </div>
+                        </div>
+
+                        <!-- Hidden field for hash -->
+                        <input type="hidden" asp-for="PinCodeHash" id="pinCodeHashInput" />
+
+                        <!-- Buttons -->
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg shadow" id="submitBtn" disabled>
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                Kích hoạt Chat ngay
+                            </button>
+                            <a asp-action="Index" asp-controller="Home" class="btn btn-outline-secondary btn-lg">
+                                <i class="bi bi-arrow-left me-2"></i> Quay lại trang chủ
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Card Footer with tips -->
+                <div class="card-footer bg-light border-0">
+                    <small class="text-muted">
+                        <i class="bi bi-lightbulb-fill text-warning"></i>
+                        <strong>Mẹo:</strong> Chọn mã PIN dễ nhớ nhưng không quá đơn giản. 
+                        Tránh dùng 123456 hoặc ngày sinh.
+                    </small>
+                </div>
+            </div>
+
+            <!-- Security Info Card -->
+            <div class="card mt-4 border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-shield-fill-check text-success"></i>
+                        Bảo mật của bạn được đảm bảo
+                    </h6>
+                    <ul class="small text-muted mb-0 list-unstyled">
+                        <li class="mb-2">
+                            <i class="bi bi-check2 text-success"></i>
+                            Tin nhắn được mã hóa đầu cuối (End-to-End Encryption)
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check2 text-success"></i>
+                            Private key được mã hóa bằng PIN của bạn
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check2 text-success"></i>
+                            Mã PIN không bao giờ được gửi lên server
+                        </li>
+                        <li class="mb-0">
+                            <i class="bi bi-check2 text-success"></i>
+                            Không ai có thể đọc tin nhắn của bạn, kể cả chúng tôi
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        // Toggle PIN visibility
+        function setupTogglePassword(buttonId, inputId, iconId) {
+            document.getElementById(buttonId).addEventListener('click', function() {
+                const input = document.getElementById(inputId);
+                const icon = document.getElementById(iconId);
+                
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.remove('bi-eye');
+                    icon.classList.add('bi-eye-slash');
+                } else {
+                    input.type = 'password';
+                    icon.classList.remove('bi-eye-slash');
+                    icon.classList.add('bi-eye');
+                }
+            });
+        }
+
+        setupTogglePassword('togglePin', 'pinCodeInput', 'togglePinIcon');
+        setupTogglePassword('togglePinConfirm', 'pinCodeConfirmInput', 'togglePinConfirmIcon');
+
+        // Check PIN strength
+        function checkPinStrength(pin) {
+            if (pin.length < 6) return { strength: 0, text: '', color: '' };
+            
+            const hasSequence = /012|123|234|345|456|567|678|789|890/.test(pin);
+            const hasRepeating = /(.)\1{2,}/.test(pin);
+            const allSame = /^(.)\1+$/.test(pin);
+            
+            if (allSame || pin === '123456' || pin === '654321') {
+                return { strength: 25, text: 'Rất yếu', color: 'danger' };
+            }
+            
+            if (hasSequence || hasRepeating) {
+                return { strength: 50, text: 'Yếu', color: 'warning' };
+            }
+            
+            if (pin.length >= 8) {
+                return { strength: 100, text: 'Mạnh', color: 'success' };
+            }
+            
+            return { strength: 75, text: 'Trung bình', color: 'info' };
+        }
+
+        // Validate PIN and update UI
+        function validatePin() {
+            const pin = document.getElementById('pinCodeInput').value;
+            const pinConfirm = document.getElementById('pinCodeConfirmInput').value;
+            const pinError = document.getElementById('pinError');
+            const pinConfirmError = document.getElementById('pinConfirmError');
+            const pinMatch = document.getElementById('pinMatch');
+            const submitBtn = document.getElementById('submitBtn');
+            const displayName = document.getElementById('DisplayName').value.trim();
+            
+            let isValid = true;
+
+            // Validate PIN format
+            if (pin.length === 0) {
+                pinError.textContent = '';
+                pinError.style.display = 'none';
+                document.getElementById('pinStrength').style.display = 'none';
+            } else if (!/^\d+$/.test(pin)) {
+                pinError.innerHTML = '<i class="bi bi-x-circle-fill"></i> Mã PIN chỉ được chứa chữ số';
+                pinError.style.display = 'block';
+                document.getElementById('pinStrength').style.display = 'none';
+                isValid = false;
+            } else if (pin.length < 6 || pin.length > 8) {
+                pinError.innerHTML = '<i class="bi bi-x-circle-fill"></i> Mã PIN phải từ 6-8 chữ số';
+                pinError.style.display = 'block';
+                document.getElementById('pinStrength').style.display = 'none';
+                isValid = false;
+            } else {
+                pinError.style.display = 'none';
+                
+                // Show strength indicator
+                const strength = checkPinStrength(pin);
+                const strengthDiv = document.getElementById('pinStrength');
+                const strengthBar = document.getElementById('pinStrengthBar');
+                const strengthText = document.getElementById('pinStrengthText');
+                
+                strengthDiv.style.display = 'block';
+                strengthBar.style.width = strength.strength + '%';
+                strengthBar.className = `progress-bar bg-${strength.color}`;
+                strengthText.textContent = strength.text;
+                strengthText.className = `fw-bold text-${strength.color}`;
+            }
+
+            // Validate PIN confirmation
+            if (pinConfirm.length === 0) {
+                pinConfirmError.style.display = 'none';
+                pinMatch.style.display = 'none';
+            } else if (pin !== pinConfirm) {
+                pinConfirmError.innerHTML = '<i class="bi bi-x-circle-fill"></i> Xác nhận PIN không khớp';
+                pinConfirmError.style.display = 'block';
+                pinMatch.style.display = 'none';
+                isValid = false;
+            } else {
+                pinConfirmError.style.display = 'none';
+                pinMatch.style.display = 'block';
+            }
+
+            // Enable/disable submit button
+            const canSubmit = isValid && 
+                            pin.length >= 6 && 
+                            pin.length <= 8 && 
+                            pin === pinConfirm && 
+                            displayName.length >= 2;
+            
+            submitBtn.disabled = !canSubmit;
+            
+            if (canSubmit) {
+                submitBtn.classList.remove('btn-primary');
+                submitBtn.classList.add('btn-success');
+            } else {
+                submitBtn.classList.remove('btn-success');
+                submitBtn.classList.add('btn-primary');
+            }
+
+            return isValid;
+        }
+
+        // Hash PIN using SHA-256
+        function hashPin(pin) {
+            return CryptoJS.SHA256(pin).toString();
+        }
+
+        // Save PIN to localStorage
+        function savePinToLocalStorage(pin) {
+            const userName = document.getElementById("thisUserName").value;
+            var keyName = 'pinCode_'+userName ;
+            localStorage.setItem(keyName, pin);
+            console.log('PIN saved to localStorage');
+        }
+
+        // Event listeners
+        document.getElementById('pinCodeInput').addEventListener('input', validatePin);
+        document.getElementById('pinCodeConfirmInput').addEventListener('input', validatePin);
+        document.getElementById('DisplayName').addEventListener('input', validatePin);
+
+        // Form submission with animation
+        document.getElementById('chatRegistrationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const pin = document.getElementById('pinCodeInput').value;
+            const pinConfirm = document.getElementById('pinCodeConfirmInput').value;
+            const displayName = document.getElementById('DisplayName').value.trim();
+            
+            // Final validation
+            if (!/^\d{6,8}$/.test(pin)) {
+                alert('❌ Mã PIN không hợp lệ! Phải là 6-8 chữ số.');
+                return;
+            }
+            
+            if (pin !== pinConfirm) {
+                alert('❌ Xác nhận PIN không khớp!');
+                return;
+            }
+
+            if (displayName.length < 2) {
+                alert('❌ Tên hiển thị phải có ít nhất 2 ký tự!');
+                return;
+            }
+
+            // Show loading state
+            const submitBtn = document.getElementById('submitBtn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang xử lý...';
+            submitBtn.disabled = true;
+
+            // Hash PIN và set vào hidden field
+            const pinHash = hashPin(pin);
+            document.getElementById('pinCodeHashInput').value = pinHash;
+
+            // Save PIN to localStorage (plaintext as per requirement)
+            savePinToLocalStorage(pin);
+
+            // Submit form after short delay for better UX
+            setTimeout(() => {
+                this.submit();
+            }, 500);
+        });
+
+        // Auto-focus on first empty field
+        window.addEventListener('load', function() {
+            const displayName = document.getElementById('DisplayName');
+            if (!displayName.value) {
+                displayName.focus();
+            }
+        });
+    </script>
+}
+
+@section Styles {
+    <style>
+        .bg-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            border: none;
+        }
+
+        .form-control:focus,
+        .input-group .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        .input-group .btn {
+            border-left: 0;
+        }
+        
+        .input-group .form-control:focus + .btn {
+            border-color: #667eea;
+        }
+
+        .input-group-text {
+            border-right: 0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border: none;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(17, 153, 142, 0.4);
+        }
+
+        .alert-info {
+            background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+            border: none;
+        }
+
+        .progress {
+            border-radius: 10px;
+            background-color: #e9ecef;
+        }
+
+        .progress-bar {
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        .list-unstyled li {
+            padding: 3px 0;
+        }
+
+        keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .shake {
+            animation: shake 0.3s ease;
+        }
+    </style>
+}

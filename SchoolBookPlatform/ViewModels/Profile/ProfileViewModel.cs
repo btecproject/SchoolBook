@@ -1,6 +1,4 @@
-using SchoolBookPlatform.ViewModels.Post;
-
-namespace SchoolBookPlatform.ViewModels.Profile;
+﻿namespace SchoolBookPlatform.ViewModels.Profile;
 
 public class ProfileViewModel
 {
@@ -25,7 +23,4 @@ public class ProfileViewModel
     public bool IsFollowing { get; set; }
     public bool IsOwner { get; set; }
     public bool CanEdit { get; set; }
-    
-    public List<PostViewModel> UserPosts { get; set; } = new();
-    public int PostCount { get; set; }
 }

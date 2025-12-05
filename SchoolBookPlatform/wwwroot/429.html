@@ -1,0 +1,195 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>429 - Quá nhiều yêu cầu</title>
+    <style>
+        :root {
+            --primary-color: #f17330;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --text-muted: #6b7280;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        h1 {
+            font-size: 4rem;
+            margin: 0;
+            color: var(--primary-color);
+            line-height: 1;
+        }
+
+        h2 {
+            margin-top: 10px;
+            font-size: 1.5rem;
+            color: var(--text-color);
+        }
+
+        p {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .timer-box {
+            background: #eef2ff;
+            color: var(--primary-color);
+            font-weight: bold;
+            font-size: 2rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            display: inline-block;
+            min-width: 80px;
+        }
+
+        .progress-container {
+            width: 100%;
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            height: 6px;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 100%;
+            transition: width 1s linear;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s, opacity 0.2s;
+            width: 100%;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #4338ca;
+        }
+
+        button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>429</h1>
+    <h2>Bình tĩnh nào!</h2>
+    <p>Hệ thống nhận thấy quá nhiều yêu cầu từ bạn. Vui lòng đợi một chút trước khi tiếp tục.</p>
+
+    <div class="timer-box" id="timer">--</div>
+
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <button id="retryBtn" onclick="retry()" disabled>
+        Vui lòng đợi...
+    </button>
+</div>
+
+<script>
+    // 1. Lấy tham số retryAfter từ URL, mặc định là 10 giây nếu không có
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialTime = parseInt(urlParams.get('retryAfter')) || 10;
+
+    let timeLeft = initialTime;
+
+    const timerElement = document.getElementById('timer');
+    const progressBar = document.getElementById('progressBar');
+    const retryBtn = document.getElementById('retryBtn');
+
+    // Hàm cập nhật giao diện
+    function updateDisplay() {
+        timerElement.textContent = timeLeft + "s";
+
+        // Tính phần trăm thanh progress bar
+        const percentage = (timeLeft / initialTime) * 100;
+        progressBar.style.width = percentage + "%";
+    }
+
+    // Hàm reload trang
+    function retry() {
+        // Xóa query param để tránh loop vô hạn nếu server không tự redirect
+        window.location.href = window.location.origin + window.location.pathname.replace('/429.html', '/');
+        // Hoặc đơn giản là: window.location.reload(); tùy vào logic routing của bạn
+    }
+
+    // Khởi tạo hiển thị ban đầu
+    updateDisplay();
+
+    // 2. Logic đếm ngược
+    const countdown = setInterval(() => {
+        timeLeft--;
+        updateDisplay();
+
+        if (timeLeft <= 0) {
+            clearInterval(countdown);
+
+            // Trạng thái hoàn thành
+            timerElement.textContent = "Sẵn sàng!";
+            timerElement.style.color = "#059669"; // Màu xanh lá
+            timerElement.style.backgroundColor = "#d1fae5";
+
+            retryBtn.disabled = false;
+            retryBtn.textContent = "Thử lại ngay";
+            retryBtn.style.backgroundColor = "#059669";
+        }
+    }, 1000);
+
+    history.pushState(null, document.title, location.href);
+
+    // 2. Lắng nghe sự kiện khi người dùng nhấn nút Back (popstate)
+    window.addEventListener('popstate', function (event) {
+        // 3. Ngay lập tức đẩy lại trạng thái cũ để giữ người dùng ở lại trang
+        history.pushState(null, document.title, location.href);
+
+        // (Tùy chọn) Hiển thị cảnh báo nếu muốn
+        alert("Vui lòng đợi hết thời gian đếm ngược!");
+    });
+</script>
+
+</body>
+</html>
