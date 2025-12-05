@@ -208,6 +208,7 @@ namespace SchoolBookPlatform.Services
 
                 result.Add(new ContactDto
                 {
+                    ConversationId = msg.ConversationId,
                     UserId = partner.UserId,
                     Username = partner.Username,
                     DisplayName = partner.DisplayName,
@@ -369,85 +370,199 @@ namespace SchoolBookPlatform.Services
 
 
         // Get or Create Conversation (1-1)
-        public async Task<ConversationResult> GetOrCreateConversationAsync(Guid userId1, Guid userId2)
+        // public async Task<ConversationResult> GetOrCreateConversationAsync(Guid userId1, Guid userId2)
+        // {
+        //     var chatUser1 = await GetActiveChatUserIdAsync(userId1);
+        //     var chatUser2 = await GetActiveChatUserIdAsync(userId2);
+        //
+        //     // Nếu đối phương đã reset mà chưa tạo mới, chatUser2 sẽ là null -> Không thể chat
+        //     if (chatUser1 == null || chatUser2 == null)
+        //         throw new Exception("Người dùng chưa kích hoạt chat hoặc đã reset tài khoản.");
+        //
+        //     try
+        //     {
+        //         var existingConv = await db.Conversations
+        //             .Where(c => c.Type == 0) // Type 0 = 1-1
+        //             .Where(c => db.ConversationMembers
+        //                             .Where(cm => cm.ConversationId == c.Id)
+        //                             .Select(cm => cm.ChatUserId)
+        //                             .Contains(chatUser1.Value) &&
+        //                         db.ConversationMembers
+        //                             .Where(cm => cm.ConversationId == c.Id)
+        //                             .Select(cm => cm.ChatUserId)
+        //                             .Contains(chatUser2.Value))
+        //             .FirstOrDefaultAsync();
+        //
+        //         if (existingConv != null)
+        //         {
+        //             var hasValidKey = await db.ConversationKeys
+        //                 .AnyAsync(ck => ck.ConversationId == existingConv.Id && ck.ChatUserId == chatUser1.Value);
+        //
+        //             return new ConversationResult
+        //             {
+        //                 ConversationId = existingConv.Id,
+        //                 IsNew = false,
+        //                 IsKeyInitialized = hasValidKey
+        //             };
+        //         }
+        //
+        //         var newConv = new Conversation
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             Type = 0,
+        //             CreatedAt = DateTime.UtcNow.AddHours(7),
+        //             CreatorId = userId1,
+        //         };
+        //
+        //         db.Conversations.Add(newConv);
+        //
+        //         db.ConversationMembers.Add(new ConversationMember
+        //         {
+        //             ConversationId = newConv.Id,
+        //             ChatUserId = chatUser1.Value,
+        //             JoinedAt = DateTime.UtcNow.AddHours(7),
+        //             Role = 0
+        //         });
+        //
+        //         db.ConversationMembers.Add(new ConversationMember
+        //         {
+        //             ConversationId = newConv.Id,
+        //             ChatUserId = chatUser2.Value,
+        //             JoinedAt = DateTime.UtcNow.AddHours(7),
+        //             Role = 0
+        //         });
+        //
+        //         await db.SaveChangesAsync();
+        //
+        //         return new ConversationResult
+        //         {
+        //             ConversationId = newConv.Id,
+        //             IsNew = true,
+        //             IsKeyInitialized = false
+        //         };
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         logger.LogError(ex, "Error creating conversation");
+        //         throw;
+        //     }
+        // }
+
+        // Get messages with attachments
+        
+        public async Task<ConversationResult> GetOrCreateConversationAsync(Guid currentUserId, Guid recipientUserId)
+    {
+        var senderChatUser = await db.ChatUsers
+            .FirstOrDefaultAsync(u => u.UserId == currentUserId && u.IsActive);
+
+        if (senderChatUser == null)
+            throw new Exception("Tài khoản chat của bạn chưa được kích hoạt.");
+
+        //Kiểm tra xem ng nhận có tài khoản nào đang Active không
+        var recipientActiveUser = await db.ChatUsers
+            .FirstOrDefaultAsync(u => u.UserId == recipientUserId && u.IsActive);
+        
+        //Có tài khoản Active
+        //Tìm conversation cũ, nếu không có thì TẠO MỚI.
+        if (recipientActiveUser != null)
         {
-            var chatUser1 = await GetActiveChatUserIdAsync(userId1);
-            var chatUser2 = await GetActiveChatUserIdAsync(userId2);
+            // Tìm cuộc trò chuyện giữa A và B_Active
+            var liveConversation = await db.Conversations
+                .Where(c => c.Type == 0)
+                .Where(c => db.ConversationMembers.Any(cm => cm.ConversationId == c.Id && cm.ChatUserId == senderChatUser.Id) &&
+                            db.ConversationMembers.Any(cm => cm.ConversationId == c.Id && cm.ChatUserId == recipientActiveUser.Id))
+                .FirstOrDefaultAsync();
 
-            // Nếu đối phương đã reset mà chưa tạo mới, chatUser2 sẽ là null -> Không thể chat
-            if (chatUser1 == null || chatUser2 == null)
-                throw new Exception("Người dùng chưa kích hoạt chat hoặc đã reset tài khoản.");
-
-            try
+            if (liveConversation != null)
             {
-                var existingConv = await db.Conversations
-                    .Where(c => c.Type == 0) // Type 0 = 1-1
-                    .Where(c => db.ConversationMembers
-                                    .Where(cm => cm.ConversationId == c.Id)
-                                    .Select(cm => cm.ChatUserId)
-                                    .Contains(chatUser1.Value) &&
-                                db.ConversationMembers
-                                    .Where(cm => cm.ConversationId == c.Id)
-                                    .Select(cm => cm.ChatUserId)
-                                    .Contains(chatUser2.Value))
-                    .FirstOrDefaultAsync();
-
-                if (existingConv != null)
-                {
-                    var hasValidKey = await db.ConversationKeys
-                        .AnyAsync(ck => ck.ConversationId == existingConv.Id && ck.ChatUserId == chatUser1.Value);
-
-                    return new ConversationResult
-                    {
-                        ConversationId = existingConv.Id,
-                        IsNew = false,
-                        IsKeyInitialized = hasValidKey
-                    };
-                }
-
-                var newConv = new Conversation
-                {
-                    Id = Guid.NewGuid(),
-                    Type = 0,
-                    CreatedAt = DateTime.UtcNow.AddHours(7),
-                    CreatorId = userId1,
-                };
-
-                db.Conversations.Add(newConv);
-
-                db.ConversationMembers.Add(new ConversationMember
-                {
-                    ConversationId = newConv.Id,
-                    ChatUserId = chatUser1.Value,
-                    JoinedAt = DateTime.UtcNow.AddHours(7),
-                    Role = 0
-                });
-
-                db.ConversationMembers.Add(new ConversationMember
-                {
-                    ConversationId = newConv.Id,
-                    ChatUserId = chatUser2.Value,
-                    JoinedAt = DateTime.UtcNow.AddHours(7),
-                    Role = 0
-                });
-
-                await db.SaveChangesAsync();
+                var hasKey = await db.ConversationKeys
+                    .AnyAsync(ck => ck.ConversationId == liveConversation.Id && ck.ChatUserId == senderChatUser.Id);
 
                 return new ConversationResult
                 {
-                    ConversationId = newConv.Id,
-                    IsNew = true,
-                    IsKeyInitialized = false
+                    ConversationId = liveConversation.Id,
+                    IsNew = false,
+                    IsKeyInitialized = hasKey
                 };
             }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error creating conversation");
-                throw;
-            }
-        }
 
-        // Get messages with attachments
+            //Nếu chưa có -> tạo 
+            return await CreateNewConversationInternal(senderChatUser.Id, recipientActiveUser.Id, currentUserId);
+        }
+        
+        //Đã reset/Deactive
+        //tìm conversation cũ ko tạo mới
+        else
+        {
+            // Lấy danh sách tất cả ID cũ của B (để quét lịch sử)
+            var allRecipientIds = await db.ChatUsers
+                .Where(u => u.UserId == recipientUserId)
+                .Select(u => u.Id)
+                .ToListAsync();
+
+            if (!allRecipientIds.Any())
+                throw new Exception("Người dùng không tồn tại hoặc chưa kích hoạt chat.");
+
+            // Tìm conversation cũ nhất hoặc mới nhất trong lịch sử
+            var historyConversation = await db.Conversations
+                .Where(c => c.Type == 0)
+                .Where(c => db.ConversationMembers.Any(cm => cm.ConversationId == c.Id && cm.ChatUserId == senderChatUser.Id) &&
+                            db.ConversationMembers.Any(cm => cm.ConversationId == c.Id && allRecipientIds.Contains(cm.ChatUserId)))
+                .OrderByDescending(c => c.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (historyConversation != null)
+            {
+                var hasKey = await db.ConversationKeys
+                    .AnyAsync(ck => ck.ConversationId == historyConversation.Id && ck.ChatUserId == senderChatUser.Id);
+                return new ConversationResult
+                {
+                    ConversationId = historyConversation.Id,
+                    IsNew = false,
+                    IsKeyInitialized = hasKey 
+                };
+            }
+            
+            throw new Exception("Người dùng này không còn hoạt động và bạn chưa có lịch sử trò chuyện.");
+        }
+    }
+        private async Task<ConversationResult> CreateNewConversationInternal(Guid senderChatId, Guid recipientChatId, Guid creatorUserId)
+        {
+            var newConv = new Conversation
+            {
+                Id = Guid.NewGuid(),
+                Type = 0,
+                CreatedAt = DateTime.UtcNow.AddHours(7),
+                CreatorId = creatorUserId,
+            };
+
+            db.Conversations.Add(newConv);
+
+            db.ConversationMembers.Add(new ConversationMember
+            {
+                ConversationId = newConv.Id,
+                ChatUserId = senderChatId,
+                JoinedAt = DateTime.UtcNow.AddHours(7),
+                Role = 0
+            });
+
+            db.ConversationMembers.Add(new ConversationMember
+            {
+                ConversationId = newConv.Id,
+                ChatUserId = recipientChatId,
+                JoinedAt = DateTime.UtcNow.AddHours(7),
+                Role = 0
+            });
+
+            await db.SaveChangesAsync();
+
+            return new ConversationResult
+            {
+                ConversationId = newConv.Id,
+                IsNew = true,
+                IsKeyInitialized = false
+            };
+        }
         public async Task<List<MessageDto>> GetMessagesAsync(Guid conversationId, Guid userId, int count = 20,
             long? beforeId = null)
         {
@@ -661,6 +776,11 @@ namespace SchoolBookPlatform.Services
             if (chatUser != null)
             {
                 chatUser.IsActive = false; 
+                var userRsaKey = await db.UserRsaKeys.FirstOrDefaultAsync(k => k.ChatUserId == chatUser.Id);
+                if (userRsaKey != null && userRsaKey.IsActive)
+                {
+                    userRsaKey.IsActive = false;
+                }
                 // Không xóa dữ liệu vật lý -> Tránh lỗi FK ở phía người nhận tin nhắn cũ
                 await db.SaveChangesAsync();
             }

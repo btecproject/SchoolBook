@@ -114,7 +114,7 @@ namespace SchoolBookPlatform.Controllers
         public async Task<IActionResult> GetRecentContacts()
         {
             var currentUser = await HttpContext.GetCurrentUserAsync(db);
-            if (currentUser == null) return Unauthorized();
+            if (currentUser == null) return Unauthorized(new {message = "User not authenticated"});
 
             try
             {
@@ -582,17 +582,20 @@ namespace SchoolBookPlatform.Controllers
 
                 if (result.Success)
                 {
-                    TempData["SuccessMessage"] = "Đã reset tài khoản chat. Vui lòng đăng ký lại.";
-                    return RedirectToAction("Register");
+                    return Ok(new 
+                    { 
+                        success = true, 
+                        message = "Đã reset tài khoản chat.",
+                        redirectUrl = Url.Action("Register", "Chat")
+                    });
                 }
 
-                ModelState.AddModelError("", result.Message);
-                return View("ForgotPin");
+                return BadRequest(new { message = result.Message });
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error resetting chat");
-                return StatusCode(500, "Lỗi server.");
+                return StatusCode(500, new{message="Lỗi server khi reset tài khoản"});
             }
         }
     }

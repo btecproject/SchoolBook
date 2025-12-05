@@ -8,4 +8,6 @@ public class ContactDto
     public int UnreadCount { get; set; }
     public DateTime LastSentAt { get; set; }
     public string LastMessagePreview { get; set; } = string.Empty;
+    
+    public Guid ConversationId { get; set; }
 }

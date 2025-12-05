@@ -1,6 +1,6 @@
 ﻿@{
-    ViewData["Title"] = "Quên mã PIN Chat";
-    Layout = "_Layout";
+ViewData["Title"] = "Quên mã PIN Chat";
+Layout = "_Layout";
 }
 
 <div class="container mt-5">
@@ -12,15 +12,15 @@
                 </div>
                 <div class="card-body">
                     <h5 class="card-title text-danger">Bạn muốn reset lại tính năng Chat?</h5>
-                    
+
                     <p class="card-text">
                         Hệ thống bảo mật E2EE không lưu mã PIN của bạn. Nếu bạn quên PIN, <strong>không có cách nào để khôi phục nó</strong>.
                     </p>
-                    
+
                     <div class="alert alert-warning">
                         <strong>Hậu quả khi thực hiện thao tác này:</strong>
                         <ul class="mb-0 mt-2">
-                            <li>Toàn bộ <strong>lịch sử tin nhắn cũ</strong> sẽ không thể đọc được nữa (do mất khóa giải mã).</li>
+                            <li>Toàn bộ <strong>lịch sử tin nhắn cũ</strong> sẽ không thể đọc được nữa.</li>
                             <li>Bạn sẽ phải tạo mã PIN mới và cặp khóa bảo mật mới.</li>
                             <li>Các cuộc trò chuyện với người khác sẽ cần khởi tạo lại khóa bảo mật.</li>
                         </ul>
@@ -28,10 +28,10 @@
 
                     <p>Nếu bạn chấp nhận mất dữ liệu cũ để tiếp tục sử dụng Chat, hãy nhấn nút bên dưới.</p>
 
-                    <form asp-action="ResetChatAccount" method="post" id="resetForm">
+                    <form id="resetForm">
                         @Html.AntiForgeryToken()
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-danger btn-lg">
+                            <button type="submit" id="btnSubmitReset" class="btn btn-danger btn-lg">
                                 <i class="bi bi-arrow-counterclockwise"></i> Tôi hiểu, hãy Reset và xóa dữ liệu cũ
                             </button>
                             <a asp-action="VerifyPinCode" class="btn btn-secondary">
@@ -46,18 +46,56 @@
 </div>
 
 @section Scripts {
-    <script>
-        // Khi reset, cần xóa sạch LocalStorage liên quan đến chat (PIN cũ, Key Cache cũ)
-        document.getElementById('resetForm').addEventListener('submit', function() {
-            const currentUsername = '@User.Identity.Name';
+<script>
+    document.getElementById('resetForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        if(!confirm("Bạn có CHẮC CHẮN muốn xóa toàn bộ dữ liệu chat cũ không?")) return;
+
+        const btn = document.getElementById('btnSubmitReset');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang xử lý...';
+
+        try {
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            const response = await fetch('@Url.Action("ResetChatAccount", "Chat")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                }
+            });
             
-            // Xóa PIN cũ
-            localStorage.removeItem('pinCode_' + currentUsername);
-            
-            // Xóa các key cache cũ nếu có (tùy logic lưu key của bạn)
-            // Ví dụ: localStorage.removeItem('conversation_keys_' + currentUsername);
-            
-            console.log("Cleaning up local storage for reset...");
-        });
-    </script>
+            if (response.ok) {
+                const data = await response.json();
+                
+                const currentUsername = '@User.Identity.Name';
+                console.log("Cleaning up local storage for:", currentUsername);
+                
+                localStorage.removeItem('pinCode_' + currentUsername);
+                
+                if (data.redirectUrl) {
+                    window.location.href = data.redirectUrl;
+                } else {
+                    window.location.href = '/Chat/Register';
+                }
+            } else {
+                let errorMsg = "Lỗi không xác định";
+                try {
+                    const errData = await response.json();
+                    errorMsg = errData.message;
+                } catch(e) {}
+                alert("Lỗi: " + errorMsg);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Lỗi kết nối server.");
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+</script>
 }

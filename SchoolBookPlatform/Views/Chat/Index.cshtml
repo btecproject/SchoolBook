@@ -378,13 +378,13 @@ ViewData["Title"] = "Chat";
 
             let previewText = c.lastMessagePreview || (c.unreadCount > 0 ? "Tin nhắn mới" : "Tin nhắn được bảo mật");
             const previewClass = c.unreadCount > 0 ? "fw-bold text-dark" : "text-muted";
-            const isActive = currentRecipientId === c.userId ? 'active' : '';
+            const isActive = currentConversationId === c.conversationId ? 'active' : '';
             const unreadBadge = c.unreadCount > 0 ? `<div class="unread-badge">${c.unreadCount}</div>` : '';
 
             return `
                 <div class="contact-item d-flex align-items-center ${isActive}" 
                      id="contact-${c.userId}"
-                     onclick="startChatWithUser('${c.userId}', '${c.username}', '${c.displayName}')">
+                     onclick="startChatWithUser('${c.userId}', '${c.username}', '${c.displayName}', '${c.conversationId}')">
                     <div class="avatar-container">${avatarHtml}</div>
                     <div class="flex-grow-1 overflow-hidden" style="min-width: 0;">
                         <div class="d-flex justify-content-between align-items-center">
@@ -525,17 +525,60 @@ ViewData["Title"] = "Chat";
             console.error("❌ Lỗi khởi tạo key trên server");
         }
 }
-    async function startChatWithUser(userId, username, displayName) {
-        if (!currentUserId) return;
+    // async function startChatWithUser(userId, username, displayName, forceConversationÌd = null) {
+    //     if (!currentUserId) return;
+    //     showLoading('Đang tải chat...');
+    //    
+    //     // UI Update
+    //     document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
+    //     const activeItem = document.getElementById(`contact-${userId}`);
+    //     if(activeItem) {
+    //         activeItem.classList.add('active');
+    //         const badge = activeItem.querySelector('.unread-badge');
+    //         if(badge) badge.remove();
+    //     }
+    //    
+    //     try {
+    //         // 1. Mark Read
+    //         await markAsRead(userId);
+    //        
+    //         // 2. Get Public Key & Conv
+    //         const keyResp = await fetch(`@Url.Action("GetUserPublicKey", "Chat")?userId=${userId}`);
+    //         if (keyResp.ok) currentRecipientPublicKey = (await keyResp.json()).publicKey;
+    //
+    //         const convResp = await fetch(`@Url.Action("GetOrCreateConversation", "Chat")?recipientId=${userId}`, {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() }
+    //         });
+    //         const convData = await convResp.json();
+    //         currentConversationId = convData.conversationId;
+    //         currentRecipientId = userId;
+    //
+    //         if (connection?.state === signalR.HubConnectionState.Connected) {
+    //             await connection.invoke("JoinConversation", currentConversationId);
+    //         }
+    //        
+    //         if (!convData.isKeyInitialized) {
+    //             console.log("🆕 Chưa có key, đang khởi tạo...");
+    //             if (currentRecipientPublicKey) {
+    //                 await setupNewConversation(currentConversationId, userId, currentRecipientPublicKey);
+    //             }
+    //         }
+    //         // Đảm bảo key đã được load vào cache
+    //         await getConversationKey(currentConversationId);
+    //
+    //         const messages = await loadMessagesAndReturn(currentConversationId);
+    //         await displayMessages(messages);
+    //         showChatWindow(username, displayName);
+    //         setTimeout(() => scrollToBottom(false), 100);
+    //
+    //     } catch (e) { console.error(e); }
+    //     finally { hideLoading(); }
+    // }
 
-        // UI Update
-        document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
-        const activeItem = document.getElementById(`contact-${userId}`);
-        if(activeItem) {
-            activeItem.classList.add('active');
-            const badge = activeItem.querySelector('.unread-badge');
-            if(badge) badge.remove();
-        }
+    // FIX: Thêm tham số forceConversationId (mặc định null)
+    async function startChatWithUser(userId, username, displayName, forceConversationId = null) {
+        if (!currentUserId) return;
 
         showLoading('Đang tải chat...');
 
@@ -543,29 +586,68 @@ ViewData["Title"] = "Chat";
             // 1. Mark Read
             await markAsRead(userId);
 
-            // 2. Get Public Key & Conv
-            const keyResp = await fetch(`@Url.Action("GetUserPublicKey", "Chat")?userId=${userId}`);
-            if (keyResp.ok) currentRecipientPublicKey = (await keyResp.json()).publicKey;
+            // 2. Get Public Key (luôn lấy để phòng trường hợp cần thiết)
+            try {
+                const keyResp = await fetch(`@Url.Action("GetUserPublicKey", "Chat")?userId=${userId}`);
+                if (keyResp.ok) currentRecipientPublicKey = (await keyResp.json()).publicKey;
+            } catch(e) { console.warn("Không lấy được Public Key", e); }
 
-            const convResp = await fetch(`@Url.Action("GetOrCreateConversation", "Chat")?recipientId=${userId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() }
-            });
-            const convData = await convResp.json();
-            currentConversationId = convData.conversationId;
-            currentRecipientId = userId;
+            // ===== LOGIC QUAN TRỌNG ĐÃ SỬA =====
+            if (forceConversationId) {
+                // CASE 1: Bấm từ danh sách liên hệ (Đã biết rõ ID cuộc trò chuyện)
+                console.log("📂 Mở cuộc trò chuyện cụ thể:", forceConversationId);
+                currentConversationId = forceConversationId;
+                currentRecipientId = userId;
 
+                // UI Update: Highlight đúng dòng dựa trên Conversation ID
+                document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
+                const activeItem = document.getElementById(`contact-${forceConversationId}`);
+                if(activeItem) {
+                    activeItem.classList.add('active');
+                    const badge = activeItem.querySelector('.unread-badge');
+                    if(badge) badge.remove();
+                }
+
+            } else {
+                // CASE 2: Bấm từ Tìm kiếm (Chưa biết ID, nhờ Backend định đoạt)
+                const convResp = await fetch(`@Url.Action("GetOrCreateConversation", "Chat")?recipientId=${userId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() }
+                });
+
+                if (!convResp.ok) {
+                    const err = await convResp.json();
+                    alert(err.message || "Không thể tạo cuộc trò chuyện.");
+                    hideLoading();
+                    return;
+                }
+
+                const convData = await convResp.json();
+                currentConversationId = convData.conversationId;
+                currentRecipientId = userId;
+
+                // Nếu tạo mới hoàn toàn thì kiểm tra khởi tạo key
+                if (!convData.isKeyInitialized) {
+                    console.log("🆕 Chưa có key, đang khởi tạo...");
+                    if (currentRecipientPublicKey) {
+                        await setupNewConversation(currentConversationId, userId, currentRecipientPublicKey);
+                    }
+                }
+
+                // UI Update: Highlight (nếu tìm thấy trong list contacts)
+                document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
+                // Cố tìm theo conversationId mới lấy được
+                const activeItem = document.getElementById(`contact-${currentConversationId}`);
+                if(activeItem) activeItem.classList.add('active');
+            }
+
+            // 3. SignalR Join Group
             if (connection?.state === signalR.HubConnectionState.Connected) {
                 await connection.invoke("JoinConversation", currentConversationId);
             }
-            
-            if (!convData.isKeyInitialized) {
-                console.log("🆕 Chưa có key, đang khởi tạo...");
-                if (currentRecipientPublicKey) {
-                    await setupNewConversation(currentConversationId, userId, currentRecipientPublicKey);
-                }
-            }
-            // Đảm bảo key đã được load vào cache
+
+            // 4. Lấy Key & Load tin nhắn
+            // Quan trọng: getConversationKey sẽ lấy key của ĐÚNG conversationId hiện tại
             await getConversationKey(currentConversationId);
 
             const messages = await loadMessagesAndReturn(currentConversationId);
@@ -573,10 +655,13 @@ ViewData["Title"] = "Chat";
             showChatWindow(username, displayName);
             setTimeout(() => scrollToBottom(false), 100);
 
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+            alert("Có lỗi xảy ra.");
+        }
         finally { hideLoading(); }
     }
-
+    
     async function markAsRead(senderId) {
         try {
             await fetch('@Url.Action("MarkRead", "Chat")', {
