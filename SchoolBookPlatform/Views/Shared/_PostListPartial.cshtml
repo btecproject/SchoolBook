@@ -1,0 +1,15 @@
+﻿@model SchoolBookPlatform.ViewModels.Post.PostListViewModel
+
+@if (Model.Posts.Any())
+{
+    @foreach (var post in Model.Posts)
+    {
+        @await Html.PartialAsync("_PostItemPartial", post)
+    }
+}
+else
+{
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> Chưa có bài đăng nào. Hãy <a asp-controller="Post" asp-action="Create">đăng bài đầu tiên</a>!
+    </div>
+}

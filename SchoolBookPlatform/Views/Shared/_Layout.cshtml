@@ -139,13 +139,13 @@
         </div>
         
         <a class="sidebar-button @(ViewBag.ViewType != "following" ? "active" : "")" 
-           href="@Url.Action("Index", "Post")">
+           href="@Url.Action("Home", "Feeds")">
             <i class="fas fa-globe"></i>
             <span>For You</span>
         </a>
         
         <a class="sidebar-button @(ViewBag.ViewType == "following" ? "active" : "")" 
-           href="@Url.Action("Following", "Post")">
+           href="@Url.Action("Following", "Feeds")">
             <i class="fas fa-user-friends"></i>
             <span>Following</span>
         </a>
