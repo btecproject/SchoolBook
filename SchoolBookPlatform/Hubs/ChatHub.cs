@@ -16,7 +16,7 @@ namespace SchoolBookPlatform.Hubs
         private readonly ILogger<ChatHub> _logger;
 
         // Dictionary để track user connections
-        // Key: UserId, Value: List of ConnectionIds
+        // Key: UserId (Gốc), Value: List of ConnectionIds
         private static readonly Dictionary<Guid, HashSet<string>> _userConnections = new();
         private static readonly object _lock = new();
 
@@ -65,7 +65,6 @@ namespace SchoolBookPlatform.Hubs
                     {
                         _userConnections[user.Id].Remove(Context.ConnectionId);
 
-                        // Nếu user không còn connection nào thì xóa khỏi dictionary
                         if (_userConnections[user.Id].Count == 0)
                         {
                             _userConnections.Remove(user.Id);
@@ -76,7 +75,6 @@ namespace SchoolBookPlatform.Hubs
                 _logger.LogInformation("User {UserId} disconnected with ConnectionId {ConnectionId}",
                     user.Id, Context.ConnectionId);
 
-                // Check if user is completely offline
                 if (!IsUserOnline(user.Id))
                 {
                     await NotifyContactsUserStatus(user.Id, false);
@@ -92,15 +90,23 @@ namespace SchoolBookPlatform.Hubs
             var user = await Context.GetHttpContext()!.GetCurrentUserAsync(_db);
             if (user == null) return;
 
+            // 1. Lấy Active ChatUser
+            var chatUser = await _db.ChatUsers.FirstOrDefaultAsync(cu => cu.UserId == user.Id && cu.IsActive);
+            if (chatUser == null)
+            {
+                await Clients.Caller.SendAsync("Error", "Chat account not active or registered");
+                return;
+            }
+
             if (!Guid.TryParse(conversationId, out var convId))
             {
                 await Clients.Caller.SendAsync("Error", "Invalid conversation ID");
                 return;
             }
 
-            // Kiểm tra user có phải member của conversation không
+            // 2. Kiểm tra user có phải member của conversation không (Dùng ChatUserId)
             var isMember = await _db.ConversationMembers
-                .AnyAsync(cm => cm.ConversationId == convId && cm.UserId == user.Id);
+                .AnyAsync(cm => cm.ConversationId == convId && cm.ChatUserId == chatUser.Id);
 
             if (!isMember)
             {
@@ -108,42 +114,19 @@ namespace SchoolBookPlatform.Hubs
                 return;
             }
 
-            // Join vào group (room) của conversation
             await Groups.AddToGroupAsync(Context.ConnectionId, conversationId);
 
-            _logger.LogInformation("User {UserId} joined conversation {ConvId}", user.Id, convId);
+            _logger.LogInformation("User {UserId} (ChatUser: {ChatUserId}) joined conversation {ConvId}", user.Id, chatUser.Id, convId);
 
-            // Notify others in the conversation
+            // Notify others
             await Clients.OthersInGroup(conversationId).SendAsync("UserJoinedConversation", new
             {
-                userId = user.Id,
+                userId = user.Id, // Vẫn gửi UserId gốc để client map avatar/status
+                chatUserId = chatUser.Id,
                 username = user.Username
             });
         }
-        
-        // Helper: Gửi thông báo cập nhật danh bạ cho danh sách user
-        private async Task NotifyUsersUpdateContact(List<Guid> userIds)
-        {
-            foreach (var userId in userIds)
-            {
-                await Clients.User(userId.ToString()).SendAsync("UpdateContactList");
 
-                List<string>? connections = null;
-                lock (_lock)
-                {
-                    if (_userConnections.TryGetValue(userId, out var set))
-                    {
-                        connections = set.ToList();
-                    }
-                }
-
-                if (connections != null && connections.Count > 0)
-                {
-                    await Clients.Clients(connections).SendAsync("UpdateContactList");
-                }
-            }
-        }
-        // Leave conversation room
         public async Task LeaveConversation(string conversationId)
         {
             var user = await Context.GetHttpContext()!.GetCurrentUserAsync(_db);
@@ -170,19 +153,26 @@ namespace SchoolBookPlatform.Hubs
                 return;
             }
 
+            // 1. Lấy Active ChatUser
+            var chatUser = await _db.ChatUsers.FirstOrDefaultAsync(cu => cu.UserId == user.Id && cu.IsActive);
+            if (chatUser == null)
+            {
+                await Clients.Caller.SendAsync("Error", "Chat account not active");
+                return;
+            }
+
             try
             {
-                // Validate conversation ID
                 if (!Guid.TryParse(request.ConversationId, out var convId))
                 {
                     await Clients.Caller.SendAsync("Error", "Invalid conversation ID");
                     return;
                 }
 
-                // Send message through service
+                // Send message through service (Service đã xử lý logic ChatUser)
                 var result = await _chatService.SendMessageAsync(
                     convId,
-                    user.Id,
+                    user.Id, // Service sẽ tự resolve ChatUserId từ UserId này
                     request.CipherText,
                     request.MessageType
                 );
@@ -193,9 +183,9 @@ namespace SchoolBookPlatform.Hubs
                     return;
                 }
 
-                // Lấy attachment nếu có (cho file messages)
+                // Lấy attachment nếu có
                 MessageAttachmentDto? attachment = null;
-                if (request.MessageType != 0) // Không phải text
+                if (request.MessageType != 0)
                 {
                     attachment = await _db.MessageAttachments
                         .Where(a => a.MessageId == result.Data)
@@ -209,7 +199,7 @@ namespace SchoolBookPlatform.Hubs
                         .FirstOrDefaultAsync();
                 }
 
-                // Broadcast to all members in conversation (including sender)
+                // Broadcast
                 await Clients.Group(request.ConversationId).SendAsync("ReceiveMessage", new
                 {
                     messageId = result.Data,
@@ -219,18 +209,20 @@ namespace SchoolBookPlatform.Hubs
                     cipherText = request.CipherText,
                     messageType = request.MessageType,
                     createdAt = DateTime.UtcNow.AddHours(7),
-                    pinExchange = request.PinExchange
                 });
 
-                var otherMemberIds = await _db.ConversationMembers
-                    .Where(cm => cm.ConversationId == convId && cm.UserId != user.Id)
-                    .Select(cm => cm.UserId)
+                // Thông báo cập nhật danh bạ
+                // Cần tìm UserId gốc của các thành viên khác để gửi notify
+                var otherMemberUserIds = await _db.ConversationMembers
+                    .Where(cm => cm.ConversationId == convId && cm.ChatUserId != chatUser.Id)
+                    .Include(cm => cm.ChatUser)
+                    .Select(cm => cm.ChatUser.UserId) // Lấy UserId gốc
                     .ToListAsync();
 
-                await NotifyUsersUpdateContact(otherMemberIds);
+                await NotifyUsersUpdateContact(otherMemberUserIds);
 
-                _logger.LogInformation("Message {MsgId} sent by user {UserId} in conversation {ConvId}",
-                    result.Data, user.Id, convId);
+                _logger.LogInformation("Message {MsgId} sent by user {UserId} (ChatUser {ChatUserId})",
+                    result.Data, user.Id, chatUser.Id);
             }
             catch (Exception ex)
             {
@@ -238,14 +230,114 @@ namespace SchoolBookPlatform.Hubs
                 await Clients.Caller.SendAsync("Error", "Failed to send message");
             }
         }
-        
+
+        public async Task SendFileMessage(SendFileMessageRequest request)
+        {
+            var user = await Context.GetHttpContext()!.GetCurrentUserAsync(_db);
+            if (user == null)
+            {
+                await Clients.Caller.SendAsync("Error", "User not authenticated");
+                return;
+            }
+
+            var chatUser = await _db.ChatUsers.FirstOrDefaultAsync(cu => cu.UserId == user.Id && cu.IsActive);
+            if (chatUser == null)
+            {
+                await Clients.Caller.SendAsync("Error", "Chat account not active");
+                return;
+            }
+
+            try
+            {
+                if (!Guid.TryParse(request.ConversationId, out var convId))
+                {
+                    await Clients.Caller.SendAsync("Error", "Invalid conversation ID");
+                    return;
+                }
+
+                // Kiểm tra member bằng ChatUserId
+                var isMember = await _db.ConversationMembers
+                    .AnyAsync(cm => cm.ConversationId == convId && cm.ChatUserId == chatUser.Id);
+
+                if (!isMember)
+                {
+                    await Clients.Caller.SendAsync("Error", "You are not a member of this conversation");
+                    return;
+                }
+
+                // Verify message exists và thuộc về ChatUser này (SenderId trong DB là ChatUserId)
+                var messageExists = await _db.Messages
+                    .AnyAsync(m => m.Id == request.MessageId && m.SenderId == chatUser.Id);
+
+                if (!messageExists)
+                {
+                    await Clients.Caller.SendAsync("Error", "Message not found or unauthorized");
+                    return;
+                }
+
+                // Broadcast
+                await Clients.Group(request.ConversationId).SendAsync("ReceiveMessage", new
+                {
+                    messageId = request.MessageId,
+                    conversationId = convId,
+                    senderId = user.Id,
+                    senderUsername = user.Username,
+                    cipherText = request.CipherText,
+                    messageType = request.MessageType,
+                    createdAt = DateTime.UtcNow.AddHours(7),
+                    pinExchange = (string?)null,
+                    attachment = request.Attachment
+                });
+
+                // Notify
+                var otherMemberUserIds = await _db.ConversationMembers
+                    .Where(cm => cm.ConversationId == convId && cm.ChatUserId != chatUser.Id)
+                    .Include(cm => cm.ChatUser)
+                    .Select(cm => cm.ChatUser.UserId)
+                    .ToListAsync();
+
+                await NotifyUsersUpdateContact(otherMemberUserIds);
+
+                _logger.LogInformation("File message {MsgId} sent by {UserId}", request.MessageId, user.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending file message {MsgId}", request.MessageId);
+                await Clients.Caller.SendAsync("Error", "Failed to send file message");
+            }
+        }
+
+        // Helper: Gửi thông báo cập nhật danh bạ cho danh sách user (theo UserId gốc)
+        private async Task NotifyUsersUpdateContact(List<Guid> userIds)
+        {
+            foreach (var userId in userIds)
+            {
+                // Gửi qua User ID provider
+                await Clients.User(userId.ToString()).SendAsync("UpdateContactList");
+
+                // Gửi trực tiếp vào ConnectionId (nếu đang online)
+                List<string>? connections = null;
+                lock (_lock)
+                {
+                    if (_userConnections.TryGetValue(userId, out var set))
+                    {
+                        connections = set.ToList();
+                    }
+                }
+
+                if (connections != null && connections.Count > 0)
+                {
+                    await Clients.Clients(connections).SendAsync("UpdateContactList");
+                }
+            }
+        }
+
         // User đang typing
         public async Task UserTyping(string conversationId)
         {
             var user = await Context.GetHttpContext()!.GetCurrentUserAsync(_db);
             if (user == null) return;
 
-            // Notify others in the conversation
             await Clients.OthersInGroup(conversationId).SendAsync("UserTyping", new
             {
                 userId = user.Id,
@@ -254,7 +346,6 @@ namespace SchoolBookPlatform.Hubs
             });
         }
 
-        // User stopped typing
         public async Task UserStoppedTyping(string conversationId)
         {
             var user = await Context.GetHttpContext()!.GetCurrentUserAsync(_db);
@@ -274,24 +365,17 @@ namespace SchoolBookPlatform.Hubs
             var user = await Context.GetHttpContext()!.GetCurrentUserAsync(_db);
             if (user == null) return;
 
-            if (!Guid.TryParse(conversationId, out var convId))
-            {
-                return;
-            }
+            if (!Guid.TryParse(conversationId, out var convId)) return;
 
-            // Notify others that messages have been read
             await Clients.OthersInGroup(conversationId).SendAsync("MessagesRead", new
             {
                 userId = user.Id,
                 conversationId = convId,
                 lastMessageId
             });
-
-            _logger.LogDebug("User {UserId} marked messages as read in conversation {ConvId}",
-                user.Id, convId);
         }
 
-        // Helper: Check if user is online
+        // --- Helpers quản lý connection ---
         private static bool IsUserOnline(Guid userId)
         {
             lock (_lock)
@@ -300,29 +384,28 @@ namespace SchoolBookPlatform.Hubs
             }
         }
 
-        // Helper: Get all connection IDs for a user
-        private static List<string> GetUserConnectionIds(Guid userId)
-        {
-            lock (_lock)
-            {
-                return _userConnections.ContainsKey(userId)
-                    ? _userConnections[userId].ToList()
-                    : new List<string>();
-            }
-        }
-
-        // Helper: Notify contacts about user status
         private async Task NotifyContactsUserStatus(Guid userId, bool isOnline)
         {
             try
             {
-                // Get all conversations where user is a member
-                var conversationIds = await _db.ConversationMembers
-                    .Where(cm => cm.UserId == userId)
-                    .Select(cm => cm.ConversationId.ToString())
+                // Cần tìm các conversation mà user tham gia, nhưng bảng ConversationMembers dùng ChatUserId.
+                // Ta phải join ngược từ UserId -> ChatUsers -> ConversationMembers
+                
+                // 1. Lấy tất cả ChatUserIds của user này (cũ và mới, để thông báo hết)
+                var chatUserIds = await _db.ChatUsers
+                    .Where(cu => cu.UserId == userId)
+                    .Select(cu => cu.Id)
                     .ToListAsync();
 
-                // Notify all those conversations
+                if (!chatUserIds.Any()) return;
+
+                // 2. Lấy danh sách ConversationId
+                var conversationIds = await _db.ConversationMembers
+                    .Where(cm => chatUserIds.Contains(cm.ChatUserId))
+                    .Select(cm => cm.ConversationId.ToString())
+                    .Distinct()
+                    .ToListAsync();
+
                 foreach (var convId in conversationIds)
                 {
                     await Clients.OthersInGroup(convId).SendAsync("UserStatusChanged", new
@@ -339,11 +422,9 @@ namespace SchoolBookPlatform.Hubs
             }
         }
 
-        // Get online status of users
         public async Task GetOnlineStatus(List<string> userIds)
         {
             var onlineUsers = new List<string>();
-
             foreach (var userIdStr in userIds)
             {
                 if (Guid.TryParse(userIdStr, out var userId) && IsUserOnline(userId))
@@ -351,80 +432,8 @@ namespace SchoolBookPlatform.Hubs
                     onlineUsers.Add(userIdStr);
                 }
             }
-
             await Clients.Caller.SendAsync("OnlineStatusResponse", onlineUsers);
         }
-
-
- public async Task SendFileMessage(SendFileMessageRequest request)
-{
-    var user = await Context.GetHttpContext()!.GetCurrentUserAsync(_db);
-    if (user == null)
-    {
-        await Clients.Caller.SendAsync("Error", "User not authenticated");
-        return;
-    }
-
-    try
-    {
-        // Validate conversation ID
-        if (!Guid.TryParse(request.ConversationId, out var convId))
-        {
-            await Clients.Caller.SendAsync("Error", "Invalid conversation ID");
-            return;
-        }
-
-        // Kiểm tra user có phải member của conversation không
-        var isMember = await _db.ConversationMembers
-            .AnyAsync(cm => cm.ConversationId == convId && cm.UserId == user.Id);
-
-        if (!isMember)
-        {
-            await Clients.Caller.SendAsync("Error", "You are not a member of this conversation");
-            return;
-        }
-
-        // Verify message exists và thuộc về user này
-        var messageExists = await _db.Messages
-            .AnyAsync(m => m.Id == request.MessageId && m.SenderId == user.Id);
-
-        if (!messageExists)
-        {
-            await Clients.Caller.SendAsync("Error", "Message not found or unauthorized");
-            return;
-        }
-
-        // Broadcast file message với đầy đủ attachment data
-        await Clients.Group(request.ConversationId).SendAsync("ReceiveMessage", new
-        {
-            messageId = request.MessageId,
-            conversationId = convId,
-            senderId = user.Id,
-            senderUsername = user.Username,
-            cipherText = request.CipherText,
-            messageType = request.MessageType,
-            createdAt = DateTime.UtcNow.AddHours(7),
-            pinExchange = (string?)null,
-            attachment = request.Attachment // ✅ GỬI KÈM ATTACHMENT DATA
-        });
-        
-        // Thông báo cho các members khác cập nhật contact list
-        var otherMemberIds = await _db.ConversationMembers
-            .Where(cm => cm.ConversationId == convId && cm.UserId != user.Id)
-            .Select(cm => cm.UserId)
-            .ToListAsync();
-
-        await NotifyUsersUpdateContact(otherMemberIds);
-        
-        _logger.LogInformation("File message {MsgId} (type: {Type}) sent by user {UserId} in conversation {ConvId}", 
-            request.MessageId, request.MessageType, user.Id, convId);
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error sending file message {MsgId} in SignalR", request.MessageId);
-        await Clients.Caller.SendAsync("Error", "Failed to send file message");
-    }
-}
 
         public class SendFileMessageRequest
         {
@@ -443,13 +452,11 @@ namespace SchoolBookPlatform.Hubs
             public string? Format { get; set; }
         }
 
-        // Request models for SignalR
         public class SendMessageRequest
         {
             public string ConversationId { get; set; } = string.Empty;
             public string CipherText { get; set; } = string.Empty;
             public byte MessageType { get; set; }
-            public string? PinExchange { get; set; }
         }
     }
 }

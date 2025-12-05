@@ -7,7 +7,7 @@ namespace SchoolBookPlatform.Models;
 public class UserRsaKey
 {
     [Key]
-    public Guid UserId { get; set; }
+    public Guid ChatUserId { get; set; }
     
     [Required]
     [Column(TypeName = "NVARCHAR(MAX)")]
@@ -26,6 +26,6 @@ public class UserRsaKey
     public bool IsActive { get; set; } = true;
 
     // Navigation property
-    [ForeignKey("UserId")]
-    public virtual User User { get; set; } = null!;
+    [ForeignKey("ChatUserId")]
+    public virtual ChatUser ChatUser { get; set; } = null!;
 }

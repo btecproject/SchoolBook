@@ -113,7 +113,7 @@ public class AppDbContext : DbContext
         // CHAT
         // ConversationMember composite PK
         modelBuilder.Entity<ConversationMember>()
-            .HasKey(cm => new { cm.ConversationId, cm.UserId });
+            .HasKey(cm => new { cm.ConversationId, cm.ChatUserId });
 
         // MessageNotification composite PK
         modelBuilder.Entity<MessageNotification>()
@@ -121,7 +121,7 @@ public class AppDbContext : DbContext
 
         // Unique active RSA key per user
         modelBuilder.Entity<UserRsaKey>()
-            .HasIndex(k => k.UserId)
+            .HasIndex(k => k.ChatUserId)
             .IsUnique()
             .HasFilter("[IsActive] = 1");
 
@@ -148,7 +148,7 @@ public class AppDbContext : DbContext
             .HasIndex(k => k.IsActive);
         
         modelBuilder.Entity<ConversationKey>()
-            .HasKey(k => new { k.UserId, k.ConversationId, k.KeyVersion });
+            .HasKey(k => new { k.ChatUserId, k.ConversationId, k.KeyVersion });
         base.OnModelCreating(modelBuilder);
     }
 }

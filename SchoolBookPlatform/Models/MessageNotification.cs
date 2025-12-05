@@ -12,7 +12,7 @@ public class MessageNotification
     public DateTime LastSentAt { get; set; } = DateTime.UtcNow.AddHours(7);
 
     // Navigation
-    public User Recipient { get; set; } = null!;
-    public User Sender { get; set; } = null!;
+    public ChatUser Recipient { get; set; } = null!;
+    public ChatUser Sender { get; set; } = null!;
     public Message? LastMessage { get; set; }
 }

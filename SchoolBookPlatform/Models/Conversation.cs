@@ -18,7 +18,7 @@ public class Conversation
     
     
     // Navigation properties
-    public User? Creator { get; set; }
+    public ChatUser? Creator { get; set; }
     public ICollection<ConversationMember> Members { get; set; } = new List<ConversationMember>();
     public ICollection<Message> Messages { get; set; } = new List<Message>();
 }

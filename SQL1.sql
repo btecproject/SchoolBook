@@ -198,12 +198,12 @@ CREATE TABLE Conversations (
 -- 2. ConversationMembers (ai trong đoạn chat nào)
 CREATE TABLE ConversationMembers (
                                      ConversationId UNIQUEIDENTIFIER NOT NULL,
-                                     UserId			UNIQUEIDENTIFIER NOT NULL,
+                                     ChatUserId     UNIQUEIDENTIFIER NOT NULL, -- Đã sửa tên và bỏ CONSTRAINT dư
                                      JoinedAt       DATETIME2 DEFAULT GETUTCDATE(),
-                                     Role           TINYINT DEFAULT 0,          -- 0=member, 1=Admin(chỉ có nếu là nhóm)
-                                     PRIMARY KEY (ConversationId, UserId),
-                                     FOREIGN KEY (ConversationId) REFERENCES Conversations(Id) ON DELETE CASCADE,
-                                     --FOREIGN KEY (UserId) REFERENCES Users(Id)   -- XEM xét nên xóa
+                                     Role           TINYINT DEFAULT 0,
+
+                                     PRIMARY KEY (ConversationId, ChatUserId), -- Sửa UserId thành ChatUserId
+                                     FOREIGN KEY (ConversationId) REFERENCES Conversations(Id) ON DELETE CASCADE
 );
 
 -- 3. Messages (tin nhắn + attachment)
@@ -258,13 +258,13 @@ CREATE TABLE MessageNotifications (
 -- 1. Bảng ChatUsers – bắt buộc phải có để kích hoạt tính năng chat
 -- Chỉ user có trong bảng này mới được tìm kiếm và chat
 CREATE TABLE ChatUsers (
---                            Id            UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                           Id            UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
                            UserId		 UNIQUEIDENTIFIER PRIMARY KEY,
                            Username      NVARCHAR(256) NOT NULL,        -- trùng với Users.UserName
                            DisplayName   NVARCHAR(100) NOT NULL,        -- tên hiển thị trong chat
                            PinCodeHash   NVARCHAR(256) NOT NULL,        -- SHA-256 của PIN (client băm trước khi gửi)
                            CreatedAt     DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
---                            IsActive     BIT DEFAULT 1,
+                           IsActive     BIT DEFAULT 1,
                            UpdatedAt     DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
 
                            CONSTRAINT FK_ChatUsers_UserId
@@ -284,7 +284,8 @@ CREATE INDEX IX_ChatUsers_Username ON ChatUsers (Username);
 -- 2. Bảng UserRsaKeys – đúng theo mô tả của bạn
 -- Lưu PublicKey và PrivateKey đã được mã hóa AES bằng PIN (phía client)
 CREATE TABLE UserRsaKeys (
-                             UserId               UNIQUEIDENTIFIER PRIMARY KEY,
+--                           UserId               UNIQUEIDENTIFIER PRIMARY KEY,
+                             ChatUserId               UNIQUEIDENTIFIER PRIMARY KEY,
                              PublicKey            NVARCHAR(MAX) NOT NULL,        -- PEM format
                              PrivateKeyEncrypted  NVARCHAR(MAX) NOT NULL,        -- đã AES bằng PIN (client encrypt)
                              CreatedAt            DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
@@ -305,7 +306,7 @@ CREATE INDEX IX_UserRsaKeys_IsActive ON UserRsaKeys (IsActive);
 
 
 CREATE TABLE ConversationKeys (
-                                  UserId          UNIQUEIDENTIFIER NOT NULL,
+                                  ChatUserId          UNIQUEIDENTIFIER NOT NULL,
                                   ConversationId  UNIQUEIDENTIFIER NOT NULL,
 
                                   KeyVersion      INT NOT NULL DEFAULT 1,

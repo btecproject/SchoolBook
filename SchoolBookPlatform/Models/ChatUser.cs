@@ -7,6 +7,7 @@ namespace SchoolBookPlatform.Models;
 public class ChatUser
 {
     [Key]
+    public Guid Id { get; set; }
     public Guid UserId { get; set; }
     
     [Required]
@@ -27,6 +28,7 @@ public class ChatUser
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
     
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
+    public bool IsActive { get; set; } = true;
 
     // Navigation property
     [ForeignKey("UserId")]

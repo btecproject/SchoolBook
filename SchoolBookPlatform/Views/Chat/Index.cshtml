@@ -785,15 +785,11 @@ ViewData["Title"] = "Chat";
                     console.error("❌ Decryption returned null (Wrong PIN or Integrity check failed)");
                     content = '[Lỗi giải mã hoặc sai mã PIN]';
                 }
-                
+
             } else {
                 content = '[Đang tải khóa...]';
-                findKeyViaRSA([msg], msg.senderId).then(k => {
-                    if(k) {
-                        // Load lại toàn bộ tin nhắn để cập nhật hiển thị
-                        loadMessagesAndReturn(currentConversationId).then(displayMessages);
-                    }
-                });
+                // Load lại toàn bộ tin nhắn để cập nhật hiển thị
+                loadMessagesAndReturn(currentConversationId).then(displayMessages);
             }
         } catch (e) {
             console.error('❌ Append UI Error:', e);
@@ -1247,24 +1243,22 @@ ViewData["Title"] = "Chat";
                 loader.innerHTML = '<div class="spinner-border spinner-border-sm text-primary"></div> Đang tải tin cũ...';
                 area.prepend(loader); // Chèn lên đỉnh
             }
+            try{
+                const messages = await loadMessagesAndReturn(currentConversationId, oldestMessageId);
+                if (loader) loader.remove();
+                if (messages.length > 0) {
+                    await displayMessages(messages, true);
+                } else {
+                    isAllLoaded = true;
+                }
 
-            // 2. Gọi API
-            const messages = await loadMessagesAndReturn(currentConversationId, oldestMessageId);
-
-            // 3. Giải mã tin cũ (nếu cần)
-            if (messages.length > 0 && !recipientPinsCache.has(currentRecipientId?.toLowerCase())) {
-                await findKeyViaRSA(messages, currentRecipientId);
+            }catch(error){
+                console.error("Lỗi tải lịch sử:", error);
+                if (loader) loader.remove();
             }
-
-            // 4. Xóa Loader TRƯỚC KHI RENDER để tính toán chiều cao scroll chính xác
-            loader.remove();
-
-            if (messages.length > 0) {
-                // Render chế độ History (Prepend & Keep Scroll)
-                displayMessages(messages, true);
+            finally {
+                isLoadingHistory = false;
             }
-
-            isLoadingHistory = false;
         }
     });
     // ===== INIT =====

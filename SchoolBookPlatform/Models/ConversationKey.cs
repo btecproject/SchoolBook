@@ -6,7 +6,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 [Table("ConversationKeys")]
 public class ConversationKey
 {
-    public Guid UserId { get; set; }
+    public Guid ChatUserId { get; set; }
     
     public Guid ConversationId { get; set; }
     
@@ -17,9 +17,9 @@ public class ConversationKey
 
     public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
     
-    [ForeignKey("UserId")]
-    public virtual User? User { get; set; }
-
     [ForeignKey("ConversationId")]
     public virtual Conversation? Conversation { get; set; }
+    
+    [ForeignKey(nameof(ChatUserId))]
+    public virtual ChatUser ChatUser { get; set; } = null!;
 }

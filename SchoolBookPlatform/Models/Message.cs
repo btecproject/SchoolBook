@@ -16,7 +16,7 @@ public class Message
     
     //nav
     public Conversation Conversation { get; set; } = null!;
-    public User Sender { get; set; } = null!;
+    public ChatUser Sender { get; set; } = null!;
     public Message? ReplyTo { get; set; }
     public ICollection<Message> Replies { get; set; } = new List<Message>();
     public ICollection<MessageAttachment> Attachments { get; set; } = new List<MessageAttachment>();
