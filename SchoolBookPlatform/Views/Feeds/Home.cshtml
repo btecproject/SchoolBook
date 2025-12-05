@@ -2,7 +2,7 @@
 @{
     ViewData["Title"] = "Trang chủ";
     Layout = "~/Views/Shared/_Layout.cshtml";
-    <link rel="stylesheet" href="~/css/page/feed.css" asp-append-version="true"/>
+
 }
 
 <div class="container mt-4">
@@ -189,132 +189,142 @@
                             </div>
 
                             @* Hiển thị file đính kèm (nếu có) *@
+                            
                             @if (post.Attachments.Any())
                             {
-                                var mediaAttachments = post.Attachments.Where(a => a.IsMediaFile).ToList();
-                                var otherAttachments = post.Attachments.Where(a => !a.IsMediaFile).ToList();
-
-                                @if (mediaAttachments.Any())
-                                {
-                                    <div class="mt-3">
-                                        @if (mediaAttachments.Count == 1)
+                                <div class="mt-3">
+                                    @{
+                                        // Hàm helper kiểm tra video
+                                        bool IsVideoFile(string fileName)
                                         {
-                                            var media = mediaAttachments.First();
-                                            if (media.IsImage)
-                                            {
-                                                <div class="position-relative">
-                                                    <img src="@media.Url" 
-                                                         alt="@media.FileName"
-                                                         class="img-fluid rounded post-media media-modal-link"
-                                                         data-post-id="@post.Id"
-                                                         data-media-index="0"
-                                                         data-total-media="1"
-                                                         data-media-type="image"
-                                                         style="cursor: pointer; max-height: 550px; object-fit: contain; background-color: #f8f9fa;">
-                                                </div>
-                                            }
-                                            else if (media.IsVideo)
-                                            {
-                                                <div class="position-relative video-container">
-                                                    <video class="post-video w-100 rounded" 
-                                                           style="max-height: 550px; background-color: #000;"
-                                                           controlsList="nodownload"
-                                                           preload="metadata">
-                                                        <source src="@media.Url" type="video/mp4">
-                                                        Trình duyệt của bạn không hỗ trợ video.
-                                                    </video>
-                                                    <div class="video-overlay rounded" style="cursor: pointer;">
-                                                        <div class="video-play-icon bg-dark bg-opacity-50 rounded-circle p-3">
-                                                            <i class="fas fa-play text-white" style="font-size: 2rem;"></i>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            }
+                                            if (string.IsNullOrEmpty(fileName))
+                                                return false;
+                                            var extension = System.IO.Path.GetExtension(fileName).ToLower();
+                                            var videoExtensions = new[] { ".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg" };
+                                            return videoExtensions.Contains(extension);
                                         }
-                                        else
-                                        {
-                                            <div id="carousel-@post.Id" class="carousel slide mb-3" data-bs-ride="carousel" style="height: 550px;">
-                                                <!-- Counter -->
-                                                <div class="carousel-counter">
-                                                    <span id="current-slide-@post.Id">1</span>
-                                                    <span>/</span>
-                                                    <span id="total-slides-@post.Id">@mediaAttachments.Count</span>
-                                                </div>
-                                                
-                                                <div class="carousel-inner rounded h-100">
-                                                    @for (int i = 0; i < mediaAttachments.Count; i++)
+                                        
+                                        var mediaItems = post.Attachments.Where(a => a.IsImage || IsVideoFile(a.FileName)).ToList();
+                                        var files = post.Attachments.Where(a => !a.IsImage && !IsVideoFile(a.FileName)).ToList();
+                                    }
+                                    
+                                    @if (mediaItems.Any())
+                                    {
+                                        <div id="carousel-@post.Id" class="carousel slide mb-3" data-bs-ride="carousel">
+                                            <!-- Counter hiển thị số media -->
+                                            <div class="carousel-counter">
+                                                <span id="current-slide-@post.Id">1</span> / <span id="total-slides-@post.Id">@mediaItems.Count</span>
+                                            </div>
+                                            
+                                            @if (mediaItems.Count > 1)
+                                            {
+                                                <div class="carousel-indicators">
+                                                    @for (int i = 0; i < mediaItems.Count; i++)
                                                     {
-                                                        var media = mediaAttachments[i];
-                                                        <div class="carousel-item h-100 @(i == 0 ? "active" : "")">
-                                                            @if (media.IsImage)
-                                                            {
-                                                                <img src="@media.Url" 
-                                                                     alt="@media.FileName"
-                                                                     class="d-block w-100 h-100 post-media media-modal-link"
-                                                                     data-post-id="@post.Id"
-                                                                     data-media-index="@i"
-                                                                     data-total-media="@mediaAttachments.Count"
-                                                                     data-media-type="image"
-                                                                     style="object-fit: contain; cursor: pointer;">
-                                                            }
-                                                            else if (media.IsVideo)
-                                                            {
-                                                                <div class="video-container w-100 h-100">
-                                                                    <video class="post-video w-100 h-100"
-                                                                           style="object-fit: contain; background-color: #000;"
-                                                                           controlsList="nodownload"
-                                                                           preload="metadata">
-                                                                        <source src="@media.Url" type="video/mp4">
-                                                                        Trình duyệt của bạn không hỗ trợ video.
-                                                                    </video>
-                                                                    <div class="video-overlay" style="cursor: pointer;">
-                                                                        <div class="video-play-icon bg-dark bg-opacity-50 rounded-circle p-3">
-                                                                            <i class="fas fa-play text-white" style="font-size: 2rem;"></i>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            }
-                                                        </div>
+                                                        <button type="button" data-bs-target="#carousel-@post.Id" 
+                                                                data-bs-slide-to="@i" class="@(i == 0 ? "active" : "")"
+                                                                aria-current="@(i == 0 ? "true" : "false")"></button>
                                                     }
                                                 </div>
-                                                
-                                                @if (mediaAttachments.Count > 1)
+                                            }
+                                            
+                                            <div class="carousel-inner rounded">
+                                                @for (int i = 0; i < mediaItems.Count; i++)
                                                 {
-                                                    <button class="carousel-control-prev" type="button" data-bs-target="#carousel-@post.Id" data-bs-slide="prev">
-                                                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                                                        <span class="visually-hidden">Previous</span>
-                                                    </button>
-                                                    <button class="carousel-control-next" type="button" data-bs-target="#carousel-@post.Id" data-bs-slide="next">
-                                                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                                                        <span class="visually-hidden">Next</span>
-                                                    </button>
+                                                    var media = mediaItems[i];
+                                                    <div class="carousel-item @(i == 0 ? "active" : "")" data-slide-index="@(i + 1)">
+                                                        @if (media.IsImage)
+                                                        {
+                                                            <a href="javascript:void(0);" class="d-block media-modal-link" 
+                                                               data-post-id="@post.Id"
+                                                               data-media-index="@i"
+                                                               data-total-media="@mediaItems.Count"
+                                                               data-media-type="image">
+                                                                <img src="@media.FilePath" 
+                                                                     class="d-block w-100 post-media"
+                                                                     alt="@media.FileName"
+                                                                     data-src="@media.FilePath"
+                                                                     data-media-name="@media.FileName"
+                                                                     style="max-height: 500px; object-fit: contain; background: #f8f9fa; cursor: pointer;" />
+                                                            </a>
+                                                        }
+                                                        else if (IsVideoFile(media.FileName))
+                                                        {
+                                                            <div class="video-container position-relative">
+                                                                <video class="d-block w-100 post-video"
+                                                                       controls
+                                                                       controlsList="nodownload"
+                                                                       preload="metadata"
+                                                                       style="max-height: 500px; object-fit: contain; background: #000; cursor: pointer;"
+                                                                       data-src="@media.FilePath"
+                                                                       data-media-name="@media.FileName">
+                                                                    <source src="@media.FilePath" type="video/mp4">
+                                                                    Trình duyệt của bạn không hỗ trợ video.
+                                                                </video>
+                                                                <a href="javascript:void(0);" class="media-modal-link video-overlay"
+                                                                   data-post-id="@post.Id"
+                                                                   data-media-index="@i"
+                                                                   data-total-media="@mediaItems.Count"
+                                                                   data-media-type="video">
+                                                                    <div class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center">
+                                                                        <div class="video-play-icon bg-dark bg-opacity-50 rounded-circle p-3">
+                                                                            <i class="fas fa-play text-white fa-2x"></i>
+                                                                        </div>
+                                                                    </div>
+                                                                </a>
+                                                            </div>
+                                                        }
+                                                    </div>
                                                 }
                                             </div>
-                                        }
-                                    </div>
-                                }
-
-                                @if (otherAttachments.Any())
-                                {
-                                    <div class="mt-3">
-                                        <h6><i class="fas fa-paperclip me-1"></i> Tệp đính kèm:</h6>
-                                        <div class="file-list">
-                                            @foreach (var file in otherAttachments)
+                                            
+                                            @if (mediaItems.Count > 1)
                                             {
-                                                <div class="mb-2">
-                                                    <a href="@file.Url" class="text-decoration-none" download="@file.FileName">
-                                                        <i class="fas fa-file @(file.FileType == "pdf" ? "text-danger" : 
-                                                                                file.FileType == "doc" || file.FileType == "docx" ? "text-primary" : 
-                                                                                file.FileType == "xls" || file.FileType == "xlsx" ? "text-success" : 
-                                                                                "text-secondary") me-2"></i>
-                                                        @file.FileName
-                                                    </a>
-                                                    <small class="text-muted">(@file.FileSize)</small>
-                                                </div>
+                                                <button class="carousel-control-prev" type="button" data-bs-target="#carousel-@post.Id" data-bs-slide="prev">
+                                                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                                    <span class="visually-hidden">Previous</span>
+                                                </button>
+                                                <button class="carousel-control-next" type="button" data-bs-target="#carousel-@post.Id" data-bs-slide="next">
+                                                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                                    <span class="visually-hidden">Next</span>
+                                                </button>
                                             }
                                         </div>
-                                    </div>
-                                }
+                                    }
+                                    
+                                    @if (files.Any())
+                                    {
+                                        <div class="file-list">
+                                            <small class="text-muted d-block mb-2">File đính kèm:</small>
+                                            @foreach (var file in files)
+                                            {
+                                                <a href="@file.FilePath" target="_blank" 
+                                                   class="d-flex align-items-center text-decoration-none text-dark p-2 border rounded mb-2">
+                                                    @{
+                                                        var icon = "fa-file";
+                                                        var extension = System.IO.Path.GetExtension(file.FileName).ToLower();
+                                                        var color = "#6c757d";
+                                                        
+                                                        if (extension == ".pdf") { icon = "fa-file-pdf"; color = "#dc3545"; }
+                                                        else if (extension == ".doc" || extension == ".docx") { icon = "fa-file-word"; color = "#0d6efd"; }
+                                                        else if (extension == ".xls" || extension == ".xlsx") { icon = "fa-file-excel"; color = "#198754"; }
+                                                        else if (extension == ".ppt" || extension == ".pptx") { icon = "fa-file-powerpoint"; color = "#fd7e14"; }
+                                                        else if (extension == ".zip" || extension == ".rar") { icon = "fa-file-archive"; color = "#6f42c1"; }
+                                                        else if (extension == ".mp4" || extension == ".avi" || extension == ".mov" || extension == ".mkv") { 
+                                                            icon = "fa-file-video"; color = "#9c27b0"; 
+                                                        }
+                                                    }
+                                                    <i class="fas @icon fa-2x me-3" style="color: @color;"></i>
+                                                    <div class="flex-grow-1">
+                                                        <div class="fw-medium text-truncate" style="max-width: 300px;">@file.FileName</div>
+                                                        <small class="text-muted">@((file.FileSize / 1024f / 1024f).ToString("F2")) MB</small>
+                                                    </div>
+                                                    <i class="fas fa-download text-primary"></i>
+                                                </a>
+                                            }
+                                        </div>
+                                    }
+                                </div>
                             }
 
                             <div class="mt-3 d-flex align-items-center gap-2" onclick="event.stopPropagation();">
