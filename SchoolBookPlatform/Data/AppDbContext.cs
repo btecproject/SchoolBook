@@ -16,19 +16,28 @@ public class AppDbContext : DbContext
     public DbSet<OtpCode> OtpCodes { get; set; } = null!;
     public DbSet<FaceProfile> FaceProfiles { get; set; } = null!;
     public DbSet<TrustedDevice> TrustedDevices { get; set; } = null!;
-    public DbSet<UserProfile> UserProfiles { get; set; }
-    public DbSet<Follower> Followers { get; set; }
-    public DbSet<Following> Following { get; set; }
+    public DbSet<UserProfile> UserProfiles { get; set; } = null!;
+    public DbSet<Follower> Followers { get; set; } = null!;
+    public DbSet<Following> Following { get; set; } = null!;
     public DbSet<RecoveryCode> RecoveryCodes { get; set; } = null!;
     
-    public DbSet<UserRsaKey> UserRsaKeys { get; set; }
-    public DbSet<ChatUser> ChatUsers { get; set; }
-    public DbSet<Conversation> Conversations { get; set; }
-    public DbSet<ConversationMember> ConversationMembers { get; set; }
-    public DbSet<Message> Messages { get; set; }
-    public DbSet<MessageAttachment> MessageAttachments { get; set; }
-    public DbSet<MessageNotification> MessageNotifications { get; set; }
-    public DbSet<ConversationKey>  ConversationKeys { get; set; }
+    // Post feature - DbSets
+    public DbSet<Post> Posts { get; set; } = null!;
+    public DbSet<PostComment> PostComments { get; set; } = null!;
+    public DbSet<PostVote> PostVotes { get; set; } = null!;
+    public DbSet<PostReport> PostReports { get; set; } = null!;
+    public DbSet<PostAttachment> PostAttachments { get; set; } = null!;
+    
+    // Chat feature - DbSets
+    public DbSet<UserRsaKey> UserRsaKeys { get; set; } = null!;
+    public DbSet<ChatUser> ChatUsers { get; set; } = null!;
+    public DbSet<Conversation> Conversations { get; set; } = null!;
+    public DbSet<ConversationMember> ConversationMembers { get; set; } = null!;
+    public DbSet<Message> Messages { get; set; } = null!;
+    public DbSet<MessageAttachment> MessageAttachments { get; set; } = null!;
+    public DbSet<MessageNotification> MessageNotifications { get; set; } = null!;
+    public DbSet<ConversationKey>  ConversationKeys { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -78,6 +87,7 @@ public class AppDbContext : DbContext
                 .HasForeignKey<FaceProfile>(f => f.UserId);
         });
 
+        // UserToken (additional configuration)
         modelBuilder.Entity<UserToken>(entity =>
         {
             entity.HasKey(t => t.Id);
@@ -86,6 +96,7 @@ public class AppDbContext : DbContext
             entity.HasIndex(t => t.UserId);
         });
         
+        // Follower/Following relationships
         modelBuilder.Entity<Follower>()
             .HasOne(f => f.User)
             .WithMany()
@@ -110,7 +121,53 @@ public class AppDbContext : DbContext
             .HasForeignKey(f => f.FollowingId)
             .OnDelete(DeleteBehavior.NoAction);
         
-        // CHAT
+        // Post feature - Entity configurations
+        
+        // Post entity configuration
+        modelBuilder.Entity<Post>(entity =>
+        {
+            // Index cho UserId để query nhanh
+            entity.HasIndex(p => p.UserId);
+            // Composite index cho IsVisible và IsDeleted để filter nhanh
+            entity.HasIndex(p => new { p.IsVisible, p.IsDeleted });
+            // Giới hạn độ dài VisibleToRoles
+            entity.Property(p => p.VisibleToRoles).HasMaxLength(50);
+        });
+
+        // PostComment entity configuration
+        modelBuilder.Entity<PostComment>(entity =>
+        {
+            // Index cho PostId để query comments của post nhanh
+            entity.HasIndex(pc => pc.PostId);
+            // Index cho ParentCommentId để query replies nhanh
+            entity.HasIndex(pc => pc.ParentCommentId);
+            // Cấu hình relationship cho nested comments
+            entity.HasOne(pc => pc.ParentComment)
+                .WithMany(pc => pc.Replies)
+                .HasForeignKey(pc => pc.ParentCommentId)
+                .OnDelete(DeleteBehavior.NoAction); // Không cascade để tránh xóa nhầm
+        });
+
+        // PostVote entity configuration
+        modelBuilder.Entity<PostVote>(entity =>
+        {
+            // Composite key: PostId + UserId (mỗi user chỉ vote 1 lần cho 1 post)
+            entity.HasKey(pv => new { pv.PostId, pv.UserId });
+        });
+
+        // PostReport entity configuration
+        modelBuilder.Entity<PostReport>(entity =>
+        {
+            // Index cho PostId để query reports của post nhanh
+            entity.HasIndex(pr => pr.PostId);
+            // Index cho Status để filter reports theo trạng thái nhanh
+            entity.HasIndex(pr => pr.Status);
+            // Giới hạn độ dài Status
+            entity.Property(pr => pr.Status).HasMaxLength(20);
+        });
+        
+        // CHAT feature configurations
+        
         // ConversationMember composite PK
         modelBuilder.Entity<ConversationMember>()
             .HasKey(cm => new { cm.ConversationId, cm.ChatUserId });
@@ -124,6 +181,10 @@ public class AppDbContext : DbContext
             .HasIndex(k => k.ChatUserId)
             .IsUnique()
             .HasFilter("[IsActive] = 1");
+
+        // ConversationKey composite PK
+        modelBuilder.Entity<ConversationKey>()
+            .HasKey(k => new { k.ChatUserId, k.ConversationId, k.KeyVersion });
 
         // Các index khác theo schema
         modelBuilder.Entity<Message>()
@@ -147,8 +208,16 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<UserRsaKey>()
             .HasIndex(k => k.IsActive);
         
-        modelBuilder.Entity<ConversationKey>()
-            .HasKey(k => new { k.ChatUserId, k.ConversationId, k.KeyVersion });
-        base.OnModelCreating(modelBuilder);
+        //RecoveryCodes (commented out as per original)
+        // modelBuilder.Entity<RecoveryCode>(entity =>
+        // {
+        //     entity.HasIndex(e => new { e.UserId, e.IsUsed })
+        //         .HasDatabaseName("IX_RecoveryCodes_UserId_IsUsed")
+        //         .IncludeProperties(e => e.HashedCode); // Covering index siêu nhanh
+        //
+        //     entity.Property(e => e.HashedCode)
+        //         .IsRequired()
+        //         .HasMaxLength(255);
+        // });
     }
 }
