@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Trang chủ";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    <link rel="stylesheet" href="~/css/page/feed.css" asp-append-version="true"/>
 }
 
 <div class="container mt-4">
@@ -93,21 +94,53 @@
             }
 
             @* Modal hiển thị ảnh/video toàn màn hình *@
-            <!-- GIỮ NGUYÊN MODAL CODE TỪ VIEW CŨ -->
+            <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-fullscreen">
+                    <div class="modal-content">
+                        <div class="modal-header border-0">
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-0 position-relative">
+                            <!-- Background mờ -->
+                            <div id="blurredBackground" class="position-absolute top-0 start-0 w-100 h-100"></div>
+                            
+                            <!-- Carousel Modal -->
+                            <div id="modalCarousel" class="carousel slide h-100" data-bs-ride="carousel">
+                                <div class="carousel-inner h-100"></div>
+                                
+                                <!-- Counter cho modal -->
+                                <div class="carousel-counter-modal position-absolute top-0 end-0 m-3">
+                                    <span id="modalCurrentSlide" class="badge bg-dark bg-opacity-75 p-2">1</span>
+                                    <span class="text-white">/</span>
+                                    <span id="modalTotalSlides" class="badge bg-dark bg-opacity-75 p-2">0</span>
+                                </div>
+                                
+                                <!-- Navigation buttons -->
+                                <button class="carousel-control-prev" type="button" data-bs-target="#modalCarousel" data-bs-slide="prev">
+                                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Previous</span>
+                                </button>
+                                <button class="carousel-control-next" type="button" data-bs-target="#modalCarousel" data-bs-slide="next">
+                                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Next</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             @* Danh sách bài đăng *@
             @if (Model.Posts.Any())
             {
                 @foreach (var post in Model.Posts)
                 {
-                    <div class="card mb-3">
+                    <div class="card mb-3 post-card" data-post-id="@post.Id" style="cursor: pointer;">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="flex-grow-1">
                                     <h5 class="card-title">
-                                        <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" class="text-decoration-none">
-                                            @post.Title
-                                        </a>
+                                        @post.Title
                                     </h5>
                                     <p class="card-text">@post.Content</p>
                                     <small class="text-muted">
@@ -119,45 +152,204 @@
                                         }
                                     </small>
                                 </div>
-                                <div class="d-flex gap-2">
-                                    @if (post.IsOwner)
-                                    {
-                                        <a asp-controller="Post" asp-action="Edit" asp-route-id="@post.Id" class="btn btn-sm btn-primary">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                    }
-                                    @if (post.CanDelete)
-                                    {
-                                        <form asp-controller="Post" asp-action="Delete" asp-route-id="@post.Id" method="post" class="d-inline">
-                                            @Html.AntiForgeryToken()
-                                            <button type="submit" class="btn btn-sm btn-danger"
-                                                    onclick="return confirm('Bạn có chắc muốn xóa bài đăng này?');">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
-                                    }
-                                </div>
+                                
+                                <!-- Dropdown cho nút Sửa/Xóa -->
+                                @if (post.IsOwner || post.CanDelete)
+                                {
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary" type="button" 
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                onclick="event.stopPropagation();">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            @if (post.IsOwner)
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" asp-controller="Post" asp-action="Edit" asp-route-id="@post.Id">
+                                                        <i class="fas fa-edit me-2"></i> Sửa bài
+                                                    </a>
+                                                </li>
+                                            }
+                                            @if (post.CanDelete)
+                                            {
+                                                <li>
+                                                    <form asp-controller="Post" asp-action="Delete" asp-route-id="@post.Id" method="post" class="d-inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <button type="submit" class="dropdown-item text-danger"
+                                                                onclick="event.stopPropagation(); return confirm('Bạn có chắc muốn xóa bài đăng này?');">
+                                                            <i class="fas fa-trash me-2"></i> Xóa bài
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            }
+                                        </ul>
+                                    </div>
+                                }
                             </div>
 
                             @* Hiển thị file đính kèm (nếu có) *@
-                            <!-- GIỮ NGUYÊN PHẦN HIỂN THỊ ATTACHMENTS -->
+                            @if (post.Attachments.Any())
+                            {
+                                var mediaAttachments = post.Attachments.Where(a => a.IsMediaFile).ToList();
+                                var otherAttachments = post.Attachments.Where(a => !a.IsMediaFile).ToList();
 
-                            <div class="mt-2">
-                                <button class="btn btn-sm btn-outline-primary vote-btn"
-                                        data-post-id="@post.Id"
-                                        data-vote-type="true">
-                                    👍 <span class="upvote-count">@post.UpvoteCount</span>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger vote-btn"
-                                        data-post-id="@post.Id"
-                                        data-vote-type="false">
-                                    👎 <span class="downvote-count">@post.DownvoteCount</span>
-                                </button>
-                                <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" class="btn btn-sm btn-outline-secondary">
-                                    💬 @post.CommentCount
-                                </a>
-                                <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" class="btn btn-sm btn-outline-info">
-                                    <i class="fas fa-external-link-alt"></i> Chi tiết
+                                @if (mediaAttachments.Any())
+                                {
+                                    <div class="mt-3">
+                                        @if (mediaAttachments.Count == 1)
+                                        {
+                                            var media = mediaAttachments.First();
+                                            if (media.IsImage)
+                                            {
+                                                <div class="position-relative">
+                                                    <img src="@media.Url" 
+                                                         alt="@media.FileName"
+                                                         class="img-fluid rounded post-media media-modal-link"
+                                                         data-post-id="@post.Id"
+                                                         data-media-index="0"
+                                                         data-total-media="1"
+                                                         data-media-type="image"
+                                                         style="cursor: pointer; max-height: 550px; object-fit: contain; background-color: #f8f9fa;">
+                                                </div>
+                                            }
+                                            else if (media.IsVideo)
+                                            {
+                                                <div class="position-relative video-container">
+                                                    <video class="post-video w-100 rounded" 
+                                                           style="max-height: 550px; background-color: #000;"
+                                                           controlsList="nodownload"
+                                                           preload="metadata">
+                                                        <source src="@media.Url" type="video/mp4">
+                                                        Trình duyệt của bạn không hỗ trợ video.
+                                                    </video>
+                                                    <div class="video-overlay rounded" style="cursor: pointer;">
+                                                        <div class="video-play-icon bg-dark bg-opacity-50 rounded-circle p-3">
+                                                            <i class="fas fa-play text-white" style="font-size: 2rem;"></i>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <div id="carousel-@post.Id" class="carousel slide mb-3" data-bs-ride="carousel" style="height: 550px;">
+                                                <!-- Counter -->
+                                                <div class="carousel-counter">
+                                                    <span id="current-slide-@post.Id">1</span>
+                                                    <span>/</span>
+                                                    <span id="total-slides-@post.Id">@mediaAttachments.Count</span>
+                                                </div>
+                                                
+                                                <div class="carousel-inner rounded h-100">
+                                                    @for (int i = 0; i < mediaAttachments.Count; i++)
+                                                    {
+                                                        var media = mediaAttachments[i];
+                                                        <div class="carousel-item h-100 @(i == 0 ? "active" : "")">
+                                                            @if (media.IsImage)
+                                                            {
+                                                                <img src="@media.Url" 
+                                                                     alt="@media.FileName"
+                                                                     class="d-block w-100 h-100 post-media media-modal-link"
+                                                                     data-post-id="@post.Id"
+                                                                     data-media-index="@i"
+                                                                     data-total-media="@mediaAttachments.Count"
+                                                                     data-media-type="image"
+                                                                     style="object-fit: contain; cursor: pointer;">
+                                                            }
+                                                            else if (media.IsVideo)
+                                                            {
+                                                                <div class="video-container w-100 h-100">
+                                                                    <video class="post-video w-100 h-100"
+                                                                           style="object-fit: contain; background-color: #000;"
+                                                                           controlsList="nodownload"
+                                                                           preload="metadata">
+                                                                        <source src="@media.Url" type="video/mp4">
+                                                                        Trình duyệt của bạn không hỗ trợ video.
+                                                                    </video>
+                                                                    <div class="video-overlay" style="cursor: pointer;">
+                                                                        <div class="video-play-icon bg-dark bg-opacity-50 rounded-circle p-3">
+                                                                            <i class="fas fa-play text-white" style="font-size: 2rem;"></i>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+                                                
+                                                @if (mediaAttachments.Count > 1)
+                                                {
+                                                    <button class="carousel-control-prev" type="button" data-bs-target="#carousel-@post.Id" data-bs-slide="prev">
+                                                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                                        <span class="visually-hidden">Previous</span>
+                                                    </button>
+                                                    <button class="carousel-control-next" type="button" data-bs-target="#carousel-@post.Id" data-bs-slide="next">
+                                                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                                        <span class="visually-hidden">Next</span>
+                                                    </button>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
+                                @if (otherAttachments.Any())
+                                {
+                                    <div class="mt-3">
+                                        <h6><i class="fas fa-paperclip me-1"></i> Tệp đính kèm:</h6>
+                                        <div class="file-list">
+                                            @foreach (var file in otherAttachments)
+                                            {
+                                                <div class="mb-2">
+                                                    <a href="@file.Url" class="text-decoration-none" download="@file.FileName">
+                                                        <i class="fas fa-file @(file.FileType == "pdf" ? "text-danger" : 
+                                                                                file.FileType == "doc" || file.FileType == "docx" ? "text-primary" : 
+                                                                                file.FileType == "xls" || file.FileType == "xlsx" ? "text-success" : 
+                                                                                "text-secondary") me-2"></i>
+                                                        @file.FileName
+                                                    </a>
+                                                    <small class="text-muted">(@file.FileSize)</small>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+
+                            <div class="mt-3 d-flex align-items-center gap-2" onclick="event.stopPropagation();">
+                                <!-- Nút Upvote và Downvote với tổng điểm -->
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-sm btn-outline-danger vote-btn"
+                                            data-post-id="@post.Id"
+                                            data-vote-type="false">
+                                        <i class="fas fa-thumbs-down"></i>
+                                    </button>
+                                    
+                                    <span class="btn btn-sm btn-light disabled vote-score"
+                                          data-post-id="@post.Id"
+                                          style="min-width: 50px; pointer-events: none;">
+                                        @{
+                                            // Tính điểm tổng: Upvote - Downvote
+                                            // Nếu dưới 0 thì hiển thị 0
+                                            var score = post.UpvoteCount - post.DownvoteCount;
+                                            var displayScore = score < 0 ? 0 : score;
+                                            // Không cần dấu + nữa
+                                        }
+                                        @displayScore
+                                    </span>
+                                    
+                                    <button class="btn btn-sm btn-outline-primary vote-btn"
+                                            data-post-id="@post.Id"
+                                            data-vote-type="true">
+                                        <i class="fas fa-thumbs-up"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Nút bình luận -->
+                                <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" 
+                                   class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation();">
+                                    <i class="fas fa-comment me-1"></i> @post.CommentCount
                                 </a>
                             </div>
                         </div>
@@ -176,16 +368,26 @@
     </div>
 </div>
 
-@* Script cho vote (AJAX) *@
 @section Scripts {
 <script>
+    // Xử lý click vào bài đăng để đi đến trang chi tiết
+    document.querySelectorAll('.post-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const postId = this.dataset.postId;
+            window.location.href = `/Post/Details/${postId}`;
+        });
+    });
+
+    // Xử lý vote với AJAX
     document.querySelectorAll('.vote-btn').forEach(btn => {
-        btn.addEventListener('click', async function() {
+        btn.addEventListener('click', async function(e) {
+            e.stopPropagation(); // Ngăn chặn sự kiện click lan ra card
+            
             const postId = this.dataset.postId;
             const isUpvote = this.dataset.voteType === 'true';
 
             try {
-                const response = await fetch('/Post/Vote', {
+                const response = await fetch('/Feeds/Vote', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -195,10 +397,22 @@
 
                 const data = await response.json();
                 if (data.success) {
-                    // Cập nhật số lượng vote
-                    const card = this.closest('.card');
-                    card.querySelector('.upvote-count').textContent = data.upvoteCount;
-                    card.querySelector('.downvote-count').textContent = data.downvoteCount;
+                    // Tính toán điểm tổng mới (Upvote - Downvote)
+                    const newScore = data.upvoteCount - data.downvoteCount;
+                    // Nếu dưới 0 thì hiển thị 0
+                    const displayScore = newScore < 0 ? 0 : newScore;
+                    
+                    // Cập nhật điểm số
+                    const scoreElement = document.querySelector(`.vote-score[data-post-id="${postId}"]`);
+                    if (scoreElement) {
+                        scoreElement.textContent = displayScore;
+                        
+                        // Thêm hiệu ứng
+                        scoreElement.classList.add('score-updated');
+                        setTimeout(() => {
+                            scoreElement.classList.remove('score-updated');
+                        }, 500);
+                    }
                 } else {
                     alert(data.message || 'Có lỗi xảy ra');
                 }
