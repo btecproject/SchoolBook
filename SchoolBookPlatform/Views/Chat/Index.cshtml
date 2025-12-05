@@ -2,6 +2,10 @@
 @{
 ViewData["Title"] = "Chat";
 }
+@section Styles
+{
+    <link rel="stylesheet" href="~/css/page/chat.css" asp-append-version="true" />
+}
 
 @Html.AntiForgeryToken()
 
@@ -151,10 +155,7 @@ ViewData["Title"] = "Chat";
         </div>
     </div>
 </div>
-@section Styles
-{
-    <link rel="stylesheet" href="~/css/page/chat.css" asp-append-version="true" />
-}
+
 @section Scripts {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>

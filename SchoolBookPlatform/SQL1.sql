@@ -27,6 +27,10 @@ DROP TABLE IF EXISTS Roles;
 DROP TABLE IF EXISTS Users;
 DROP PROCEDURE IF EXISTS usp_DeleteUser;
 DROP PROCEDURE IF EXISTS DeleteUser;
+DROP PROCEDURE IF EXISTS GetPostsWithPagination;
+DROP PROCEDURE IF EXISTS GetPostComments;
+DROP VIEW IF EXISTS vw_PostDetails;
+DROP VIEW IF EXISTS vw_UserStats;
 GO
 
 -- =======================================================
@@ -146,7 +150,7 @@ CREATE TABLE Followers (
                            FollowedAt DATETIME2(7) NOT NULL DEFAULT SYSUTCDATETIME(),
                            CONSTRAINT PK_Followers PRIMARY KEY (UserId, FollowerId),
                            FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
-                           FOREIGN KEY (FollowerId) REFERENCES Users(Id) -- No Action
+                           FOREIGN KEY (FollowerId) REFERENCES Users(Id) ON DELETE NO ACTION
 );
 CREATE NONCLUSTERED INDEX IX_Followers_FollowerId ON Followers(FollowerId);
 
@@ -156,7 +160,7 @@ CREATE TABLE Following (
                            FollowedAt DATETIME2(7) NOT NULL DEFAULT SYSUTCDATETIME(),
                            CONSTRAINT PK_Following PRIMARY KEY (UserId, FollowingId),
                            FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
-                           FOREIGN KEY (FollowingId) REFERENCES Users(Id) -- No Action
+                           FOREIGN KEY (FollowingId) REFERENCES Users(Id) ON DELETE NO ACTION
 );
 CREATE NONCLUSTERED INDEX IX_Following_FollowingId ON Following(FollowingId);
 
@@ -212,19 +216,6 @@ CREATE INDEX IX_PostComments_PostId ON PostComments(PostId);
 CREATE INDEX IX_PostComments_ParentId ON PostComments(ParentCommentId);
 CREATE INDEX IX_PostComments_UserId ON PostComments(UserId);
 
--- Bảng Post Votes (Like/Dislike)
-CREATE TABLE PostVotes (
-                           PostId UNIQUEIDENTIFIER NOT NULL,
-                           UserId UNIQUEIDENTIFIER NOT NULL,
-                           VoteType BIT NOT NULL CHECK (VoteType IN (0,1)),
-                           VotedAt DATETIME DEFAULT GETUTCDATE(),
-                           PRIMARY KEY (PostId, UserId),
-                           FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
-                           FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE NO ACTION
-);
-CREATE INDEX IX_PostVotes_PostId ON PostVotes(PostId);
-CREATE INDEX IX_PostVotes_UserId ON PostVotes(UserId);
-
 -- Bảng Comment Votes
 CREATE TABLE CommentVotes (
                               CommentId UNIQUEIDENTIFIER NOT NULL,
@@ -237,6 +228,19 @@ CREATE TABLE CommentVotes (
 );
 CREATE INDEX IX_CommentVotes_CommentId ON CommentVotes(CommentId);
 CREATE INDEX IX_CommentVotes_UserId ON CommentVotes(UserId);
+
+-- Bảng Post Votes (Like/Dislike)
+CREATE TABLE PostVotes (
+                           PostId UNIQUEIDENTIFIER NOT NULL,
+                           UserId UNIQUEIDENTIFIER NOT NULL,
+                           VoteType BIT NOT NULL CHECK (VoteType IN (0,1)),
+                           VotedAt DATETIME DEFAULT GETUTCDATE(),
+                           PRIMARY KEY (PostId, UserId),
+                           FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE,
+                           FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE NO ACTION
+);
+CREATE INDEX IX_PostVotes_PostId ON PostVotes(PostId);
+CREATE INDEX IX_PostVotes_UserId ON PostVotes(UserId);
 
 -- Bảng Post Reports
 CREATE TABLE PostReports (
@@ -257,14 +261,14 @@ CREATE INDEX IX_PostReports_PostId ON PostReports(PostId);
 CREATE INDEX IX_PostReports_Status ON PostReports(Status);
 CREATE INDEX IX_PostReports_ReportedBy ON PostReports(ReportedBy);
 
--- Bảng Saved Posts
+-- Bảng Saved Posts (FIXED: removed cascade cycle)
 CREATE TABLE SavedPosts (
                             UserId UNIQUEIDENTIFIER NOT NULL,
                             PostId UNIQUEIDENTIFIER NOT NULL,
                             SavedAt DATETIME DEFAULT GETUTCDATE(),
                             PRIMARY KEY (UserId, PostId),
                             FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
-                            FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE CASCADE
+                            FOREIGN KEY (PostId) REFERENCES Posts(Id) ON DELETE NO ACTION  -- Changed from CASCADE
 );
 CREATE INDEX IX_SavedPosts_UserId ON SavedPosts(UserId);
 CREATE INDEX IX_SavedPosts_PostId ON SavedPosts(PostId);
@@ -375,13 +379,13 @@ CREATE TABLE MessageNotifications (
                                       PRIMARY KEY (RecipientId, SenderId),
                                       FOREIGN KEY (RecipientId) REFERENCES ChatUsers(Id),
                                       FOREIGN KEY (SenderId) REFERENCES ChatUsers(Id),
-                                      FOREIGN KEY (LastMessageId) REFERENCES Messages(Id) ON DELETE CASCADE
+                                      FOREIGN KEY (LastMessageId) REFERENCES Messages(Id)
 );
 CREATE INDEX IX_Recipient_Unread ON MessageNotifications (RecipientId, UnreadCount DESC);
 GO
 
 -- =======================================================
--- 6. STORED PROCEDURES
+-- 6. STORED PROCEDURES (FIXED)
 -- =======================================================
 
 -- Procedure để xóa người dùng
@@ -404,7 +408,7 @@ DELETE FROM PostVotes WHERE UserId = @UserId;
 -- 4. Xoá Post Reports (do người dùng tạo)
 DELETE FROM PostReports WHERE ReportedBy = @UserId;
 
--- 5. Xoá comment con (reply) của người dùng
+-- 5. Xoá comments con (reply) của người dùng
 ;WITH CommentTree AS (
     SELECT Id
     FROM PostComments
@@ -455,7 +459,7 @@ WHERE PostId IN (
     SELECT Id FROM Posts WHERE UserId = @UserId
 );
 
--- 13. Xoá dữ liệu chat
+-- 13. Xoá dữ liệu follow
 DELETE FROM Followers WHERE FollowerId = @UserId OR UserId = @UserId;
 DELETE FROM Following WHERE FollowingId = @UserId OR UserId = @UserId;
 
@@ -475,8 +479,11 @@ BEGIN
 BEGIN TRAN;
     
     -- Xóa các relationship trước khi xóa user
-DELETE FROM Followers WHERE FollowerId = @userId;
-DELETE FROM Following WHERE FollowingId = @userId;
+DELETE FROM Followers WHERE FollowerId = @userId OR UserId = @userId;
+DELETE FROM Following WHERE FollowingId = @userId OR UserId = @userId;
+DELETE FROM SavedPosts WHERE UserId = @userId;
+DELETE FROM PostVotes WHERE UserId = @userId;
+DELETE FROM CommentVotes WHERE UserId = @userId;
 
 -- Xóa user (cascade sẽ xử lý các bảng khác)
 DELETE FROM Users WHERE Id = @userId;
@@ -520,7 +527,7 @@ SELECT
     p.Id,
     p.UserId,
     u.Username,
-    up.FullName,
+    ISNULL(up.FullName, u.Username) AS FullName,
     up.AvatarUrl,
     p.Title,
     p.Content,
@@ -573,7 +580,7 @@ WHERE p.IsDeleted = 0
 END
 GO
 
--- Procedure để lấy comments của một post
+-- Procedure để lấy comments của một post (FIXED - không dùng LEFT JOIN trong CTE)
 CREATE OR ALTER PROCEDURE GetPostComments
     @PostId UNIQUEIDENTIFIER,
     @ParentCommentId UNIQUEIDENTIFIER = NULL
@@ -581,53 +588,67 @@ CREATE OR ALTER PROCEDURE GetPostComments
 BEGIN
     SET NOCOUNT ON;
 
-WITH CommentCTE AS (
+    -- Sử dụng cách tiếp cận khác không dùng CTE đệ quy
+    -- Trước tiên, lấy tất cả comments và thông tin user
+SELECT
+    pc.Id,
+    pc.PostId,
+    pc.UserId,
+    u.Username,
+    ISNULL(up.FullName, u.Username) AS FullName,
+    up.AvatarUrl,
+    pc.Content,
+    pc.CreatedAt,
+    pc.ParentCommentId,
+    (SELECT COUNT(*) FROM CommentVotes cv WHERE cv.CommentId = pc.Id AND cv.VoteType = 1) AS LikeCount,
+    (SELECT COUNT(*) FROM CommentVotes cv WHERE cv.CommentId = pc.Id AND cv.VoteType = 0) AS DislikeCount
+INTO #TempComments
+FROM PostComments pc
+         JOIN Users u ON pc.UserId = u.Id
+         LEFT JOIN UserProfiles up ON u.Id = up.UserId
+WHERE pc.PostId = @PostId;
+
+-- Sử dụng CTE để xây dựng cấu trúc phân cấp
+;WITH CommentHierarchy AS (
+    -- Base case: comments không có parent (gốc)
     SELECT
-        pc.Id,
-        pc.PostId,
-        pc.UserId,
-        u.Username,
-        up.FullName,
-        up.AvatarUrl,
-        pc.Content,
-        pc.CreatedAt,
-        pc.ParentCommentId,
-        -- Đếm số like/dislike
-        (SELECT COUNT(*) FROM CommentVotes cv WHERE cv.CommentId = pc.Id AND cv.VoteType = 1) AS LikeCount,
-        (SELECT COUNT(*) FROM CommentVotes cv WHERE cv.CommentId = pc.Id AND cv.VoteType = 0) AS DislikeCount,
-        0 AS Level -- Level 0 cho comment gốc
-    FROM PostComments pc
-             JOIN Users u ON pc.UserId = u.Id
-             LEFT JOIN UserProfiles up ON u.Id = up.UserId
-    WHERE pc.PostId = @PostId
-      AND pc.ParentCommentId = @ParentCommentId
+        tc.*,
+        0 AS Level,
+        CAST(tc.Id AS NVARCHAR(MAX)) AS HierarchyPath
+    FROM #TempComments tc
+    WHERE tc.ParentCommentId = @ParentCommentId
 
     UNION ALL
 
+    -- Recursive case: comments có parent
     SELECT
-        pc.Id,
-        pc.PostId,
-        pc.UserId,
-        u.Username,
-        up.FullName,
-        up.AvatarUrl,
-        pc.Content,
-        pc.CreatedAt,
-        pc.ParentCommentId,
-        (SELECT COUNT(*) FROM CommentVotes cv WHERE cv.CommentId = pc.Id AND cv.VoteType = 1) AS LikeCount,
-        (SELECT COUNT(*) FROM CommentVotes cv WHERE cv.CommentId = pc.Id AND cv.VoteType = 0) AS DislikeCount,
-        cte.Level + 1 AS Level
-    FROM PostComments pc
-             JOIN Users u ON pc.UserId = u.Id
-             LEFT JOIN UserProfiles up ON u.Id = up.UserId
-             INNER JOIN CommentCTE cte ON pc.ParentCommentId = cte.Id
-    WHERE pc.PostId = @PostId
+        tc.*,
+        ch.Level + 1 AS Level,
+        ch.HierarchyPath + '/' + CAST(tc.Id AS NVARCHAR(MAX)) AS HierarchyPath
+    FROM #TempComments tc
+             INNER JOIN CommentHierarchy ch ON tc.ParentCommentId = ch.Id
 )
-SELECT * FROM CommentCTE
-ORDER BY
-    CASE WHEN ParentCommentId IS NULL THEN CreatedAt END,
-    ParentCommentId,
-    CreatedAt;
+ SELECT
+     ch.Id,
+     ch.PostId,
+     ch.UserId,
+     ch.Username,
+     ch.FullName,
+     ch.AvatarUrl,
+     ch.Content,
+     ch.CreatedAt,
+     ch.ParentCommentId,
+     ch.LikeCount,
+     ch.DislikeCount,
+     ch.Level
+ FROM CommentHierarchy ch
+ ORDER BY
+     CASE WHEN ch.ParentCommentId IS NULL THEN ch.CreatedAt END,
+     ch.HierarchyPath,
+     ch.CreatedAt;
+
+-- Cleanup
+DROP TABLE #TempComments;
 END
 GO
 
@@ -673,11 +694,16 @@ INSERT INTO UserProfiles (UserId, FullName, Bio) VALUES
                                                      (@studentId, 'Alice Student', 'Computer Science Student');
 
 -- Thêm một số bài viết mẫu
+DECLARE @post1 UNIQUEIDENTIFIER = NEWID();
+DECLARE @post2 UNIQUEIDENTIFIER = NEWID();
+DECLARE @post3 UNIQUEIDENTIFIER = NEWID();
+DECLARE @post4 UNIQUEIDENTIFIER = NEWID();
+
 INSERT INTO Posts (Id, UserId, Title, Content, VisibleToRoles) VALUES
-                                                                   (NEWID(), @teacherId, 'Welcome to Mathematics Class', 'This semester we will cover calculus and linear algebra. Please check the syllabus for more details.', 'All'),
-                                                                   (NEWID(), @teacherId, 'Assignment 1 Posted', 'Assignment 1 is now available on the portal. Deadline: Next Friday.', 'Student'),
-                                                                   (NEWID(), @highAdminId, 'System Maintenance', 'The system will undergo maintenance this weekend. Please save your work.', 'All'),
-                                                                   (NEWID(), @studentId, 'Study Group Meeting', 'Looking for students to form a study group for advanced programming.', 'Student');
+                                                                   (@post1, @teacherId, 'Welcome to Mathematics Class', 'This semester we will cover calculus and linear algebra. Please check the syllabus for more details.', 'All'),
+                                                                   (@post2, @teacherId, 'Assignment 1 Posted', 'Assignment 1 is now available on the portal. Deadline: Next Friday.', 'Student'),
+                                                                   (@post3, @highAdminId, 'System Maintenance', 'The system will undergo maintenance this weekend. Please save your work.', 'All'),
+                                                                   (@post4, @studentId, 'Study Group Meeting', 'Looking for students to form a study group for advanced programming.', 'Student');
 
 GO
 
@@ -718,7 +744,7 @@ SELECT
     u.Username,
     u.Email,
     u.IsActive,
-    up.FullName,
+    ISNULL(up.FullName, u.Username) AS FullName,
     r.Name AS RoleName,
     (SELECT COUNT(*) FROM Posts p WHERE p.UserId = u.Id AND p.IsDeleted = 0) AS PostCount,
     (SELECT COUNT(*) FROM PostComments pc WHERE pc.UserId = u.Id) AS CommentCount,

@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.Filters;
 using SchoolBookPlatform.Hubs;
@@ -21,16 +20,21 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         // builder.WebHost.UseUrls("https://10.24.19.178:7093");
+        
         var config = builder.Configuration;
         var google = config.GetSection("Authentication:Google");
+        
         // DB
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
+        
         // Services
         builder.Services.AddHttpClient();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddSignalR();
         builder.Services.AddSingleton<HtmlSanitizer>(new HtmlSanitizer());
+        
+        // Scoped Services
         builder.Services.AddScoped<TokenService>();
         builder.Services.AddScoped<FaceService>();
         builder.Services.AddScoped<OtpService>();
@@ -42,6 +46,11 @@ public class Program
         builder.Services.AddScoped<RecoveryCodeService>();
         builder.Services.AddScoped<CloudinaryService>();
         builder.Services.AddScoped<ChatService>();
+        
+        // Post feature service
+        builder.Services.AddScoped<PostService>();
+        
+        // Cloudinary
         builder.Services.AddSingleton<Cloudinary>(sp =>
         {
             var config = builder.Configuration.GetSection("Cloudinary");
@@ -52,7 +61,8 @@ public class Program
             );
             return new Cloudinary(account);
         });
-        //Rate limiter
+        
+        // Rate Limiter
         builder.Services.AddRateLimiter(options =>
         {
             options.OnRejected = async (context, token) =>
@@ -70,7 +80,7 @@ public class Program
                 httpContext.Response.Redirect($"/429.html?retryAfter={retryAfter}");
             };
             
-            //login 10/10p (Ip)
+            // Login 10/10p (Ip)
             options.AddPolicy("LoginPolicy", httpContext =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -78,10 +88,10 @@ public class Program
                     {
                         PermitLimit = 10,
                         Window = TimeSpan.FromMinutes(10),
-                        QueueLimit = 0 //ko xếp hàng, chặn luôn
+                        QueueLimit = 0 // Ko xếp hàng, chặn luôn
                     }));
             
-            //Otp 5/3p
+            // Otp 5/3p
             options.AddPolicy("OtpPolicy", httpContext =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -92,7 +102,7 @@ public class Program
                         QueueLimit = 0
                     }));
             
-            //Chat PIN : 5/3p Ip()
+            // Chat PIN : 5/3p Ip()
             options.AddPolicy("ChatPinPolicy", httpContext =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -102,17 +112,8 @@ public class Program
                         Window = TimeSpan.FromMinutes(3),
                         QueueLimit = 0
                     }));
-            // //Search user : 10/3s Ip()
-            // options.AddPolicy("SearchUserPolicy", httpContext =>
-            //     RateLimitPartition.GetFixedWindowLimiter(
-            //         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            //         factory: _ => new FixedWindowRateLimiterOptions
-            //         {
-            //             PermitLimit = 5,
-            //             Window = TimeSpan.FromMinutes(30),
-            //             QueueLimit = 0
-            //         }));
-            //Chat text: 20token +10/5s Ip
+            
+            // Chat text: 20token +10/5s Ip
             options.AddPolicy("ChatPolicy", httpContext =>
                 RateLimitPartition.GetTokenBucketLimiter(
                     partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -125,9 +126,10 @@ public class Program
                         QueueLimit = 50,          
                         AutoReplenishment = true   // Tự động bổ sung token
                     }));
+            
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
             {
-                //Bỏ qua Rate Limit cho các file tĩnh hoặc API cụ thể nếu cần
+                // Bỏ qua Rate Limit cho các file tĩnh hoặc API cụ thể nếu cần
                 if (context.Request.Path.StartsWithSegments("/lib") || 
                     context.Request.Path.StartsWithSegments("/css") ||
                     context.Request.Path.StartsWithSegments("/js") ||
@@ -146,15 +148,17 @@ public class Program
                     });
             });
         });
+        
         // Logging
         builder.Logging.AddConsole();
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
         
+        // Controllers with Anti-XSS filter
         builder.Services.AddControllersWithViews(options =>
         {
-            //Dky xss filter 
             options.Filters.Add<AntiXssFilter>();
-        });        
+        });
+        
         // Authentication
         builder.Services.AddAuthentication(options =>
             {
@@ -169,15 +173,16 @@ public class Program
                 options.AccessDeniedPath = "/Authen/AccessDenied";
                 options.ExpireTimeSpan = TimeSpan.FromDays(7);
                 options.SlidingExpiration = true;
-                options.Cookie.HttpOnly = true; //js ko đụng cookies
-                options.Cookie.SameSite = SameSiteMode.Lax; // chỉ get hợp lệ từ link
-                options.Cookie.SecurePolicy = CookieSecurePolicy.Always; //chỉ https
+                options.Cookie.HttpOnly = true; // JS không đụng cookies
+                options.Cookie.SameSite = SameSiteMode.Lax; // Chỉ get hợp lệ từ link
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Chỉ HTTPS
 
                 options.Events = new CookieAuthenticationEvents
                 {
                     OnValidatePrincipal = TokenService.ValidateAsync
                 };
-            }).AddGoogle(GoogleDefaults.AuthenticationScheme,options =>
+            })
+            .AddGoogle(GoogleDefaults.AuthenticationScheme, options =>
             {
                 options.ClientId = google["ClientId"]!;
                 options.ClientSecret = google["ClientSecret"]!;
@@ -193,6 +198,10 @@ public class Program
             
             options.AddPolicy("AdminOrHigher", policy =>
                 policy.RequireRole("HighAdmin", "Admin"));
+            
+            // Post feature policy: Moderator, Admin, HighAdmin có quyền xử lý bài đăng
+            options.AddPolicy("ModeratorOrHigher", policy =>
+                policy.RequireRole("HighAdmin", "Admin", "Moderator"));
         });
         
         var app = builder.Build();
@@ -204,6 +213,8 @@ public class Program
         }
 
         app.UseHttpsRedirection();
+        
+        // Security headers middleware
         app.Use(async (context, next) =>
         {
             // Cấu hình CSP chặt chẽ
@@ -216,7 +227,7 @@ public class Program
                 "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
                 // Cho phép kết nối WebSocket (SignalR)
                 "connect-src 'self' wss: https:; " +
-                //ko nhúng web vào iframe (Clickjacking)
+                // Không nhúng web vào iframe (Clickjacking)
                 "frame-ancestors 'self';");
 
             // Các header bảo mật khác nên có
@@ -226,6 +237,7 @@ public class Program
 
             await next();
         });
+        
         app.UseStaticFiles();
         app.UseRouting();
         app.UseRateLimiter();
@@ -239,6 +251,7 @@ public class Program
             "default",
             "{controller=Home}/{action=Index}");
         
+        // SignalR Hubs
         app.MapHub<ImportExcelHub>("/importExcelHub");
         app.MapHub<ChatHub>("/chatHub");
         
