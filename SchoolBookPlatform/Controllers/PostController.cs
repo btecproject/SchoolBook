@@ -146,6 +146,9 @@ public class PostController(
         }
 
         var userId = GetCurrentUserId();
+        var userRoles = await db.GetUserRolesAsync(userId);
+        var isModerator = userRoles.Contains("HighAdmin") || userRoles.Contains("Moderator");
+
         var post = await postService.CreatePostAsync(
             userId, 
             model.Title, 
@@ -159,7 +162,15 @@ public class PostController(
             return View(model);
         }
 
-        TempData["SuccessMessage"] = "Đăng bài thành công!";
+        // Thông báo khác nhau cho Moderator và user thường
+        if (isModerator)
+        {
+            TempData["SuccessMessage"] = "Đăng bài thành công!";
+        }
+        else
+        {
+            TempData["SuccessMessage"] = "Bài đăng của bạn đã được gửi và đang chờ phê duyệt. Bài đăng sẽ hiển thị sau khi được Admin duyệt.";
+        }
         return RedirectToAction("Home", "Feeds");
     }
 

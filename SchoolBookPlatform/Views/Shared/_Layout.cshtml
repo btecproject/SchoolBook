@@ -55,6 +55,15 @@
                                 </a>
                             </li>
                         }
+                        @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark position-relative" asp-controller="Admin" asp-action="Reports">
+                                    <i class="bi bi-flag"></i> Quản lý báo cáo
+                                    @await Component.InvokeAsync("PendingReportsBadge")
+                                </a>
+                            </li>
+                        }
                     }
                 </ul>
                 <ul class="navbar-nav">
@@ -169,6 +178,35 @@
                 <span>User Management</span>
             </a>
         }
+        
+        <div class="sidebar-divider"></div>
+        
+        <!-- Administration Section -->
+        @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
+        {
+            <div class="sidebar-section-title">
+                <span>QUẢN TRỊ</span>
+            </div>
+            
+            <a class="sidebar-button" href="@Url.Action("ApprovePosts", "Admin")">
+                <i class="fas fa-check-circle"></i>
+                <span>Duyệt bài đăng</span>
+                @await Component.InvokeAsync("PendingPostsBadge")
+            </a>
+            
+            <a class="sidebar-button" href="@Url.Action("Reports", "Admin")">
+                <i class="fas fa-flag"></i>
+                <span>Quản lý báo cáo</span>
+                @await Component.InvokeAsync("PendingReportsBadge")
+            </a>
+        }
+        
+        <div class="sidebar-divider"></div>
+        
+        <!-- Features Section (continued) -->
+        <div class="sidebar-section-title">
+            <span>FEATURES</span>
+        </div>
         
         <a class="sidebar-button" href="@Url.Action("Index", "Profile", new { username = User.Identity?.Name })">
             <i class="fas fa-user"></i>
