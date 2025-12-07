@@ -1,0 +1,171 @@
+@model List<SchoolBookPlatform.ViewModels.Admin.ReportListViewModel>
+
+@{
+    ViewData["Title"] = "Quản lý báo cáo";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var statistics = ViewBag.Statistics as SchoolBookPlatform.ViewModels.Admin.ReportStatisticsViewModel;
+    var currentFilter = ViewBag.CurrentFilter as string ?? "all";
+}
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0"><i class="bi bi-flag-fill text-danger"></i> Quản lý báo cáo</h2>
+            <small class="text-muted">Danh sách báo cáo bài đăng vi phạm</small>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-exclamation-circle-fill"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Statistics -->
+    @if (statistics != null)
+    {
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted mb-3"><i class="bi bi-bar-chart"></i> Thống kê báo cáo</h6>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Đang chờ:</span>
+                                    <span class="badge bg-warning fs-6">@statistics.PendingCount</span>
+                                </div>
+                                <div class="progress mt-2" style="height: 5px;">
+                                    <div class="progress-bar bg-warning" style="width: @(statistics.TotalCount > 0 ? (statistics.PendingCount * 100.0 / statistics.TotalCount) : 0)%"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Đã duyệt:</span>
+                                    <span class="badge bg-success fs-6">@statistics.ApprovedCount</span>
+                                </div>
+                                <div class="progress mt-2" style="height: 5px;">
+                                    <div class="progress-bar bg-success" style="width: @(statistics.TotalCount > 0 ? (statistics.ApprovedCount * 100.0 / statistics.TotalCount) : 0)%"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Đã từ chối:</span>
+                                    <span class="badge bg-secondary fs-6">@statistics.RejectedCount</span>
+                                </div>
+                                <div class="progress mt-2" style="height: 5px;">
+                                    <div class="progress-bar bg-secondary" style="width: @(statistics.TotalCount > 0 ? (statistics.RejectedCount * 100.0 / statistics.TotalCount) : 0)%"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Tổng số:</span>
+                                    <span class="badge bg-primary fs-6">@statistics.TotalCount</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Filter -->
+    <div class="mb-3">
+        <div class="btn-group" role="group">
+            <a asp-action="Reports" asp-route-status="all" class="btn btn-outline-secondary @(currentFilter == "all" ? "active" : "")">
+                Tất cả
+            </a>
+            <a asp-action="Reports" asp-route-status="Pending" class="btn btn-outline-warning @(currentFilter == "Pending" ? "active" : "")">
+                Đang chờ
+            </a>
+            <a asp-action="Reports" asp-route-status="Approved" class="btn btn-outline-success @(currentFilter == "Approved" ? "active" : "")">
+                Đã duyệt
+            </a>
+            <a asp-action="Reports" asp-route-status="Rejected" class="btn btn-outline-secondary @(currentFilter == "Rejected" ? "active" : "")">
+                Đã từ chối
+            </a>
+        </div>
+    </div>
+
+    <!-- Reports List -->
+    @if (Model == null || !Model.Any())
+    {
+        <div class="alert alert-info shadow-sm">
+            <i class="bi bi-info-circle-fill"></i> Không có báo cáo nào.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover shadow-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th>Bài đăng</th>
+                        <th>Người báo cáo</th>
+                        <th>Lý do</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày tạo</th>
+                        <th>Người xử lý</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var report in Model)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@report.PostTitle</strong>
+                            </td>
+                            <td>@report.ReporterUsername</td>
+                            <td>@report.Reason</td>
+                            <td>
+                                @if (report.Status == "Pending")
+                                {
+                                    <span class="badge bg-warning">Đang chờ</span>
+                                }
+                                else if (report.Status == "Approved")
+                                {
+                                    <span class="badge bg-success">Đã duyệt</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Đã từ chối</span>
+                                }
+                            </td>
+                            <td>@report.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(report.ReviewerUsername))
+                                {
+                                    <span>@report.ReviewerUsername</span>
+                                    <br>
+                                    <small class="text-muted">@report.ReviewedAt?.ToString("dd/MM/yyyy HH:mm")</small>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                <a asp-action="ReportDetails" asp-route-id="@report.Id" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> Chi tiết
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+

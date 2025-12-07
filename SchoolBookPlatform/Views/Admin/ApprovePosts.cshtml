@@ -1,0 +1,109 @@
+@model List<SchoolBookPlatform.ViewModels.Admin.PendingPostViewModel>
+
+@{
+    ViewData["Title"] = "Duyệt bài đăng";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var statistics = ViewBag.Statistics as SchoolBookPlatform.ViewModels.Admin.PostApprovalStatisticsViewModel;
+}
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0"><i class="bi bi-check-circle-fill text-success"></i> Duyệt bài đăng</h2>
+            <small class="text-muted">Danh sách bài đăng chờ duyệt</small>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-exclamation-circle-fill"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Statistics -->
+    @if (statistics != null)
+    {
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted mb-3"><i class="bi bi-clock-history"></i> Thống kê</h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>Đang chờ duyệt:</span>
+                            <span class="badge bg-warning fs-6">@statistics.PendingCount</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>Tổng số bài đăng:</span>
+                            <span class="badge bg-secondary fs-6">@statistics.TotalCount</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Posts List -->
+    @if (Model == null || !Model.Any())
+    {
+        <div class="alert alert-info shadow-sm">
+            <i class="bi bi-info-circle-fill"></i> Không có bài đăng nào chờ duyệt.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var post in Model)
+            {
+                <div class="col-md-12 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title mb-2">@post.Title</h5>
+                                    <p class="card-text text-muted mb-2">@post.Content</p>
+                                    <small class="text-muted">
+                                        <i class="bi bi-person"></i> @post.AuthorUsername |
+                                        <i class="bi bi-calendar"></i> @post.CreatedAt.ToString("dd/MM/yyyy HH:mm:ss")
+                                        @if (post.AttachmentCount > 0)
+                                        {
+                                            <span> | <i class="bi bi-paperclip"></i> @post.AttachmentCount file đính kèm</span>
+                                        }
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 mt-3">
+                                <form asp-action="ApprovePost" asp-route-id="@post.Id" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Bạn có chắc chắn muốn duyệt bài đăng này?');">
+                                        <i class="bi bi-check-circle"></i> Duyệt
+                                    </button>
+                                </form>
+                                <form asp-action="RejectPost" asp-route-id="@post.Id" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Bạn có chắc chắn muốn từ chối bài đăng này? Bài đăng sẽ bị xóa.');">
+                                        <i class="bi bi-x-circle"></i> Từ chối
+                                    </button>
+                                </form>
+                                <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" class="btn btn-outline-primary btn-sm" target="_blank">
+                                    <i class="bi bi-eye"></i> Xem chi tiết
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+

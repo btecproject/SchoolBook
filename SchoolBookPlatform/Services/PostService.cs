@@ -131,6 +131,10 @@ public class PostService
             visibleToRoles = "All"; // Mặc định là "All" nếu không hợp lệ
         }
 
+        // Kiểm tra quyền user - HighAdmin/Moderator thì auto approve (IsVisible = true)
+        var userRoles = await _db.GetUserRolesAsync(userId);
+        var isModerator = userRoles.Contains("HighAdmin") || userRoles.Contains("Moderator");
+
         var post = new Post
         {
             Id = Guid.NewGuid(),
@@ -138,7 +142,9 @@ public class PostService
             Title = title,
             Content = content,
             VisibleToRoles = visibleToRoles,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            // HighAdmin/Moderator: auto approve, user thường: chờ duyệt
+            IsVisible = isModerator
         };
 
         _db.Posts.Add(post);

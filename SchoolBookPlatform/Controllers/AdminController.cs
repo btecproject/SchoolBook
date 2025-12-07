@@ -14,21 +14,27 @@ using SchoolBookPlatform.Models;
 using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels;
 using SchoolBookPlatform.ViewModels.Admin;
+using SchoolBookPlatform.ViewModels.Post;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 
 namespace SchoolBookPlatform.Controllers;
 
-[Authorize(Policy = "AdminOrHigher")]
+[Authorize] // Chỉ yêu cầu đăng nhập, policy sẽ kiểm tra ở từng action
 public class AdminController(
     AppDbContext db,
     UserManagementService userManagementService,
     IConfiguration config,
     AvatarService avatarService,
+    PostService postService,
     ILogger<AdminController> logger)
     : Controller
 {
+    // Suppress unused parameter warning - postService may be used in future
+    private readonly PostService _postService = postService;
+
     // GET: Users
+    [Authorize(Policy = "AdminOrHigher")]
     public async Task<IActionResult> Index()
     {
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -52,6 +58,7 @@ public class AdminController(
 
 [HttpPost]
 [ValidateAntiForgeryToken]
+[Authorize(Policy = "AdminOrHigher")]
 public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
     [FromServices] IHubContext<ImportExcelHub> hubContext)
 {
@@ -317,6 +324,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
     }
     
     // GET: Users/Create
+    [Authorize(Policy = "AdminOrHigher")]
     public async Task<IActionResult> Create()
     {
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -348,6 +356,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
     // POST: Users/Create
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = "AdminOrHigher")]
     public async Task<IActionResult> Create(CreateUserViewModel model)
     {
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -513,6 +522,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
     }
     
     // GET: Users/Edit
+    [Authorize(Policy = "AdminOrHigher")]
     public async Task<IActionResult> Edit(Guid? id)
     {
         if (id == null)
@@ -571,6 +581,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
     // POST: Users/Edit/5
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = "AdminOrHigher")]
     public async Task<IActionResult> Edit(Guid id, EditUserViewModel model)
     {
         if (id != model.Id)
@@ -707,6 +718,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
     }
 
     // GET: Users/Delete
+    [Authorize(Policy = "AdminOrHigher")]
     public async Task<IActionResult> Delete(Guid? id)
     {
         if (id == null)
@@ -747,6 +759,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
     // POST: Users/Delete
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = "AdminOrHigher")]
     public async Task<IActionResult> DeleteConfirmed(Guid id)
     {
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -815,6 +828,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
     // POST: Users/DisableUser
     [HttpPost]
     [IgnoreAntiforgeryToken]
+    [Authorize(Policy = "AdminOrHigher")]
     public async Task<IActionResult> DisableUser([FromBody] RevokeTokensRequest request)
     {
         if (request == null || request.Id == Guid.Empty)
@@ -858,6 +872,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
     // POST: Users/EnableUser
     [HttpPost]
     [IgnoreAntiforgeryToken]
+    [Authorize(Policy = "AdminOrHigher")]
     public async Task<IActionResult> EnableUser([FromBody] RevokeTokensRequest request)
     {
         if (request == null || request.Id == Guid.Empty)
@@ -897,6 +912,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
     // POST: Users/ResetPassword
     [HttpPost]
     [IgnoreAntiforgeryToken]
+    [Authorize(Policy = "AdminOrHigher")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
         if (request == null || request.Id == Guid.Empty)
@@ -938,6 +954,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
     // POST: Users/RevokeTokens
     [HttpPost]
     [IgnoreAntiforgeryToken]
+    [Authorize(Policy = "AdminOrHigher")]
     public async Task<IActionResult> RevokeTokens([FromBody] RevokeTokensRequest request)
     {
         if (request == null || request.Id == Guid.Empty)
@@ -991,6 +1008,441 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
             Description = r.Description ?? ""
         }).ToList();
     }
+
+    #region Post Approval Management
+
+    /// <summary>
+    /// GET: Admin/ApprovePosts
+    /// Hiển thị danh sách bài đăng chờ duyệt
+    /// </summary>
+    [Authorize(Policy = "ModeratorOrHigher")]
+    public async Task<IActionResult> ApprovePosts()
+    {
+        var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userRoles = await db.GetUserRolesAsync(currentUserId);
+
+        // Chỉ HighAdmin và Moderator mới có quyền duyệt bài
+        if (!userRoles.Contains("HighAdmin") && !userRoles.Contains("Moderator"))
+        {
+            TempData["ErrorMessage"] = "Bạn không có quyền truy cập trang này.";
+            return RedirectToAction("Index");
+        }
+
+        var posts = await db.Posts
+            .Include(p => p.User)
+                .ThenInclude(u => u.UserProfile)
+            .Include(p => p.Attachments)
+            .Where(p => !p.IsDeleted && !p.IsVisible) // Chỉ hiển thị bài chờ duyệt
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+        var viewModels = posts.Select(p => new ViewModels.Admin.PendingPostViewModel
+        {
+            Id = p.Id,
+            Title = p.Title,
+            Content = p.Content.Length > 200 ? p.Content.Substring(0, 200) + "..." : p.Content,
+            AuthorUsername = p.User.Username,
+            AuthorId = p.UserId,
+            CreatedAt = p.CreatedAt,
+            AttachmentCount = p.Attachments.Count
+        }).ToList();
+
+        // Thống kê
+        var statistics = new ViewModels.Admin.PostApprovalStatisticsViewModel
+        {
+            PendingCount = await db.Posts.CountAsync(p => !p.IsDeleted && !p.IsVisible),
+            TotalCount = await db.Posts.CountAsync(p => !p.IsDeleted)
+        };
+
+        ViewBag.Statistics = statistics;
+
+        return View(viewModels);
+    }
+
+    /// <summary>
+    /// POST: Admin/ApprovePost/{id}
+    /// Duyệt bài đăng
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = "ModeratorOrHigher")]
+    public async Task<IActionResult> ApprovePost(Guid id)
+    {
+        var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userRoles = await db.GetUserRolesAsync(currentUserId);
+
+        // Chỉ HighAdmin và Moderator mới có quyền duyệt
+        if (!userRoles.Contains("HighAdmin") && !userRoles.Contains("Moderator"))
+        {
+            TempData["ErrorMessage"] = "Bạn không có quyền duyệt bài đăng.";
+            return RedirectToAction(nameof(ApprovePosts));
+        }
+
+        var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id);
+
+        if (post == null)
+        {
+            TempData["ErrorMessage"] = "Không tìm thấy bài đăng.";
+            return RedirectToAction(nameof(ApprovePosts));
+        }
+
+        try
+        {
+            post.IsVisible = true;
+            post.UpdatedAt = DateTime.UtcNow;
+
+            await db.SaveChangesAsync();
+            logger.LogInformation("Post {PostId} approved by {UserId}", id, currentUserId);
+
+            TempData["SuccessMessage"] = "Đã duyệt bài đăng thành công!";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error approving post {PostId}", id);
+            TempData["ErrorMessage"] = "Có lỗi xảy ra khi duyệt bài đăng.";
+        }
+
+        return RedirectToAction(nameof(ApprovePosts));
+    }
+
+    /// <summary>
+    /// POST: Admin/RejectPost/{id}
+    /// Từ chối bài đăng (soft delete)
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = "ModeratorOrHigher")]
+    public async Task<IActionResult> RejectPost(Guid id)
+    {
+        var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userRoles = await db.GetUserRolesAsync(currentUserId);
+
+        // Chỉ HighAdmin và Moderator mới có quyền từ chối
+        if (!userRoles.Contains("HighAdmin") && !userRoles.Contains("Moderator"))
+        {
+            TempData["ErrorMessage"] = "Bạn không có quyền từ chối bài đăng.";
+            return RedirectToAction(nameof(ApprovePosts));
+        }
+
+        var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == id);
+
+        if (post == null)
+        {
+            TempData["ErrorMessage"] = "Không tìm thấy bài đăng.";
+            return RedirectToAction(nameof(ApprovePosts));
+        }
+
+        try
+        {
+            post.IsDeleted = true;
+            post.IsVisible = false;
+            post.UpdatedAt = DateTime.UtcNow;
+
+            await db.SaveChangesAsync();
+            logger.LogInformation("Post {PostId} rejected by {UserId}", id, currentUserId);
+
+            TempData["SuccessMessage"] = "Đã từ chối bài đăng thành công!";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error rejecting post {PostId}", id);
+            TempData["ErrorMessage"] = "Có lỗi xảy ra khi từ chối bài đăng.";
+        }
+
+        return RedirectToAction(nameof(ApprovePosts));
+    }
+
+    #endregion
+
+    #region Report Management
+
+    /// <summary>
+    /// GET: Admin/Reports
+    /// Hiển thị danh sách báo cáo với filter theo trạng thái
+    /// </summary>
+    [Authorize(Policy = "ModeratorOrHigher")]
+    public async Task<IActionResult> Reports(string? status = null)
+    {
+        var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userRoles = await db.GetUserRolesAsync(currentUserId);
+
+        // Chỉ HighAdmin và Moderator mới có quyền xử lý báo cáo
+        if (!userRoles.Contains("HighAdmin") && !userRoles.Contains("Moderator"))
+        {
+            TempData["ErrorMessage"] = "Bạn không có quyền truy cập trang này.";
+            return RedirectToAction("Index");
+        }
+
+        var query = db.PostReports
+            .Include(r => r.Post)
+            .Include(r => r.Reporter)
+            .Include(r => r.Reviewer)
+            .AsQueryable();
+
+        // Filter theo trạng thái nếu có
+        if (!string.IsNullOrEmpty(status) && status != "all")
+        {
+            query = query.Where(r => r.Status == status);
+        }
+
+        var reports = await query
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+
+        var viewModels = reports.Select(r => new ViewModels.Admin.ReportListViewModel
+        {
+            Id = r.Id,
+            PostId = r.PostId,
+            PostTitle = r.Post.Title,
+            ReporterUsername = r.Reporter.Username,
+            ReporterId = r.ReportedBy,
+            Reason = r.Reason,
+            Status = r.Status,
+            CreatedAt = r.CreatedAt,
+            ReviewedAt = r.ReviewedAt,
+            ReviewerUsername = r.Reviewer?.Username
+        }).ToList();
+
+        // Thống kê
+        var statistics = new ViewModels.Admin.ReportStatisticsViewModel
+        {
+            PendingCount = await db.PostReports.CountAsync(r => r.Status == "Pending"),
+            ApprovedCount = await db.PostReports.CountAsync(r => r.Status == "Approved"),
+            RejectedCount = await db.PostReports.CountAsync(r => r.Status == "Rejected"),
+            TotalCount = await db.PostReports.CountAsync()
+        };
+
+        ViewBag.Statistics = statistics;
+        ViewBag.CurrentFilter = status ?? "all";
+
+        return View(viewModels);
+    }
+
+    /// <summary>
+    /// GET: Admin/ReportDetails/{id}
+    /// Hiển thị chi tiết báo cáo
+    /// </summary>
+    [Authorize(Policy = "ModeratorOrHigher")]
+    public async Task<IActionResult> ReportDetails(Guid id)
+    {
+        var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userRoles = await db.GetUserRolesAsync(currentUserId);
+
+        // Chỉ HighAdmin và Moderator mới có quyền xem chi tiết báo cáo
+        if (!userRoles.Contains("HighAdmin") && !userRoles.Contains("Moderator"))
+        {
+            TempData["ErrorMessage"] = "Bạn không có quyền truy cập trang này.";
+            return RedirectToAction("Index");
+        }
+
+        var report = await db.PostReports
+            .Include(r => r.Post)
+                .ThenInclude(p => p.User)
+            .Include(r => r.Reporter)
+            .Include(r => r.Reviewer)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (report == null)
+        {
+            return NotFound();
+        }
+
+        // Thống kê các báo cáo khác của cùng bài đăng
+        var otherReports = await db.PostReports
+            .Where(r => r.PostId == report.PostId)
+            .ToListAsync();
+
+        var viewModel = new ViewModels.Admin.ReportDetailsViewModel
+        {
+            Id = report.Id,
+            PostId = report.PostId,
+            PostTitle = report.Post.Title,
+            PostContent = report.Post.Content,
+            PostAuthorUsername = report.Post.User.Username,
+            PostCreatedAt = report.Post.CreatedAt,
+            PostIsDeleted = report.Post.IsDeleted,
+            PostIsVisible = report.Post.IsVisible,
+            ReporterId = report.ReportedBy,
+            ReporterUsername = report.Reporter.Username,
+            Reason = report.Reason,
+            Status = report.Status,
+            CreatedAt = report.CreatedAt,
+            ReviewedBy = report.ReviewedBy,
+            ReviewerUsername = report.Reviewer?.Username,
+            ReviewedAt = report.ReviewedAt,
+            PendingReportsCount = otherReports.Count(r => r.Status == "Pending"),
+            ApprovedReportsCount = otherReports.Count(r => r.Status == "Approved"),
+            RejectedReportsCount = otherReports.Count(r => r.Status == "Rejected"),
+            TotalReportsCount = otherReports.Count
+        };
+
+        return View(viewModel);
+    }
+
+    /// <summary>
+    /// POST: Admin/ApproveReport/{id}
+    /// Duyệt báo cáo và có thể xóa bài đăng
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = "ModeratorOrHigher")]
+    public async Task<IActionResult> ApproveReport(Guid id, bool deletePost = false)
+    {
+        var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userRoles = await db.GetUserRolesAsync(currentUserId);
+
+        // Chỉ HighAdmin và Moderator mới có quyền duyệt
+        if (!userRoles.Contains("HighAdmin") && !userRoles.Contains("Moderator"))
+        {
+            TempData["ErrorMessage"] = "Bạn không có quyền duyệt báo cáo.";
+            return RedirectToAction(nameof(Reports));
+        }
+
+        var report = await db.PostReports
+            .Include(r => r.Post)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (report == null)
+        {
+            TempData["ErrorMessage"] = "Không tìm thấy báo cáo.";
+            return RedirectToAction(nameof(Reports));
+        }
+
+        if (report.Status != "Pending")
+        {
+            TempData["ErrorMessage"] = "Báo cáo này đã được xử lý rồi.";
+            return RedirectToAction(nameof(ReportDetails), new { id });
+        }
+
+        try
+        {
+            // Cập nhật trạng thái báo cáo
+            report.Status = "Approved";
+            report.ReviewedBy = currentUserId;
+            report.ReviewedAt = DateTime.UtcNow;
+
+            // Nếu chọn xóa bài đăng, soft delete
+            if (deletePost)
+            {
+                report.Post.IsDeleted = true;
+                report.Post.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await db.SaveChangesAsync();
+            logger.LogInformation("Report {ReportId} approved by {UserId}, deletePost: {DeletePost}", 
+                id, currentUserId, deletePost);
+
+            TempData["SuccessMessage"] = deletePost 
+                ? "Đã duyệt báo cáo và xóa bài đăng thành công!" 
+                : "Đã duyệt báo cáo thành công!";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error approving report {ReportId}", id);
+            TempData["ErrorMessage"] = "Có lỗi xảy ra khi duyệt báo cáo.";
+        }
+
+        return RedirectToAction(nameof(ReportDetails), new { id });
+    }
+
+    /// <summary>
+    /// POST: Admin/RejectReport/{id}
+    /// Từ chối báo cáo
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = "ModeratorOrHigher")]
+    public async Task<IActionResult> RejectReport(Guid id)
+    {
+        var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userRoles = await db.GetUserRolesAsync(currentUserId);
+
+        // Chỉ HighAdmin và Moderator mới có quyền từ chối
+        if (!userRoles.Contains("HighAdmin") && !userRoles.Contains("Moderator"))
+        {
+            TempData["ErrorMessage"] = "Bạn không có quyền từ chối báo cáo.";
+            return RedirectToAction(nameof(Reports));
+        }
+
+        var report = await db.PostReports.FirstOrDefaultAsync(r => r.Id == id);
+
+        if (report == null)
+        {
+            TempData["ErrorMessage"] = "Không tìm thấy báo cáo.";
+            return RedirectToAction(nameof(Reports));
+        }
+
+        if (report.Status != "Pending")
+        {
+            TempData["ErrorMessage"] = "Báo cáo này đã được xử lý rồi.";
+            return RedirectToAction(nameof(ReportDetails), new { id });
+        }
+
+        try
+        {
+            report.Status = "Rejected";
+            report.ReviewedBy = currentUserId;
+            report.ReviewedAt = DateTime.UtcNow;
+
+            await db.SaveChangesAsync();
+            logger.LogInformation("Report {ReportId} rejected by {UserId}", id, currentUserId);
+
+            TempData["SuccessMessage"] = "Đã từ chối báo cáo thành công!";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error rejecting report {ReportId}", id);
+            TempData["ErrorMessage"] = "Có lỗi xảy ra khi từ chối báo cáo.";
+        }
+
+        return RedirectToAction(nameof(ReportDetails), new { id });
+    }
+
+    /// <summary>
+    /// POST: Admin/DeleteReport/{id}
+    /// Xóa báo cáo (chỉ HighAdmin và Moderator)
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = "ModeratorOrHigher")]
+    public async Task<IActionResult> DeleteReport(Guid id)
+    {
+        var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userRoles = await db.GetUserRolesAsync(currentUserId);
+
+        // Chỉ HighAdmin và Moderator mới có quyền xóa
+        if (!userRoles.Contains("HighAdmin") && !userRoles.Contains("Moderator"))
+        {
+            TempData["ErrorMessage"] = "Bạn không có quyền xóa báo cáo.";
+            return RedirectToAction(nameof(Reports));
+        }
+
+        var report = await db.PostReports.FirstOrDefaultAsync(r => r.Id == id);
+
+        if (report == null)
+        {
+            TempData["ErrorMessage"] = "Không tìm thấy báo cáo.";
+            return RedirectToAction(nameof(Reports));
+        }
+
+        try
+        {
+            db.PostReports.Remove(report);
+            await db.SaveChangesAsync();
+            logger.LogInformation("Report {ReportId} deleted by {UserId}", id, currentUserId);
+
+            TempData["SuccessMessage"] = "Đã xóa báo cáo thành công!";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deleting report {ReportId}", id);
+            TempData["ErrorMessage"] = "Có lỗi xảy ra khi xóa báo cáo.";
+        }
+
+        return RedirectToAction(nameof(Reports));
+    }
+
+    #endregion
 }
 
 // Request models
