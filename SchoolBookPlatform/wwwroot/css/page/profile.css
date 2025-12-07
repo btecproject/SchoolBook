@@ -85,3 +85,10 @@
 .material-symbols-outlined {
     text-decoration: none !important;
 }
+
+@media (min-width: 992px) {
+    .col-lg-8 {
+        flex: 0 0 auto;
+        width: 100%;
+    }
+}

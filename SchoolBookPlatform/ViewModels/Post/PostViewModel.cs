@@ -18,6 +18,8 @@ public class PostViewModel
     public bool IsDeleted { get; set; }
     public bool IsVisible { get; set; }
     public string? VisibleToRoles { get; set; }
+    public bool IsUpvoted { get; set; } 
+    public bool IsDownvoted { get; set; } 
     
     /// <summary>
     /// True nếu user hiện tại là chủ sở hữu bài đăng

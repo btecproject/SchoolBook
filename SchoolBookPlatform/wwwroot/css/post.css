@@ -1,0 +1,268 @@
+﻿/* Post Hover Effects */
+/* ================== */
+
+/* Nút Vote Container */
+.vote-container {
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 50px !important;
+    background-color: #f8f9fa !important;
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.vote-container:hover {
+    border-color: #d0d0d0 !important;
+    background-color: #f0f2f5 !important;
+}
+
+/* Nút Upvote */
+.vote-up-btn {
+    border: none !important;
+    background: transparent !important;
+    color: #878a8c !important;
+    padding: 4px 12px !important;
+    transition: all 0.2s ease;
+    border-radius: 20px 0 0 20px !important;
+}
+
+.vote-up-btn:hover {
+    color: #ff4500 !important;
+    background-color: rgba(255, 69, 0, 0.1) !important;
+}
+
+.vote-up-btn.active {
+    color: #ff4500 !important;
+}
+
+.vote-up-btn.active:hover {
+    background-color: rgba(255, 69, 0, 0.15) !important;
+}
+
+/* Nút Downvote */
+.vote-down-btn {
+    border: none !important;
+    background: transparent !important;
+    color: #878a8c !important;
+    padding: 4px 12px !important;
+    transition: all 0.2s ease;
+    border-radius: 0 20px 20px 0 !important;
+}
+
+.vote-down-btn:hover {
+    color: #6a11cb !important;
+    background-color: rgba(94, 64, 184, 0.1) !important;
+}
+
+.vote-down-btn.active {
+    color: #7e1aea !important;
+}
+
+.vote-down-btn.active:hover {
+    background-color: rgba(113, 147, 255, 0.15) !important;
+}
+
+/* Điểm số vote */
+.vote-score {
+    min-width: 40px !important;
+    text-align: center !important;
+    color: #1a1a1b !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    pointer-events: none !important;
+    padding: 4px 8px !important;
+    transition: color 0.2s ease;
+}
+
+.vote-container:hover .vote-score {
+    color: #000000 !important;
+}
+
+/* Nút Comment */
+.comment-btn {
+    border: 1px solid #e0e0e0 !important;
+    color: #878a8c !important;
+    border-radius: 50px !important;
+    padding: 4px 16px !important;
+    transition: all 0.2s ease;
+    background-color: transparent !important;
+}
+
+.comment-btn:hover {
+    background-color: #f0f2f5 !important;
+    border-color: #d0d0d0 !important;
+    color: #636466 !important;
+    transform: translateY(-1px);
+}
+
+.comment-btn:active {
+    transform: translateY(0);
+}
+
+/* Icon trong nút comment */
+.comment-btn i {
+    transition: transform 0.2s ease;
+}
+
+.comment-btn:hover i {
+    transform: scale(1.1);
+}
+
+/* Nút Dropdown (3 chấm) */
+.dropdown-toggle-no-border {
+    width: 32px !important;
+    height: 32px !important;
+    border: none !important;
+    background: transparent !important;
+    border-radius: 50% !important;
+    transition: all 0.2s ease;
+}
+
+.dropdown-toggle-no-border:hover {
+    background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.dropdown-toggle-no-border i {
+    color: #6c757d !important;
+    transition: color 0.2s ease;
+}
+
+.dropdown-toggle-no-border:hover i {
+    color: #495057 !important;
+}
+
+/* Link tên người đăng */
+.author-link {
+    color: inherit !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.author-link:hover {
+    color: rgba(253, 150, 75, 0.93) !important;
+}
+
+/* Hiệu ứng cho toàn bộ card bài đăng */
+.post-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.post-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Animation cho nút vote khi click */
+@keyframes votePulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.vote-up-btn.voted {
+    animation: votePulse 0.3s ease;
+}
+
+.vote-down-btn.voted {
+    animation: votePulse 0.3s ease;
+}
+
+/* Hiệu ứng cho badge quyền xem */
+.badge-role {
+    transition: all 0.2s ease;
+}
+
+.badge-role:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+/* Vote container base styles */
+.vote-container {
+    background-color: #f8f9fa; /* Màu nền mặc định */
+    border-radius: 25px;
+    padding: 4px 12px;
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+    min-height: 40px;
+}
+
+/* Container khi đã upvote - Background cam */
+.vote-container.vote-container-upvoted {
+    background-color: rgba(255, 107, 53, 0.15) !important;
+    border-color: rgba(255, 107, 53, 0.3) !important;
+    box-shadow: 0 0 0 1px rgba(255, 107, 53, 0.1);
+}
+
+/* Container khi đã downvote - Background tím nhạt */
+.vote-container.vote-container-downvoted {
+    background-color: rgba(106, 17, 203, 0.15) !important;
+    border-color: rgba(106, 17, 203, 0.3) !important;
+    box-shadow: 0 0 0 1px rgba(106, 17, 203, 0.1);
+}
+
+/* Hover effect cho container */
+.vote-container:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Nút vote base styles */
+.vote-up-btn, .vote-down-btn {
+    background: transparent !important;
+    border: none !important;
+    color: #6c757d;
+    padding: 6px 10px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    line-height: 1;
+}
+
+/* Nút upvote khi active (đã upvote) */
+.vote-up-btn.active {
+    color: #ff6b35 !important; /* Cam đậm */
+    background-color: rgba(255, 107, 53, 0.2) !important;
+}
+
+/* Nút downvote khi active (đã downvote) */
+.vote-down-btn.active {
+    color: #6a11cb !important; /* Tím đậm */
+    background-color: rgba(106, 17, 203, 0.2) !important;
+}
+
+/* Hover effects */
+.vote-up-btn:hover {
+    color: #ff6b35;
+    background-color: rgba(255, 107, 53, 0.1) !important;
+}
+
+.vote-down-btn:hover {
+    color: #6a11cb;
+    background-color: rgba(106, 17, 203, 0.1) !important;
+}
+
+/* Điểm số */
+.vote-score {
+    font-weight: 600;
+    font-size: 1.1rem;
+    min-width: 35px;
+    text-align: center;
+    color: #495057;
+    transition: all 0.3s ease;
+}
+
+/* Màu điểm số khi đã vote */
+.vote-container-upvoted .vote-score {
+    color: #ff6b35; /* Cam khi upvote */
+    font-weight: 700;
+}
+
+.vote-container-downvoted .vote-score {
+    color: #6a11cb; /* Tím khi downvote */
+    font-weight: 700;
+}

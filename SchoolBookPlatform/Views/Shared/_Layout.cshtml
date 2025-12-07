@@ -147,17 +147,15 @@
             var currentAction = ViewContext.RouteData.Values["Action"]?.ToString();
             var isFeedsHome = currentController == "Feeds" && currentAction == "Home";
             var isFeedsFollowing = currentController == "Feeds" && currentAction == "Following";
-            var isChatIndex = currentController == "Chat" && currentAction == "Index";
-            var isAdminIndex = currentController == "Admin" && currentAction == "Index";
         }
         
-        <a class="sidebar-button @(ViewBag.ViewType != "following" ? "active" : "")" 
+        <a class="sidebar-button @(isFeedsHome ? "active" : "")" 
            href="@Url.Action("Home", "Feeds")">
             <i class="fas fa-globe"></i>
             <span>For You</span>
         </a>
         
-        <a class="sidebar-button @(ViewBag.ViewType == "following" ? "active" : "")" 
+        <a class="sidebar-button @(isFeedsFollowing ? "active" : "")" 
            href="@Url.Action("Following", "Feeds")">
             <i class="fas fa-user-friends"></i>
             <span>Following</span>
@@ -169,31 +167,54 @@
         <div class="sidebar-section-title">
             <span>Features</span>
         </div>
-        
-        <a class="sidebar-button" href="@Url.Action("Index", "Chat")">
+        @{
+            var isChatIndex = currentController == "Chat" && currentAction == "Index";
+            var isUserManageIndex = currentController == "Admin" && currentAction == "Index";
+            var isApprovePost = currentController == "Admin" && currentAction == "ApprovePosts";
+            var isReportManage = currentController == "Admin" && currentAction == "Reports";
+            var isProfileIndex = currentController == "Profile" && currentAction == "Index";
+            var isSettingIndex = currentController == "Setting" && currentAction == "Index";
+        }
+        <a class="sidebar-button @(isChatIndex ? "active" : "")" href="@Url.Action("Index", "Chat")">
             <i class="fas fa-comments"></i>
             <span>Chat</span>
         </a>
         
         @if (User.IsInRole("HighAdmin") || User.IsInRole("Admin"))
         {
-            <a class="sidebar-button" href="@Url.Action("Index", "Admin")">
+            <a class="sidebar-button @(isUserManageIndex ? "active" : "")" href="@Url.Action("Index", "Admin")">
                 <i class="fas fa-users-cog"></i>
                 <span>User Management</span>
             </a>
         }
+        <!-- Administration Section -->
+        @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
+        {
+            <a class="sidebar-button @(isApprovePost ? "active" : "")" href="@Url.Action("ApprovePosts", "Admin")">
+                <i class="fas fa-check-circle"></i>
+                <span>Approve Posts</span>
+                @await Component.InvokeAsync("PendingPostsBadge")
+            </a>
+            
+            <a class="sidebar-button @(isReportManage ? "active" : "")" href="@Url.Action("Reports", "Admin")">
+                <i class="fas fa-flag"></i>
+                <span>Report Management</span>
+                @await Component.InvokeAsync("PendingReportsBadge")
+            </a>
+        }
         
-        <a class="sidebar-button" href="@Url.Action("Index", "Profile", new { username = User.Identity?.Name })">
+        <a class="sidebar-button @(isProfileIndex ? "active" : "")" href="@Url.Action("Index", "Profile", new { username = User.Identity?.Name })">
             <i class="fas fa-user"></i>
             <span>Profile</span>
         </a>
         
-        <a class="sidebar-button" href="@Url.Action("Index", "Setting")">
+        <a class="sidebar-button @(isSettingIndex ? "active" : "")" href="@Url.Action("Index", "Setting")">
             <i class="fas fa-cog"></i>
             <span>Settings</span>
         </a>
         
         <div class="sidebar-divider"></div>
+        
         
         <!-- Legal Section -->
         <div class="sidebar-section-title">
