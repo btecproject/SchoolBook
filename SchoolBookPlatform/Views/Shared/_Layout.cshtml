@@ -9,13 +9,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>@ViewData["Title"] - SchoolBook Platform</title>
     @await RenderSectionAsync("Styles", required: false)
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css"/>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
     <link rel="stylesheet" href="~/css/page/home.css" asp-append-version="true"/>
     <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true"/>
     <link rel="stylesheet" href="~/css/sidebar.css" asp-append-version="true"/>
     <link rel="stylesheet" href="~/css/page/feed.css" asp-append-version="true"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* Additional inline styles for better spacing */
         .navbar.fixed-top {
@@ -54,15 +55,6 @@
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="Admin" asp-action="Index">
                                     <i class="bi bi-people"></i> User Management
-                                </a>
-                            </li>
-                        }
-                        @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark position-relative" asp-controller="Admin" asp-action="Reports">
-                                    <i class="bi bi-flag"></i> Quản lý báo cáo
-                                    @await Component.InvokeAsync("PendingReportsBadge")
                                 </a>
                             </li>
                         }
@@ -149,6 +141,16 @@
             <span>Feed</span>
         </div>
         
+        @{
+            // Lấy controller và action hiện tại
+            var currentController = ViewContext.RouteData.Values["Controller"]?.ToString();
+            var currentAction = ViewContext.RouteData.Values["Action"]?.ToString();
+            var isFeedsHome = currentController == "Feeds" && currentAction == "Home";
+            var isFeedsFollowing = currentController == "Feeds" && currentAction == "Following";
+            var isChatIndex = currentController == "Chat" && currentAction == "Index";
+            var isAdminIndex = currentController == "Admin" && currentAction == "Index";
+        }
+        
         <a class="sidebar-button @(ViewBag.ViewType != "following" ? "active" : "")" 
            href="@Url.Action("Home", "Feeds")">
             <i class="fas fa-globe"></i>
@@ -180,35 +182,6 @@
                 <span>User Management</span>
             </a>
         }
-        
-        <div class="sidebar-divider"></div>
-        
-        <!-- Administration Section -->
-        @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
-        {
-            <div class="sidebar-section-title">
-                <span>QUẢN TRỊ</span>
-            </div>
-            
-            <a class="sidebar-button" href="@Url.Action("ApprovePosts", "Admin")">
-                <i class="fas fa-check-circle"></i>
-                <span>Duyệt bài đăng</span>
-                @await Component.InvokeAsync("PendingPostsBadge")
-            </a>
-            
-            <a class="sidebar-button" href="@Url.Action("Reports", "Admin")">
-                <i class="fas fa-flag"></i>
-                <span>Quản lý báo cáo</span>
-                @await Component.InvokeAsync("PendingReportsBadge")
-            </a>
-        }
-        
-        <div class="sidebar-divider"></div>
-        
-        <!-- Features Section (continued) -->
-        <div class="sidebar-section-title">
-            <span>FEATURES</span>
-        </div>
         
         <a class="sidebar-button" href="@Url.Action("Index", "Profile", new { username = User.Identity?.Name })">
             <i class="fas fa-user"></i>
@@ -342,16 +315,17 @@
     }
     
     // Initialize sidebar state
+    // Sửa phần JavaScript để kiểm tra chính xác hơn
     document.addEventListener('DOMContentLoaded', function() {
         const sidebar = document.getElementById('sidebar');
         const footer = document.getElementById('sidebarFooter');
-        
+
         // Restore sidebar state
         const savedSidebarState = localStorage.getItem('sidebarCollapsed');
         if (savedSidebarState === 'true') {
             sidebar.classList.add('collapsed');
         }
-        
+
         // Restore footer state
         const savedFooterState = localStorage.getItem('footerExpanded');
         if (footer && savedFooterState === 'true') {
@@ -361,36 +335,40 @@
                 icon.className = 'fas fa-caret-up';
             }
         }
-        
-        // Set active button based on current page
-        const currentPath = window.location.pathname.toLowerCase();
-        document.querySelectorAll('.sidebar-button').forEach(button => {
-            const buttonPath = button.getAttribute('href').toLowerCase();
-            if (currentPath === buttonPath || 
-                (currentPath.startsWith(buttonPath) && buttonPath !== '/')) {
-                button.classList.add('active');
-            }
-        });
-        
+
+        // const currentPath = window.location.pathname.toLowerCase();
+        // document.querySelectorAll('.sidebar-button').forEach(button => {
+        //     const buttonHref = button.getAttribute('href');
+        //     if (buttonHref) {
+        //         const buttonPath = buttonHref.toLowerCase();
+        //         // Chỉ active khi path trùng chính xác
+        //         if (currentPath === buttonPath) {
+        //             button.classList.add('active');
+        //         } else {
+        //             button.classList.remove('active');
+        //         }
+        //     }
+        // });
+
         adjustMainContent();
-        
+
         // Handle responsive behavior
         function handleResponsive() {
             if (window.innerWidth <= 768) {
                 sidebar.classList.add('collapsed');
             }
         }
-        
+
         window.addEventListener('resize', handleResponsive);
         handleResponsive();
-        
+
         // Close sidebar when clicking outside on mobile
         if (window.innerWidth <= 768) {
             document.addEventListener('click', function(event) {
                 const sidebar = document.getElementById('sidebar');
                 const isClickInsideSidebar = sidebar.contains(event.target);
                 const isToggleButton = event.target.closest('.sidebar-toggle');
-                
+
                 if (!isClickInsideSidebar && !isToggleButton && !sidebar.classList.contains('collapsed')) {
                     sidebar.classList.add('collapsed');
                     adjustMainContent();
