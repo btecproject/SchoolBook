@@ -221,10 +221,10 @@ public class Program
             context.Response.Headers.Append("Content-Security-Policy",
                 "default-src 'self'; " + 
                 "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com; " +
-                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " +
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com/; " +
                 "img-src 'self' data: https://res.cloudinary.com https://*.googleusercontent.com; " +
                 "media-src 'self' https://res.cloudinary.com; " +
-                "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
+                "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " + 
                 // Cho phép kết nối WebSocket (SignalR)
                 "connect-src 'self' wss: https:; " +
                 // Không nhúng web vào iframe (Clickjacking)
