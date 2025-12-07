@@ -367,3 +367,25 @@
 .btn-group .vote-score {
     border-radius: 0;
 }
+
+/* Animation cho vote score */
+.score-updated {
+    animation: scorePulse 0.5s ease-in-out;
+}
+
+@keyframes scorePulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Loading spinner */
+#loading-spinner .spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Smooth transition cho bài đăng mới */
+.post-card {
+    transition: opacity 0.3s ease;
+}

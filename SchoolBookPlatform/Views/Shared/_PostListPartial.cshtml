@@ -1,0 +1,244 @@
+﻿@model SchoolBookPlatform.ViewModels.Post.PostListViewModel
+
+@if (!Model.Posts.Any())
+{
+    @if (Model.CurrentPage == 1)
+    {
+        @if (Model.ViewType != "following")
+        {
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Chưa có bài đăng nào. Hãy <a asp-controller="Post" asp-action="Create">đăng bài đầu tiên</a>!
+            </div>
+        }
+    }
+    return;
+}
+@foreach (var post in Model.Posts)
+{
+    <div class="card mb-3 post-card" data-post-id="@post.Id" style="cursor: pointer;">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <h5 class="card-title">
+                        @post.Title
+                    </h5>
+                    <p class="card-text">@post.Content</p>
+                    <small class="text-muted">
+                        Đăng bởi: <strong>@post.AuthorName</strong> |
+                        @post.CreatedAt.ToString("g")
+                        @if (!string.IsNullOrEmpty(post.VisibleToRoles) && post.VisibleToRoles != "All")
+                        {
+                            <span class="badge bg-info ms-1">@post.VisibleToRoles</span>
+                        }
+                    </small>
+                </div>
+                
+                <!-- Dropdown cho nút Sửa/Xóa -->
+                @if (post.IsOwner || post.CanDelete)
+                {
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" 
+                                data-bs-toggle="dropdown" aria-expanded="false"
+                                onclick="event.stopPropagation();">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            @if (post.IsOwner)
+                            {
+                                <li>
+                                    <a class="dropdown-item" asp-controller="Post" asp-action="Edit" asp-route-id="@post.Id">
+                                        <i class="fas fa-edit me-2"></i> Sửa bài
+                                    </a>
+                                </li>
+                            }
+                            @if (post.CanDelete)
+                            {
+                                <li>
+                                    <form asp-controller="Post" asp-action="Delete" asp-route-id="@post.Id" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="dropdown-item text-danger"
+                                                onclick="event.stopPropagation(); return confirm('Bạn có chắc muốn xóa bài đăng này?');">
+                                            <i class="fas fa-trash me-2"></i> Xóa bài
+                                        </button>
+                                    </form>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+
+            @* Hiển thị file đính kèm (nếu có) *@
+            @if (post.Attachments.Any())
+            {
+                <div class="mt-3">
+                    @{
+                        // Hàm helper kiểm tra video
+                        bool IsVideoFile(string fileName)
+                        {
+                            if (string.IsNullOrEmpty(fileName))
+                                return false;
+                            var extension = System.IO.Path.GetExtension(fileName).ToLower();
+                            var videoExtensions = new[] { ".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg" };
+                            return videoExtensions.Contains(extension);
+                        }
+                        
+                        var mediaItems = post.Attachments.Where(a => a.IsImage || IsVideoFile(a.FileName)).ToList();
+                        var files = post.Attachments.Where(a => !a.IsImage && !IsVideoFile(a.FileName)).ToList();
+                    }
+                    
+                    @if (mediaItems.Any())
+                    {
+                        <div id="carousel-@post.Id" class="carousel slide mb-3" data-bs-ride="carousel">
+                            <!-- Counter hiển thị số media -->
+                            <div class="carousel-counter">
+                                <span id="current-slide-@post.Id">1</span> / <span id="total-slides-@post.Id">@mediaItems.Count</span>
+                            </div>
+                            
+                            @if (mediaItems.Count > 1)
+                            {
+                                <div class="carousel-indicators">
+                                    @for (int i = 0; i < mediaItems.Count; i++)
+                                    {
+                                        <button type="button" data-bs-target="#carousel-@post.Id" 
+                                                data-bs-slide-to="@i" class="@(i == 0 ? "active" : "")"
+                                                aria-current="@(i == 0 ? "true" : "false")"></button>
+                                    }
+                                </div>
+                            }
+                            
+                            <div class="carousel-inner rounded">
+                                @for (int i = 0; i < mediaItems.Count; i++)
+                                {
+                                    var media = mediaItems[i];
+                                    <div class="carousel-item @(i == 0 ? "active" : "")" data-slide-index="@(i + 1)">
+                                        @if (media.IsImage)
+                                        {
+                                            <a href="javascript:void(0);" class="d-block media-modal-link" 
+                                               data-post-id="@post.Id"
+                                               data-media-index="@i"
+                                               data-total-media="@mediaItems.Count"
+                                               data-media-type="image">
+                                                <img src="@media.FilePath" 
+                                                     class="d-block w-100 post-media"
+                                                     alt="@media.FileName"
+                                                     data-src="@media.FilePath"
+                                                     data-media-name="@media.FileName"
+                                                     style="max-height: 500px; object-fit: contain; background: #f8f9fa; cursor: pointer;" />
+                                            </a>
+                                        }
+                                        else if (IsVideoFile(media.FileName))
+                                        {
+                                            <div class="video-container position-relative">
+                                                <video class="d-block w-100 post-video"
+                                                       controls
+                                                       controlsList="nodownload"
+                                                       preload="metadata"
+                                                       style="max-height: 500px; object-fit: contain; background: #000; cursor: pointer;"
+                                                       data-src="@media.FilePath"
+                                                       data-media-name="@media.FileName">
+                                                    <source src="@media.FilePath" type="video/mp4">
+                                                    Trình duyệt của bạn không hỗ trợ video.
+                                                </video>
+                                                <a href="javascript:void(0);" class="media-modal-link video-overlay"
+                                                   data-post-id="@post.Id"
+                                                   data-media-index="@i"
+                                                   data-total-media="@mediaItems.Count"
+                                                   data-media-type="video">
+                                                    <div class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center">
+                                                        <div class="video-play-icon bg-dark bg-opacity-50 rounded-circle p-3">
+                                                            <i class="fas fa-play text-white fa-2x"></i>
+                                                        </div>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                            
+                            @if (mediaItems.Count > 1)
+                            {
+                                <button class="carousel-control-prev" type="button" data-bs-target="#carousel-@post.Id" data-bs-slide="prev">
+                                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Previous</span>
+                                </button>
+                                <button class="carousel-control-next" type="button" data-bs-target="#carousel-@post.Id" data-bs-slide="next">
+                                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Next</span>
+                                </button>
+                            }
+                        </div>
+                    }
+                    
+                    @if (files.Any())
+                    {
+                        <div class="file-list">
+                            <small class="text-muted d-block mb-2">File đính kèm:</small>
+                            @foreach (var file in files)
+                            {
+                                <a href="@file.FilePath" target="_blank" 
+                                   class="d-flex align-items-center text-decoration-none text-dark p-2 border rounded mb-2">
+                                    @{
+                                        var icon = "fa-file";
+                                        var extension = System.IO.Path.GetExtension(file.FileName).ToLower();
+                                        var color = "#6c757d";
+                                        
+                                        if (extension == ".pdf") { icon = "fa-file-pdf"; color = "#dc3545"; }
+                                        else if (extension == ".doc" || extension == ".docx") { icon = "fa-file-word"; color = "#0d6efd"; }
+                                        else if (extension == ".xls" || extension == ".xlsx") { icon = "fa-file-excel"; color = "#198754"; }
+                                        else if (extension == ".ppt" || extension == ".pptx") { icon = "fa-file-powerpoint"; color = "#fd7e14"; }
+                                        else if (extension == ".zip" || extension == ".rar") { icon = "fa-file-archive"; color = "#6f42c1"; }
+                                        else if (extension == ".mp4" || extension == ".avi" || extension == ".mov" || extension == ".mkv") { 
+                                            icon = "fa-file-video"; color = "#9c27b0"; 
+                                        }
+                                    }
+                                    <i class="fas @icon fa-2x me-3" style="color: @color;"></i>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-medium text-truncate" style="max-width: 300px;">@file.FileName</div>
+                                        <small class="text-muted">@((file.FileSize / 1024f / 1024f).ToString("F2")) MB</small>
+                                    </div>
+                                    <i class="fas fa-download text-primary"></i>
+                                </a>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="mt-3 d-flex align-items-center gap-2" onclick="event.stopPropagation();">
+                <!-- Nút Upvote và Downvote với tổng điểm -->
+                <div class="btn-group" role="group">
+                    <button class="btn btn-sm btn-outline-danger vote-btn"
+                            data-post-id="@post.Id"
+                            data-vote-type="false">
+                        <i class="fas fa-thumbs-down"></i>
+                    </button>
+                    
+                    <span class="btn btn-sm btn-light disabled vote-score"
+                          data-post-id="@post.Id"
+                          style="min-width: 50px; pointer-events: none;">
+                        @{
+                            var score = post.UpvoteCount - post.DownvoteCount;
+                            var displayScore = score < 0 ? 0 : score;
+                        }
+                        @displayScore
+                    </span>
+                    
+                    <button class="btn btn-sm btn-outline-primary vote-btn"
+                            data-post-id="@post.Id"
+                            data-vote-type="true">
+                        <i class="fas fa-thumbs-up"></i>
+                    </button>
+                </div>
+
+                <!-- Nút bình luận -->
+                <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" 
+                   class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation();">
+                    <i class="fas fa-comment me-1"></i> @post.CommentCount
+                </a>
+            </div>
+        </div>
+    </div>
+}

@@ -182,6 +182,8 @@ ViewData["Title"] = "Chat";
     let isLoadingHistory = false;
     let isAllLoaded = false;
 
+    const FALLBACK_IMAGE = '/images/file-error.png'; // Đường dẫn đến PNG fallback
+    
     const currentUsername = '@User.Identity!.Name';
 
     // ===== PIN & AUTH =====
@@ -722,14 +724,12 @@ ViewData["Title"] = "Chat";
                     decryptedText = await AesGcmHelper.decrypt(msg.cipherText, convKey);
                     if (decryptedText) {
                         if (isFile) {
-                            // decryptedText lúc này là URL file
                             if (msg.attachment) {
                                 content = renderFileAttachment(decryptedText, msg.attachment, msg.messageType);
                             } else {
                                 content = `<a href="${decryptedText}" target="_blank" class="text-white">📎 File đính kèm</a>`;
                             }
                         } else {
-                            // Text thường
                             content = escapeHtml(decryptedText);
                         }
                     } else {
@@ -743,32 +743,83 @@ ViewData["Title"] = "Chat";
                 content = '[Lỗi dữ liệu]';
             }
 
-            const bubbleClass = msg.isMine ? 'message-mine' : 'message-theirs';
+            const isMine = msg.isMine;
+            const bubbleClass = isMine ? 'message-mine' : 'message-theirs';
             const time = formatTime(msg.createdAt);
 
-            html +=`
+            if (isMine) {
+                // Tin nhắn của mình: nút dropdown ở bên TRÁI (trước bubble)
+                html += `
             <div class="message ${bubbleClass}" id="msg-${msg.messageId}">
-                <div class="message-bubble">${content}</div>
-                <div class="message-time">${time}</div>
+                <!-- Dropdown Button - Bên trái cho tin nhắn của mình -->
+                <div class="dropdown">
+                    <button class="message-actions-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots"></i>
+                    </button>
+                    <ul class="dropdown-menu message-dropdown-menu">
+                        <li>
+                            <a class="dropdown-item message-dropdown-item delete" onclick="handleDeleteMessage('${msg.messageId}')">
+                                <i class="bi bi-trash text-danger"></i>
+                                <span>Xóa tin nhắn</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item message-dropdown-item report" onclick="handleReportMessage('${msg.messageId}')">
+                                <i class="bi bi-flag text-warning"></i>
+                                <span>Báo cáo tin nhắn</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Message Content -->
+                <div class="message-content">
+                    <div class="message-bubble">${content}</div>
+                    <div class="message-time">${time}</div>
+                </div>
             </div>
         `;
+            } else {
+                // Tin nhắn của người khác: nút dropdown ở bên PHẢI (sau bubble)
+                html += `
+            <div class="message ${bubbleClass}" id="msg-${msg.messageId}">
+                <!-- Message Content -->
+                <div class="message-content">
+                    <div class="message-bubble">${content}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+                
+                <!-- Dropdown Button - Bên phải cho tin nhắn người khác -->
+                <div class="dropdown">
+                    <button class="message-actions-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots"></i>
+                    </button>
+                    <ul class="dropdown-menu message-dropdown-menu">
+                        <li>
+                            <a class="dropdown-item message-dropdown-item report" onclick="handleReportMessage('${msg.messageId}')">
+                                <i class="bi bi-flag text-warning"></i>
+                                <span>Báo cáo tin nhắn</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        `;
+            }
         }
 
         if (isHistory) {
-            //giữ scroll
             const oldHeight = area.scrollHeight;
             const oldTop = area.scrollTop;
 
             area.insertAdjacentHTML('afterbegin', html);
 
-            // Tính toán vị trí mới: Chiều cao mới - Chiều cao cũ + Vị trí cũ
-            // Giúp người dùng cảm giác như đang đứng yên
             area.scrollTop = area.scrollHeight - oldHeight + oldTop;
         } else {
             area.innerHTML = html;
-            scrollToBottom(false); //Cuộn xuống đáy
+            scrollToBottom(false);
         }
-    }
+}
 
     // Hàm cắt chuỗi giờ: Bất chấp múi giờ, bất chấp trình duyệt
     function formatTime(dateInput) {
@@ -841,7 +892,7 @@ ViewData["Title"] = "Chat";
             messageType: msg.messageType,
             hasAttachment: !!msg.attachment,
             attachment: msg.attachment
-        }); // Debug log
+        });
 
         let content = msg.cipherText;
         let isFile = msg.messageType !== 0;
@@ -853,7 +904,6 @@ ViewData["Title"] = "Chat";
                 const decryptedData = await AesGcmHelper.decrypt(msg.cipherText, convKey);
 
                 if (decryptedData) {
-                    // Giải mã THÀNH CÔNG
                     if (isFile) {
                         console.log("🔓 Decrypted URL length:", decryptedData.length);
 
@@ -874,7 +924,6 @@ ViewData["Title"] = "Chat";
 
             } else {
                 content = '[Đang tải khóa...]';
-                // Load lại toàn bộ tin nhắn để cập nhật hiển thị
                 loadMessagesAndReturn(currentConversationId).then(displayMessages);
             }
         } catch (e) {
@@ -883,13 +932,73 @@ ViewData["Title"] = "Chat";
         }
 
         const area = document.getElementById('messagesArea');
-        const div = document.createElement('div');
-        div.className = `message ${msg.senderId === currentUserId ? 'message-mine' : 'message-theirs'}`;
-        div.innerHTML = `
-    <div class="message-bubble">${content}</div>
-    <div class="message-time">${formatTime(msg.createdAt)}</div>
+        const isMine = msg.senderId === currentUserId;
+        const messageClass = isMine ? 'message-mine' : 'message-theirs';
+        const time = formatTime(msg.createdAt);
+
+        let html = '';
+
+        if (isMine) {
+            // Tin nhắn của mình: dropdown bên TRÁI
+            html = `
+            <div class="message ${messageClass}" id="msg-${msg.messageId}">
+                <!-- Dropdown Button - Bên trái -->
+                <div class="dropdown">
+                    <button class="message-actions-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots"></i>
+                    </button>
+                    <ul class="dropdown-menu message-dropdown-menu">
+                        <li>
+                            <a class="dropdown-item message-dropdown-item delete" onclick="handleDeleteMessage('${msg.messageId}')">
+                                <i class="bi bi-trash text-danger"></i>
+                                <span>Xóa tin nhắn</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item message-dropdown-item report" onclick="handleReportMessage('${msg.messageId}')">
+                                <i class="bi bi-flag text-warning"></i>
+                                <span>Báo cáo tin nhắn</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Message Content -->
+                <div class="message-content">
+                    <div class="message-bubble">${content}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+            </div>
         `;
-        area.appendChild(div);
+        } else {
+            // Tin nhắn của người khác: dropdown bên PHẢI
+            html = `
+            <div class="message ${messageClass}" id="msg-${msg.messageId}">
+                <!-- Message Content -->
+                <div class="message-content">
+                    <div class="message-bubble">${content}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+                
+                <!-- Dropdown Button - Bên phải -->
+                <div class="dropdown">
+                    <button class="message-actions-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots"></i>
+                    </button>
+                    <ul class="dropdown-menu message-dropdown-menu">
+                        <li>
+                            <a class="dropdown-item message-dropdown-item report" onclick="handleReportMessage('${msg.messageId}')">
+                                <i class="bi bi-flag text-warning"></i>
+                                <span>Báo cáo tin nhắn</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        `;
+        }
+
+        area.innerHTML += html;
 
         console.log("✅ Message appended to UI");
 
@@ -1210,77 +1319,106 @@ ViewData["Title"] = "Chat";
         }
 }
     function createFileAttachmentPlaceholder(url, messageType) {
-        console.log("🖼️ Creating placeholder for type:", messageType); // Debug log
+        console.log("🖼️ Creating placeholder for type:", messageType);
 
         if (messageType === 1) {
-            // Image
+            // Image với fallback
             return `
-            <div class="file-attachment">
+        <div class="file-attachment">
+            <div style="position: relative; max-width: 300px; max-height: 300px;">
                 <img src="${url}" alt="Image" 
-                     style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer;"
+                     style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; cursor: pointer;"
                      onclick="window.open('${url}', '_blank')"
-                     onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='[Lỗi tải ảnh]';"/>
+                     onerror="this.onerror=null; this.src='${FALLBACK_IMAGE}';"/>
+                <!-- Loading overlay -->
+                <div class="image-loading-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+                    <div class="text-center">
+                        <div class="spinner-border spinner-border-sm text-primary mb-1"></div>
+                        <div class="small text-muted">Đang tải ảnh...</div>
+                    </div>
+                </div>
             </div>
-        `;
+        </div>
+    `;
         } else if (messageType === 2) {
-            // Video
+            // Video với fallback
             return `
-            <div class="file-attachment">
-                <video controls style="max-width: 300px; border-radius: 8px;">
+        <div class="file-attachment">
+            <div style="position: relative; max-width: 300px;">
+                <video controls style="width: 100%; border-radius: 8px; background: #000;"
+                       poster="${FALLBACK_IMAGE}">
                     <source src="${url}">
-                    Your browser does not support the video tag.
+                    <!-- Fallback message -->
+                    <div class="video-error text-center p-4 text-white" style="background: rgba(0,0,0,0.5);">
+                        <i class="bi bi-exclamation-triangle fs-2"></i>
+                        <div class="mt-2">Không thể tải video</div>
+                    </div>
                 </video>
             </div>
-        `;
+        </div>
+    `;
         } else {
-            // Other file
+            // Other file với fallback UI
             return `
-            <div class="file-attachment">
-                <a href="${url}" target="_blank" class="text-decoration-none ${msg.senderId === currentUserId ? 'text-white' : 'text-dark'} d-flex align-items-center">
-                    <i class="bi bi-file-earmark fs-4 me-2"></i>
-                    <div>
-                        <div class="fw-semibold">File đính kèm</div>
-                        <div class="small opacity-75">Click để tải</div>
+        <div class="file-attachment">
+            <div class="file-placeholder d-flex align-items-center p-2 rounded" 
+                 style="background: rgba(0,0,0,0.05); cursor: pointer;"
+                 onclick="window.open('${url}', '_blank')">
+                <div class="file-icon-container position-relative me-2">
+                    <i class="bi bi-file-earmark fs-3 text-primary"></i>
+                    <!-- Fallback icon nếu không tải được -->
+                    <div class="fallback-indicator" style="position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; border-radius: 50%; background: #ffc107; display: none; align-items: center; justify-content: center;">
+                        <i class="bi bi-exclamation text-white" style="font-size: 10px;"></i>
                     </div>
-                </a>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">File đính kèm</div>
+                    <div class="small opacity-75">Click để tải</div>
+                </div>
             </div>
-        `;
+        </div>
+    `;
         }
-}
+    }
 
     function renderFileAttachment(url, attachment, messageType) {
         console.log("🎨 Rendering file attachment:", {
             url: url.substring(0, 50) + '...',
             fileName: attachment.fileName,
             messageType: messageType
-        }); // Debug log
+        });
 
         const fileName = attachment.fileName || 'File';
 
         // Image
         if (messageType === 1) {
             return `
-            <div class="file-attachment">
-                <img src="${url}" alt="${fileName}" 
-                     style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer;"
-                     onclick="window.open('${url}', '_blank')"
-                     onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='[Lỗi tải ảnh]';"/>
-                <div class="small mt-1 opacity-75">${escapeHtml(fileName)}</div>
-            </div>
-        `;
+        <div class="file-attachment">
+            <img src="${url}" alt="${escapeHtml(fileName)}" 
+                 style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer;"
+                 onclick="window.open('${url}', '_blank')"
+                 onerror="this.onerror=null; this.src='${FALLBACK_IMAGE}';"/>
+        </div>
+    `;
         }
 
         // Video
         if (messageType === 2) {
             return `
-            <div class="file-attachment">
-                <video controls style="max-width: 300px; border-radius: 8px;">
-                    <source src="${url}" type="video/${attachment.format || 'mp4'}">
-                    Your browser does not support the video tag.
-                </video>
-                <div class="small mt-1 opacity-75">${escapeHtml(fileName)}</div>
-            </div>
-        `;
+        <div class="file-attachment">
+            <video controls style="max-width: 300px; border-radius: 8px;"
+                   poster="${FALLBACK_IMAGE}" <!-- Thêm poster fallback -->
+                   onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'text-center p-3 bg-light rounded\'><i class=\'bi bi-file-earmark-x text-muted fs-3\'></i><div class=\'small mt-2\'>Không thể tải video</div></div>';">
+                <source src="${url}" type="video/${attachment.format || 'mp4'}">
+                <!-- Fallback nếu trình duyệt không hỗ trợ -->
+                <div class="video-fallback text-center p-3">
+                    <img src="${FALLBACK_IMAGE}" alt="Video không thể phát" style="max-width: 200px; opacity: 0.7;">
+                    <div class="small mt-2">Trình duyệt không hỗ trợ video hoặc video bị lỗi</div>
+                </div>
+            </video>
+            <div class="small mt-1 opacity-75">${escapeHtml(fileName)}</div>
+        </div>
+    `;
         }
 
         // Other files
@@ -1299,7 +1437,10 @@ ViewData["Title"] = "Chat";
 
         return `
         <div class="file-attachment">
-            <a href="${url}" target="_blank" class="text-decoration-none text-inherit d-flex align-items-center p-2 rounded" style="background: rgba(0,0,0,0.05);">
+            <a href="${url}" target="_blank" 
+               class="text-decoration-none text-inherit d-flex align-items-center p-2 rounded" 
+               style="background: rgba(0,0,0,0.05);"
+               onclick="if(!this.getAttribute('href')) return false;">
                 <i class="bi ${iconClass} fs-4 me-2"></i>
                 <div>
                     <div class="fw-semibold">${escapeHtml(fileName)}</div>
