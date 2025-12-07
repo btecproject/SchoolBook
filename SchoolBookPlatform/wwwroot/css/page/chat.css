@@ -265,8 +265,8 @@ html, body {
 }
 
 .message-mine a {
-    color: white !important;
-    text-decoration: underline;
+    color: #65676b !important;
+    text-decoration: none;
 }
 
 /* Tin nhắn người khác (Trái) */
@@ -281,7 +281,7 @@ html, body {
 }
 
 .message-theirs a {
-    color: #0084ff !important;
+    color: #65676b !important;
 }
 
 /* ==========================================================================
