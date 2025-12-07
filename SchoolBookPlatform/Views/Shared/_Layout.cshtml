@@ -1,4 +1,7 @@
 ﻿@using System.Security.Claims
+@{
+    var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -204,8 +207,11 @@
         <div class="sidebar-footer expanded" id="sidebarFooter">
             <div class="sidebar-footer-header">
                 <div class="sidebar-footer-avatar">
-                    <img src="https://ui-avatars.com/api/?name=@User.Identity.Name&background=fd964b&color=fff" 
-                         alt="@User.Identity.Name">
+                    <img src="/api/AvatarApi?userId=@currentUserId" 
+                         alt="~/Images/Avatars/default.png"
+                         class="rounded-circle"
+                         width="40" height="40"
+                         style="object-fit: cover;">
                 </div>
                 <div class="sidebar-footer-userinfo">
                     <div class="sidebar-footer-username">@User.Identity.Name</div>

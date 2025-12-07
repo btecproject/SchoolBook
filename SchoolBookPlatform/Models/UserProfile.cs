@@ -9,7 +9,7 @@ public class UserProfile
 
     public string? FullName { get; set; }
     public string? Bio { get; set; }
-    public string? AvatarUrl { get; set; } 
+    public string? AvatarUrl { get; set; } = "~/images/avatars/default.png";
     public string? Gender { get; set; } // "Male", "Female", "Other"
     public DateTime? BirthDate { get; set; }
 

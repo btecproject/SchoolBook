@@ -77,12 +77,13 @@ public class AvatarService(
 
     public string GetAvatar(User user)
     {
-        if (user.UserProfile != null && !string.IsNullOrEmpty(user.UserProfile.AvatarUrl))
+        var profile = db.UserProfiles.Find(user.Id);
+        if (profile != null && !string.IsNullOrEmpty(profile.AvatarUrl))
         {
-            logger.LogInformation($"Avatar Service: Get Avatar Success for: {user.Username}: " + user.UserProfile.AvatarUrl);
-            return user.UserProfile.AvatarUrl;
+            logger.LogInformation($"Avatar Service: Get Avatar Success for: {user.Username}: " + profile.AvatarUrl);
+            return profile.AvatarUrl;
         }
-        logger.LogInformation("Avatar Service: Get Avatar Failed for: "+user.Username + ": "+ user.UserProfile?.AvatarUrl);
+        logger.LogInformation("Avatar Service: Get Avatar Failed for: "+user.Username + ": "+ profile?.AvatarUrl);
         return "/images/avatars/default.png";
     }
 }
