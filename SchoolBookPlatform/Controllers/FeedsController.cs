@@ -241,15 +241,4 @@ public class FeedsController(
             displayScore       // Thêm
         });
     }
-
-    /// <summary>
-    /// Test Lấy IP
-    /// </summary>
-    public IActionResult GetIp()
-    {
-        var info = trustedService.GetDeviceInfoAsync(HttpContext);
-        var ip = trustedService.GetDeviceIpAsync(HttpContext);
-        TempData["Ip + Info"] = ip + " | " + info;
-        return View("Home");
-    }
 }
