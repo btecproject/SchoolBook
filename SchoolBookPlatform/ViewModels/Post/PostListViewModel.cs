@@ -14,11 +14,5 @@ namespace SchoolBookPlatform.ViewModels.Post
         public int TotalItems { get; set; } // Thêm thuộc tính này
         public bool HasMorePosts { get; set; } = true; // Thêm property này
         
-        // Tính toán số trang
-        public int GetTotalPages()
-        {
-            if (TotalPosts == 0 || PageSize == 0) return 1;
-            return (int)Math.Ceiling((double)TotalPosts / PageSize);
-        }
     }
 }

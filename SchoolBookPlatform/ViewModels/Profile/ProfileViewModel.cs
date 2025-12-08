@@ -28,4 +28,7 @@ public class ProfileViewModel
     
     public List<PostViewModel> UserPosts { get; set; } = new();
     public int PostCount { get; set; }
+    
+    public List<PostViewModel> UpvotedPosts { get; set; } = new List<PostViewModel>();
+    public int UpvotedPostCount { get; set; }
 }

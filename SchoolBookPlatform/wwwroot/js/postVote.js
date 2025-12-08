@@ -322,3 +322,112 @@ document.addEventListener('DOMContentLoaded', () => {
 if (typeof window !== 'undefined') {
     window.PostVote = PostVote;
 }
+
+// Xử lý sự kiện vote
+document.addEventListener('DOMContentLoaded', function() {
+    // Lắng nghe sự kiện click trên nút vote
+    document.addEventListener('click', async function(e) {
+        // Kiểm tra nếu click vào nút vote
+        if (e.target.closest('.vote-up-btn') || e.target.closest('.vote-down-btn')) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const voteBtn = e.target.closest('.vote-up-btn') || e.target.closest('.vote-down-btn');
+            const postId = voteBtn.dataset.postId;
+            const isUpvote = voteBtn.dataset.voteType === 'true';
+            const voteAction = voteBtn.dataset.voteAction || 'toggle'; // toggle, set, remove
+
+            await handleVote(postId, isUpvote, voteAction, voteBtn);
+        }
+    });
+
+    // Hàm xử lý vote
+async function handleVote(postId, isUpvote, action, voteBtn) {
+        try {
+            const response = await fetch('/Post/Vote', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                },
+                body: `postId=${postId}&isUpvote=${isUpvote}&action=${action}`
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                updateVoteUI(postId, data);
+                showToast('Đã cập nhật vote thành công', 'success');
+            } else {
+                showToast(data.message || 'Có lỗi xảy ra khi vote', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Có lỗi xảy ra khi kết nối', 'error');
+        }
+    }
+
+    // Hàm cập nhật giao diện vote
+    function updateVoteUI(postId, voteData) {
+        const voteContainer = document.querySelector(`.vote-container[data-post-id="${postId}"]`);
+        const voteScoreElement = document.querySelector(`.vote-score[data-post-id="${postId}"]`);
+        const upvoteBtn = document.querySelector(`.vote-up-btn[data-post-id="${postId}"]`);
+        const downvoteBtn = document.querySelector(`.vote-down-btn[data-post-id="${postId}"]`);
+
+        if (!voteContainer || !voteScoreElement || !upvoteBtn || !downvoteBtn) return;
+
+        // Cập nhật điểm số
+        const displayScore = voteData.voteScore < 0 ? 0 : voteData.voteScore;
+        voteScoreElement.textContent = displayScore;
+        voteScoreElement.dataset.initialScore = displayScore;
+
+        // Cập nhật trạng thái nút
+        if (voteData.userVote === true) {
+            // Đã upvote
+            upvoteBtn.classList.add('active');
+            downvoteBtn.classList.remove('active');
+            voteContainer.classList.add('vote-container-upvoted');
+            voteContainer.classList.remove('vote-container-downvoted');
+        } else if (voteData.userVote === false) {
+            // Đã downvote
+            upvoteBtn.classList.remove('active');
+            downvoteBtn.classList.add('active');
+            voteContainer.classList.remove('vote-container-upvoted');
+            voteContainer.classList.add('vote-container-downvoted');
+        } else {
+            // Chưa vote
+            upvoteBtn.classList.remove('active');
+            downvoteBtn.classList.remove('active');
+            voteContainer.classList.remove('vote-container-upvoted');
+            voteContainer.classList.remove('vote-container-downvoted');
+        }
+
+        // Cập nhật số lượng upvote/downvote nếu có trong response
+        if (voteData.upvoteCount !== undefined) {
+            // Nếu bạn hiển thị số upvote/downvote riêng biệt
+            // Có thể cập nhật ở đây
+        }
+    }
+
+    // Hàm hiển thị toast
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type === 'error' ? 'danger' : type} position-fixed bottom-0 end-0 m-3`;
+        toast.style.zIndex = '9999';
+        toast.style.minWidth = '300px';
+        toast.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+                <span>${message}</span>
+            </div>
+        `;
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.5s';
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
+    }
+});
