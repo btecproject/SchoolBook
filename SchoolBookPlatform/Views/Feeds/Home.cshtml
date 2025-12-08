@@ -123,6 +123,8 @@
     </div>
 </div>
 
+
+<script src="~/js/postVote.js" asp-append-version="true"></script>
 @section Scripts {
 <script>
     // Biến toàn cục để quản lý lazyload
@@ -131,7 +133,6 @@
     let hasMorePosts = @Json.Serialize(Model.HasMorePosts);
     const viewType = "@Model.ViewType";
     let observer = null;
-    let initialLoadComplete = false;
 
     // Biến cho modal
     let imageModal = null;
@@ -155,7 +156,7 @@
         // Tạo observer mới
         observer = new IntersectionObserver((entries) => {
             const entry = entries[0];
-            if (entry.isIntersecting && !isLoading && hasMorePosts && initialLoadComplete) {
+            if (entry.isIntersecting && !isLoading && hasMorePosts) {
                 console.log('Loading more posts triggered!');
                 loadMorePosts();
             }
@@ -266,11 +267,11 @@
                 hasMorePosts = false;
             }
         } catch (error) {
-            // Không rollback vì có thể do mạng
+            console.error('Error loading more posts:', error);
         } finally {
             isLoading = false;
 
-            // Ẩn loading spinner nhưng vẫn giữ element để observer tiếp tục làm việc
+            // Ẩn loading spinner
             if (loadingSpinner) {
                 loadingSpinner.style.opacity = '0.5';
             }
@@ -550,44 +551,6 @@
             setupMediaClickEvents(card);
         });
 
-        // Khởi tạo sự kiện vote cho bài đăng mới
-        document.querySelectorAll('.vote-btn:not([data-vote-initialized])').forEach(btn => {
-            btn.setAttribute('data-vote-initialized', 'true');
-            btn.addEventListener('click', async function (e) {
-                e.stopPropagation();
-
-                const postId = this.dataset.postId;
-                const isUpvote = this.dataset.voteType === 'true';
-
-                try {
-                    const response = await fetch('/Feeds/Vote', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: `postId=${postId}&isUpvote=${isUpvote}`
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        const newScore = data.upvoteCount - data.downvoteCount;
-                        const displayScore = newScore < 0 ? 0 : newScore;
-
-                        const scoreElement = document.querySelector(`.vote-score[data-post-id="${postId}"]`);
-                        if (scoreElement) {
-                            scoreElement.textContent = displayScore;
-                            scoreElement.classList.add('score-updated');
-                            setTimeout(() => {
-                                scoreElement.classList.remove('score-updated');
-                            }, 500);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                }
-            });
-        });
-
         // Khởi tạo carousel cho bài đăng mới
         initializeNewCarousels();
     }
@@ -607,27 +570,6 @@
                     const activeSlide = event.to;
                     currentSlideSpan.textContent = activeSlide + 1;
                 });
-            }
-        });
-    }
-
-    // Thêm event listener cho scroll thủ công (fallback)
-    function setupScrollListener() {
-        console.log('Setting up scroll listener as fallback...');
-
-        window.addEventListener('scroll', function () {
-            if (isLoading || !hasMorePosts) return;
-
-            const loadingSpinner = document.getElementById('loading-spinner');
-            if (!loadingSpinner) return;
-
-            const spinnerRect = loadingSpinner.getBoundingClientRect();
-            const windowHeight = window.innerHeight;
-
-            // Nếu loading spinner cách đáy màn hình < 500px
-            if (spinnerRect.top < windowHeight + 500) {
-                console.log('Scroll trigger - loading more posts');
-                loadMorePosts();
             }
         });
     }
@@ -730,80 +672,12 @@
         } else {
             // Có bài đăng, thiết lập lazyloading
             setupLazyLoading();
-            setupScrollListener();
         }
 
         // Khởi tạo bài đăng ban đầu
         initializeNewPosts();
 
         console.log('Initialization complete');
-    });
-
-    function testLazyLoad() {
-        console.log('Manual test triggered');
-        loadMorePosts();
-    }
-
-    // Xử lý click vào bài đăng để đi đến trang chi tiết
-    document.querySelectorAll('.post-card').forEach(card => {
-        card.addEventListener('click', function () {
-            const postId = this.dataset.postId;
-            window.location.href = `/Post/Details/${postId}`;
-        });
-    });
-
-    // Xử lý vote với AJAX
-    document.querySelectorAll('.vote-btn').forEach(btn => {
-        btn.addEventListener('click', async function (e) {
-            e.stopPropagation();
-
-            const postId = this.dataset.postId;
-            const isUpvote = this.dataset.voteType === 'true';
-
-            try {
-                const response = await fetch('/Feeds/Vote', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: `postId=${postId}&isUpvote=${isUpvote}`
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    const newScore = data.upvoteCount - data.downvoteCount;
-                    const displayScore = newScore < 0 ? 0 : newScore;
-
-                    const scoreElement = document.querySelector(`.vote-score[data-post-id="${postId}"]`);
-                    if (scoreElement) {
-                        scoreElement.textContent = displayScore;
-                        scoreElement.classList.add('score-updated');
-                        setTimeout(() => {
-                            scoreElement.classList.remove('score-updated');
-                        }, 500);
-                    }
-                } else {
-                    alert(data.message || 'Có lỗi xảy ra');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Có lỗi xảy ra khi vote');
-            }
-        });
-    });
-
-    // JavaScript để cập nhật số đếm khi chuyển slide trong carousel post
-    document.querySelectorAll('.carousel').forEach(carousel => {
-        const carouselId = carousel.id;
-        const currentSlideSpan = document.getElementById(`current-slide-${carouselId.replace('carousel-', '')}`);
-        const totalSlidesSpan = document.getElementById(`total-slides-${carouselId.replace('carousel-', '')}`);
-
-        if (currentSlideSpan && totalSlidesSpan) {
-            carousel.addEventListener('slide.bs.carousel', function (event) {
-                const activeSlide = event.to;
-                currentSlideSpan.textContent = activeSlide + 1;
-            });
-        }
     });
 </script>
 }

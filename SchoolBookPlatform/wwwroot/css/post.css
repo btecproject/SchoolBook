@@ -266,3 +266,170 @@
     color: #6a11cb; /* Tím khi downvote */
     font-weight: 700;
 }
+
+/* vote.css - Container styles */
+.vote-container {
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 50px !important;
+    background-color: #f8f9fa !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    overflow: hidden;
+    padding: 2px 4px;
+    position: relative;
+}
+
+/* Default hover effect */
+.vote-container:hover {
+    border-color: #d0d0d0 !important;
+    background-color: #f0f2f5 !important;
+    transform: translateY(-1px);
+}
+
+/* Upvoted state - Orange theme */
+.vote-container.vote-container-upvoted {
+    background: linear-gradient(135deg,
+    rgba(255, 107, 53, 0.15) 0%,
+    rgba(255, 107, 53, 0.08) 100%) !important;
+    border-color: rgba(255, 107, 53, 0.4) !important;
+    box-shadow: 0 2px 8px rgba(255, 107, 53, 0.15);
+}
+
+.vote-container.vote-container-upvoted:hover {
+    border-color: rgba(255, 107, 53, 0.6) !important;
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.2);
+    transform: translateY(-2px);
+}
+
+/* Downvoted state - Purple theme */
+.vote-container.vote-container-downvoted {
+    background: linear-gradient(135deg,
+    rgba(106, 17, 203, 0.15) 0%,
+    rgba(106, 17, 203, 0.08) 100%) !important;
+    border-color: rgba(106, 17, 203, 0.4) !important;
+    box-shadow: 0 2px 8px rgba(106, 17, 203, 0.15);
+}
+
+.vote-container.vote-container-downvoted:hover {
+    border-color: rgba(106, 17, 203, 0.6) !important;
+    box-shadow: 0 4px 12px rgba(106, 17, 203, 0.2);
+    transform: translateY(-2px);
+}
+
+/* Vote buttons */
+.vote-up-btn, .vote-down-btn {
+    border: none !important;
+    background: transparent !important;
+    color: #6c757d !important;
+    padding: 6px 12px !important;
+    transition: all 0.2s ease !important;
+    border-radius: 50%;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Button hover effects */
+.vote-up-btn:hover {
+    color: #ff6b35 !important;
+    background-color: rgba(255, 107, 53, 0.1) !important;
+}
+
+.vote-down-btn:hover {
+    color: #6a11cb !important;
+    background-color: rgba(106, 17, 203, 0.1) !important;
+}
+
+/* Active button states */
+.vote-up-btn.active {
+    color: #ff6b35 !important;
+    background-color: rgba(255, 107, 53, 0.2) !important;
+    font-weight: bold;
+}
+
+.vote-down-btn.active {
+    color: #6a11cb !important;
+    background-color: rgba(106, 17, 203, 0.2) !important;
+    font-weight: bold;
+}
+
+/* Score styling */
+.vote-score {
+    min-width: 40px !important;
+    text-align: center !important;
+    font-weight: 600 !important;
+    color: #1a1a1b !important;
+    padding: 4px 8px !important;
+    transition: all 0.3s ease !important;
+}
+
+/* Score colors based on container state */
+.vote-container-upvoted .vote-score {
+    color: #ff6b35 !important;
+}
+
+.vote-container-downvoted .vote-score {
+    color: #6a11cb !important;
+}
+
+/* Animations */
+@keyframes voteRipple {
+    0% {
+        transform: scale(0);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+.vote-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: currentColor;
+    transform: scale(0);
+    animation: voteRipple 0.6s linear;
+    pointer-events: none;
+    opacity: 0.2;
+    width: 20px;
+    height: 20px;
+    top: 50%;
+    left: 50%;
+    margin-left: -10px;
+    margin-top: -10px;
+}
+
+@keyframes voteClick {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.vote-up-btn.voting,
+.vote-down-btn.voting {
+    animation: voteClick 0.3s ease;
+}
+
+@keyframes scoreUpdate {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.vote-score.score-updated {
+    animation: scoreUpdate 0.5s ease;
+}

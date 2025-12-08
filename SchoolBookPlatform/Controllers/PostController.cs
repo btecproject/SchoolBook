@@ -438,4 +438,74 @@ public class PostController(
         TempData["SuccessMessage"] = "Đã xóa bài đăng thành công!";
         return RedirectToAction("Home", "Feeds");
     }
+    
+    /// <summary>
+    /// POST: Post/Vote
+    /// Vote bài đăng (upvote hoặc downvote) - AJAX endpoint
+    /// </summary>
+    /// <param name="postId">ID của bài đăng</param>
+    /// <param name="isUpvote">True nếu upvote, False nếu downvote</param>
+    /// <returns>JSON response với số lượng vote</returns>
+    [HttpPost("Vote")]
+    public async Task<IActionResult> Vote(Guid postId, bool isUpvote)
+    {
+        var userId = GetCurrentUserId();
+    
+        // Gọi service để vote
+        var success = await postService.VotePostAsync(userId, postId, isUpvote);
+
+        if (!success)
+        {
+            return Json(new { success = false, message = "Không thể vote bài đăng này." });
+        }
+
+        // Lấy lại số lượng vote mới nhất
+        var post = await db.Posts
+            .Include(p => p.Votes)
+            .FirstOrDefaultAsync(p => p.Id == postId);
+
+        var upvoteCount = post?.Votes.Count(v => v.VoteType) ?? 0;
+        var downvoteCount = post?.Votes.Count(v => !v.VoteType) ?? 0;
+    
+        // Tính tổng điểm - QUAN TRỌNG: thêm totalScore và displayScore
+        var totalScore = upvoteCount - downvoteCount;
+        var displayScore = totalScore < 0 ? 0 : totalScore; // Không hiển thị số âm
+
+        return Json(new
+        {
+            success = true,
+            upvoteCount,
+            downvoteCount,
+            totalScore,        // Thêm để client dùng
+            displayScore       // Thêm để client dùng
+        });
+    }
+    
+    /// <summary>
+    /// GET: Post/GetUserVoteStatus/{postId}
+    /// Lấy trạng thái vote của user cho bài đăng
+    /// </summary>
+    [HttpGet("GetUserVoteStatus/{postId}")]
+    public async Task<IActionResult> GetUserVoteStatus(Guid postId)
+    {
+        var userId = GetCurrentUserId();
+    
+        if (userId == Guid.Empty)
+        {
+            return Json(new { 
+                success = true, 
+                hasVoted = false,
+                voteType = (bool?)null
+            });
+        }
+    
+        var vote = await db.PostVotes
+            .FirstOrDefaultAsync(v => v.PostId == postId && v.UserId == userId);
+    
+        return Json(new {
+            success = true,
+            hasVoted = vote != null,
+            voteType = vote?.VoteType // true = upvote, false = downvote, null = chưa vote
+        });
+    }
 }

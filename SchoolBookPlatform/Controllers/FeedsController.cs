@@ -209,7 +209,7 @@ public class FeedsController(
     /// <param name="postId">ID của bài đăng</param>
     /// <param name="isUpvote">True nếu upvote, False nếu downvote</param>
     /// <returns>JSON response với số lượng vote</returns>
-    [HttpPost]
+    [HttpPost("Vote")]
     public async Task<IActionResult> Vote(Guid postId, bool isUpvote)
     {
         var userId = GetCurrentUserId();
@@ -225,11 +225,20 @@ public class FeedsController(
             .Include(p => p.Votes)
             .FirstOrDefaultAsync(p => p.Id == postId);
 
+        var upvoteCount = post?.Votes.Count(v => v.VoteType) ?? 0;
+        var downvoteCount = post?.Votes.Count(v => !v.VoteType) ?? 0;
+    
+        // TÍNH TOÁN QUAN TRỌNG: thêm totalScore và displayScore
+        var totalScore = upvoteCount - downvoteCount;
+        var displayScore = totalScore < 0 ? 0 : totalScore; // Không hiển thị số âm
+
         return Json(new
         {
             success = true,
-            upvoteCount = post?.Votes.Count(v => v.VoteType) ?? 0,
-            downvoteCount = post?.Votes.Count(v => !v.VoteType) ?? 0
+            upvoteCount,
+            downvoteCount,
+            totalScore,        // Thêm
+            displayScore       // Thêm
         });
     }
 

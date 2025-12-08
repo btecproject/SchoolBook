@@ -215,35 +215,50 @@
                 </div>
             }
 
+            <!-- Trong _PostListPartial.cshtml -->
             <div class="mt-3 d-flex align-items-center gap-3" onclick="event.stopPropagation();">
-                <!-- Thẻ chứa upvote/downvote bo tròn với hover effect -->
-                <div class="vote-container d-flex align-items-center">
+                <!-- Vote container - Áp dụng class dựa trên trạng thái vote -->
+                <div class="vote-container d-flex align-items-center 
+                            @(post.IsUpvoted ? "vote-container-upvoted" : "") 
+                            @(post.IsDownvoted ? "vote-container-downvoted" : "")"
+                     data-post-id="@post.Id">
+                    
                     <!-- Nút Upvote -->
-                    <button class="btn btn-sm vote-up-btn"
+                    <button class="btn btn-sm vote-up-btn @(post.IsUpvoted ? "active" : "")"
                             data-post-id="@post.Id"
-                            data-vote-type="true">
+                            data-vote-type="true"
+                            data-vote-action="toggle"
+                            title="Upvote">
                         <i class="bi bi-caret-up-fill" style="font-size: 1.2rem;"></i>
                     </button>
                     
-                    <!-- Điểm số -->
+                    <!-- Điểm số - Tính toán trực tiếp -->
                     <span class="vote-score"
-                          data-post-id="@post.Id">
+                          data-post-id="@post.Id"
+                          data-initial-score="@{
+                              // Tính toán điểm số để hiển thị (không âm)
+                              var score = post.UpvoteCount - post.DownvoteCount;
+                              var displayScore = score < 0 ? 0 : score;
+                              @displayScore;
+                          }">
                         @{
-                            var score = post.UpvoteCount - post.DownvoteCount;
-                            var displayScore = score < 0 ? 0 : score;
+                            score = post.UpvoteCount - post.DownvoteCount;
+                            displayScore = score < 0 ? 0 : score;
+                            @displayScore;
                         }
-                        @displayScore
                     </span>
                     
                     <!-- Nút Downvote -->
-                    <button class="btn btn-sm vote-down-btn"
+                    <button class="btn btn-sm vote-down-btn @(post.IsDownvoted ? "active" : "")"
                             data-post-id="@post.Id"
-                            data-vote-type="false">
+                            data-vote-type="false"
+                            data-vote-action="toggle"
+                            title="Downvote">
                         <i class="bi bi-caret-down-fill" style="font-size: 1.2rem;"></i>
                     </button>
                 </div>
 
-                <!-- Nút bình luận với hover effect -->
+                <!-- Nút bình luận -->
                 <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" 
                    class="btn btn-sm comment-btn d-flex align-items-center gap-1" 
                    onclick="event.stopPropagation();">
@@ -254,79 +269,4 @@
         </div>
     </div>
 }
-
-<script>
-    // Thêm JavaScript để xử lý hover và active state cho nút vote
-    document.addEventListener('DOMContentLoaded', function() {
-        // Logic xử lý click vote
-        document.querySelectorAll('.vote-up-btn, .vote-down-btn').forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const postId = this.dataset.postId;
-                const isUpvote = this.dataset.voteType === 'true';
-                const voteScoreElement = document.querySelector(`.vote-score[data-post-id="${postId}"]`);
-                
-                // Thêm animation khi click
-                this.classList.add('voted');
-                setTimeout(() => {
-                    this.classList.remove('voted');
-                }, 300);
-                
-                // Gửi request vote đến server
-                // ... your existing vote logic ...
-                
-                // Update UI
-                const upvoteBtn = document.querySelector(`.vote-up-btn[data-post-id="${postId}"]`);
-                const downvoteBtn = document.querySelector(`.vote-down-btn[data-post-id="${postId}"]`);
-                
-                // Reset all classes
-                upvoteBtn.classList.remove('active');
-                downvoteBtn.classList.remove('active');
-                
-                // Set active class based on vote type
-                if (isUpvote) {
-                    upvoteBtn.classList.add('active');
-                } else {
-                    downvoteBtn.classList.add('active');
-                }
-                
-                // Update vote count (tạm thời, sẽ được thay bằng response từ server)
-                let currentScore = parseInt(voteScoreElement.textContent);
-                if (isUpvote) {
-                    voteScoreElement.textContent = currentScore + 1;
-                } else {
-                    voteScoreElement.textContent = Math.max(0, currentScore - 1);
-                }
-            });
-        });
-        
-        // Thêm hiệu ứng hover cho file attachments
-        document.querySelectorAll('.file-attachment').forEach(file => {
-            file.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateY(-2px)';
-                this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
-                this.style.transition = 'all 0.2s ease';
-            });
-            
-            file.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateY(0)';
-                this.style.boxShadow = 'none';
-            });
-        });
-        
-        // Thêm hiệu ứng hover cho badge
-        document.querySelectorAll('.badge-role').forEach(badge => {
-            badge.addEventListener('mouseenter', function() {
-                this.style.opacity = '0.9';
-                this.style.transform = 'translateY(-1px)';
-            });
-            
-            badge.addEventListener('mouseleave', function() {
-                this.style.opacity = '1';
-                this.style.transform = 'translateY(0)';
-            });
-        });
-    });
-</script>
+<script src="~/js/postVote.js" asp-append-version="true"></script>
