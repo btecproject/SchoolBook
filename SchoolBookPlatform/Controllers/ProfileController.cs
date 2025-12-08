@@ -36,158 +36,178 @@ public class ProfileController(
 {
     // GET
     [Authorize]
-    [Authorize]
-    public async Task<IActionResult> Index(string username)
+[Authorize]
+public async Task<IActionResult> Index(string username)
+{
+    var targetUser = await db.GetUserWithProfileAsync(username);
+    if (targetUser == null) return NotFound();
+    
+    if (targetUser.UserProfile == null)
     {
-        var targetUser = await db.GetUserWithProfileAsync(username);
-        if (targetUser == null) return NotFound();
-        
-        if (targetUser.UserProfile == null)
-        {
-            targetUser.UserProfile = await db.EnsureProfileAsync(targetUser.Id);
-        }
-        
-        var currentUser = await HttpContext.GetCurrentUserAsync(db);
-        if (currentUser == null) return Unauthorized();
-        
-        var isOwner = currentUser.Id == targetUser.Id;
-
-        var canViewPrivate = await db.CanViewPrivateInfoAsync(HttpContext, targetUser.Id);
-        
-        // follower/following
-        var followerCount = await db.Followers.CountAsync(f => f.UserId == targetUser.Id);
-        var followingCount = await db.Following.CountAsync(f => f.UserId == targetUser.Id);
-
-        // đã follow chưa
-        var isFollowing = !isOwner && await db.Followers
-            .AnyAsync(f => f.UserId == targetUser.Id && f.FollowerId == currentUser.Id);
-
-        // Lấy bài đăng của user và chuyển sang PostViewModel
-        var userPosts = await db.Posts
-            .Where(p => p.UserId == targetUser.Id && !p.IsDeleted && p.IsVisible)
-            .Include(p => p.User)
-                .ThenInclude(u => u.UserProfile)
-            .Include(p => p.Votes)
-            .Include(p => p.Comments)
-            .Include(p => p.Attachments)
-            .OrderByDescending(p => p.CreatedAt)
-            .Take(20)
-            .Select(p => new PostViewModel
-            {
-                Id = p.Id,
-                Title = p.Title,
-                Content = p.Content,
-                AuthorName = p.User.Username,
-                AuthorAvatar = p.User.UserProfile.AvatarUrl,
-                CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt,
-                UpvoteCount = p.Votes.Count(v => v.VoteType),
-                DownvoteCount = p.Votes.Count(v => !v.VoteType),
-                CommentCount = p.Comments.Count,
-                IsDeleted = p.IsDeleted,
-                IsVisible = p.IsVisible,
-                VisibleToRoles = p.VisibleToRoles,
-                IsOwner = currentUser.Id == p.UserId,
-                CanDelete = currentUser.Id == p.UserId,
-                Attachments = p.Attachments.Select(a => new AttachmentViewModel
-                {
-                    Id = a.Id,
-                    FileName = a.FileName,
-                    FilePath = a.FilePath,
-                    FileSize = a.FileSize,
-                    UploadedAt = a.UploadedAt
-                }).ToList()
-            })
-            .ToListAsync();
-        
-        // Lấy bài đã upvote
-        var upvotedPosts = await db.Posts
-            .Include(p => p.User)
-            .ThenInclude(u => u.UserProfile)
-            .Include(p => p.Votes)
-            .Include(p => p.Comments)
-            .Include(p => p.Attachments)
-            .Where(p => !p.IsDeleted && p.IsVisible)
-            .Where(p => p.Votes.Any(v => v.UserId == targetUser.Id && v.VoteType == true))
-            .OrderByDescending(p => p.Votes.First(v => v.UserId == targetUser.Id).VotedAt)
-            .Take(10)
-            .Select(p => new PostViewModel
-            {
-                Id = p.Id,
-                Title = p.Title,
-                Content = p.Content,
-                AuthorName = p.User.Username,
-                AuthorAvatar = p.User.UserProfile.AvatarUrl,
-                CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt,
-                UpvoteCount = p.Votes.Count(v => v.VoteType),
-                DownvoteCount = p.Votes.Count(v => !v.VoteType),
-                CommentCount = p.Comments.Count,
-                IsDeleted = p.IsDeleted,
-                IsVisible = p.IsVisible,
-                VisibleToRoles = p.VisibleToRoles,
-                IsOwner = currentUser.Id == p.UserId,
-                CanDelete = currentUser.Id == p.UserId,
-                IsUpvoted = p.Votes.Any(v => v.UserId == currentUser.Id && v.VoteType == true),
-                IsDownvoted = p.Votes.Any(v => v.UserId == currentUser.Id && v.VoteType == false),
-                
-                // Thêm thông tin về vote của user
-                UserVote = p.Votes
-                    .Where(v => v.UserId == currentUser.Id)
-                    .Select(v => v.VoteType)
-                    .FirstOrDefault(),
-                Attachments = p.Attachments.Select(a => new AttachmentViewModel
-                {
-                    Id = a.Id,
-                    FileName = a.FileName,
-                    FilePath = a.FilePath,
-                    FileSize = a.FileSize,
-                    UploadedAt = a.UploadedAt
-                }).ToList()
-            })
-            .ToListAsync();
-
-        // Đếm tổng số bài đã upvote
-        var upvotedPostCount = await db.Posts
-            .Where(p => !p.IsDeleted && p.IsVisible)
-            .CountAsync(p => p.Votes.Any(v => v.UserId == targetUser.Id && v.VoteType == true));
-
-        
-        var model = new ProfileViewModel
-        {
-            UserId = targetUser.Id,
-            Username = targetUser.Username,
-            FullName = targetUser.UserProfile?.FullName,
-            AvatarUrl = targetUser.UserProfile?.AvatarUrl ?? "/images/avatars/default.png",
-            Bio = targetUser.UserProfile?.Bio ?? "Chưa có mô tả",
-            Gender = targetUser.UserProfile?.Gender,
-            BirthDate = targetUser.UserProfile?.BirthDate,
-            Email = canViewPrivate ? targetUser.Email : (targetUser.UserProfile?.IsEmailPublic == true ? targetUser.Email : null),
-            PhoneNumber = canViewPrivate ? targetUser.PhoneNumber : (targetUser.UserProfile?.IsPhonePublic == true ? targetUser.PhoneNumber : null),
-            CreatedAt = targetUser.CreatedAt,
-
-            IsEmailPublic = targetUser.UserProfile?.IsEmailPublic ?? false,
-            IsPhonePublic = targetUser.UserProfile?.IsPhonePublic ?? false,
-            IsBirthDatePublic = targetUser.UserProfile?.IsBirthDatePublic ?? false,
-            IsFollowersPublic = targetUser.UserProfile?.IsFollowersPublic ?? true,
-            
-            FollowerCount = followerCount,
-            FollowingCount = followingCount,
-            IsFollowing = isFollowing,
-            IsOwner = isOwner,
-            CanEdit = isOwner,
-            
-            UpvotedPosts = upvotedPosts,
-            UpvotedPostCount = upvotedPostCount,
-                
-            // Sử dụng PostViewModel
-            UserPosts = userPosts,
-            PostCount = await db.Posts.CountAsync(p => p.UserId == targetUser.Id && !p.IsDeleted && p.IsVisible)
-        };
-        
-        return View(model);
+        targetUser.UserProfile = await db.EnsureProfileAsync(targetUser.Id);
     }
+    
+    var currentUser = await HttpContext.GetCurrentUserAsync(db);
+    if (currentUser == null) return Unauthorized();
+    
+    var isOwner = currentUser.Id == targetUser.Id;
 
+    var canViewPrivate = await db.CanViewPrivateInfoAsync(HttpContext, targetUser.Id);
+    
+    // follower/following
+    var followerCount = await db.Followers.CountAsync(f => f.UserId == targetUser.Id);
+    var followingCount = await db.Following.CountAsync(f => f.UserId == targetUser.Id);
+
+    // đã follow chưa
+    var isFollowing = !isOwner && await db.Followers
+        .AnyAsync(f => f.UserId == targetUser.Id && f.FollowerId == currentUser.Id);
+
+    // QUERY CHUNG DUY NHẤT - lấy tất cả bài liên quan
+    var allPosts = await db.Posts
+        .Include(p => p.User)
+            .ThenInclude(u => u.UserProfile)
+        .Include(p => p.Votes)
+        .Include(p => p.Comments)
+        .Include(p => p.Attachments)
+        .Where(p => !p.IsDeleted && p.IsVisible)
+        .Where(p => p.UserId == targetUser.Id || // Bài của user
+                    p.Votes.Any(v => v.UserId == targetUser.Id && v.VoteType == true)) // Hoặc bài đã upvote
+        .OrderByDescending(p => p.CreatedAt)
+        .Take(30) // Lấy nhiều hơn một chút để có cả 2 loại
+        .Select(p => new
+        {
+            Post = p,
+            IsUserPost = p.UserId == targetUser.Id,
+            IsUpvotedByTarget = p.Votes.Any(v => v.UserId == targetUser.Id && v.VoteType == true)
+        })
+        .ToListAsync();
+
+    // TỪ QUERY CHUNG, TẠO VIEW MODELS:
+    
+    // 1. Bài viết của user (cho tab "Bài viết")
+    var userPosts = allPosts
+        .Where(x => x.IsUserPost)
+        .Take(20)
+        .Select(x => new PostViewModel
+        {
+            Id = x.Post.Id,
+            Title = x.Post.Title,
+            Content = x.Post.Content,
+            AuthorName = x.Post.User.Username,
+            AuthorAvatar = x.Post.User.UserProfile.AvatarUrl,
+            CreatedAt = x.Post.CreatedAt,
+            UpdatedAt = x.Post.UpdatedAt,
+            UpvoteCount = x.Post.Votes.Count(v => v.VoteType),
+            DownvoteCount = x.Post.Votes.Count(v => !v.VoteType),
+            CommentCount = x.Post.Comments.Count,
+            IsDeleted = x.Post.IsDeleted,
+            IsVisible = x.Post.IsVisible,
+            VisibleToRoles = x.Post.VisibleToRoles,
+            IsOwner = currentUser.Id == x.Post.UserId,
+            CanDelete = currentUser.Id == x.Post.UserId,
+            
+            // QUAN TRỌNG: UserVote của người đang xem
+            UserVote = x.Post.Votes
+                .Where(v => v.UserId == currentUser.Id)
+                .Select(v => (bool?)v.VoteType)
+                .FirstOrDefault(),
+                
+            // KHÔNG CẦN IsUpvotedByTarget ở đây vì không dùng trong view
+            // IsUpvotedByTarget = x.IsUpvotedByTarget,
+            
+            Attachments = x.Post.Attachments.Select(a => new AttachmentViewModel
+            {
+                Id = a.Id,
+                FileName = a.FileName,
+                FilePath = a.FilePath,
+                FileSize = a.FileSize,
+                UploadedAt = a.UploadedAt
+            }).ToList()
+        })
+        .ToList();
+
+    // 2. Bài đã upvote (cho tab "Bài đã upvote")
+    var upvotedPosts = allPosts
+        .Where(x => x.IsUpvotedByTarget)
+        .Take(10)
+        .Select(x => new PostViewModel
+        {
+            Id = x.Post.Id,
+            Title = x.Post.Title,
+            Content = x.Post.Content,
+            AuthorName = x.Post.User.Username,
+            AuthorAvatar = x.Post.User.UserProfile.AvatarUrl,
+            CreatedAt = x.Post.CreatedAt,
+            UpdatedAt = x.Post.UpdatedAt,
+            UpvoteCount = x.Post.Votes.Count(v => v.VoteType),
+            DownvoteCount = x.Post.Votes.Count(v => !v.VoteType),
+            CommentCount = x.Post.Comments.Count,
+            IsDeleted = x.Post.IsDeleted,
+            IsVisible = x.Post.IsVisible,
+            VisibleToRoles = x.Post.VisibleToRoles,
+            IsOwner = currentUser.Id == x.Post.UserId,
+            CanDelete = currentUser.Id == x.Post.UserId,
+            
+            // QUAN TRỌNG: UserVote của người đang xem
+            UserVote = x.Post.Votes
+                .Where(v => v.UserId == currentUser.Id)
+                .Select(v => (bool?)v.VoteType)
+                .FirstOrDefault(),
+                
+            Attachments = x.Post.Attachments.Select(a => new AttachmentViewModel
+            {
+                Id = a.Id,
+                FileName = a.FileName,
+                FilePath = a.FilePath,
+                FileSize = a.FileSize,
+                UploadedAt = a.UploadedAt
+            }).ToList()
+        })
+        .ToList();
+
+    // Đếm tổng số lượng
+    var postCount = await db.Posts
+        .CountAsync(p => p.UserId == targetUser.Id && !p.IsDeleted && p.IsVisible);
+        
+    var upvotedPostCount = await db.Posts
+        .Where(p => !p.IsDeleted && p.IsVisible)
+        .CountAsync(p => p.Votes.Any(v => v.UserId == targetUser.Id && v.VoteType == true));
+
+    
+    var model = new ProfileViewModel
+    {
+        UserId = targetUser.Id,
+        Username = targetUser.Username,
+        FullName = targetUser.UserProfile?.FullName,
+        AvatarUrl = targetUser.UserProfile?.AvatarUrl ?? "/images/avatars/default.png",
+        Bio = targetUser.UserProfile?.Bio ?? "Chưa có mô tả",
+        Gender = targetUser.UserProfile?.Gender,
+        BirthDate = targetUser.UserProfile?.BirthDate,
+        Email = canViewPrivate ? targetUser.Email : (targetUser.UserProfile?.IsEmailPublic == true ? targetUser.Email : null),
+        PhoneNumber = canViewPrivate ? targetUser.PhoneNumber : (targetUser.UserProfile?.IsPhonePublic == true ? targetUser.PhoneNumber : null),
+        CreatedAt = targetUser.CreatedAt,
+
+        IsEmailPublic = targetUser.UserProfile?.IsEmailPublic ?? false,
+        IsPhonePublic = targetUser.UserProfile?.IsPhonePublic ?? false,
+        IsBirthDatePublic = targetUser.UserProfile?.IsBirthDatePublic ?? false,
+        IsFollowersPublic = targetUser.UserProfile?.IsFollowersPublic ?? true,
+        
+        FollowerCount = followerCount,
+        FollowingCount = followingCount,
+        IsFollowing = isFollowing,
+        IsOwner = isOwner,
+        CanEdit = isOwner,
+        
+        UpvotedPosts = upvotedPosts,
+        UpvotedPostCount = upvotedPostCount,
+            
+        // Sử dụng PostViewModel
+        UserPosts = userPosts,
+        PostCount = postCount
+    };
+    
+    return View(model);
+}
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdatePrivacy([FromBody] UpdatePrivacyRequest request)

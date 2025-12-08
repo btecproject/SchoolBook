@@ -84,6 +84,11 @@ public class PostController(
                 VisibleToRoles = post.VisibleToRoles,
                 IsOwner = post.UserId == userId,
                 CanDelete = post.UserId == userId || isAdmin,
+                
+                UserVote = post.Votes
+                    .Where(v => v.UserId == userId)
+                    .Select(v => (bool?)v.VoteType)
+                    .FirstOrDefault(),
                 Attachments = post.Attachments.Select(a => new AttachmentViewModel
                 {
                     Id = a.Id,
