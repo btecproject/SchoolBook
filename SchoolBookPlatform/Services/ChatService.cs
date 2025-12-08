@@ -700,7 +700,7 @@ namespace SchoolBookPlatform.Services
                 var attachment = new MessageAttachment
                 {
                     MessageId = messageId,
-                    CloudinaryUrl = uploadResult.Url,
+                    CloudinaryUrl = uploadResult.PublicId,
                     ResourceType = uploadResult.ResourceType ?? "raw",
                     Format = uploadResult.Format ?? "",
                     FileName = uploadResult.FileName ?? "",
@@ -817,9 +817,14 @@ namespace SchoolBookPlatform.Services
 
                 if (attachment != null)
                 {
-                    var publicId = ExtractPublicIdFromUrl(attachment.CloudinaryUrl);
+                    string publicIdToDelete = attachment.CloudinaryUrl;
+                    //check data cũ
+                    if (publicIdToDelete.StartsWith("http"))
+                    {
+                        publicIdToDelete = ExtractPublicIdFromUrl(publicIdToDelete);
+                    }
 
-                    await cloudinaryService.DeleteChatFileAsync(publicId, attachment.ResourceType);
+                    await cloudinaryService.DeleteChatFileAsync(publicIdToDelete, attachment.ResourceType);
 
                     db.MessageAttachments.Remove(attachment);
                 }

@@ -40,26 +40,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             }
-
-            <!-- Nút test GetIp -->
-            @if (ViewContext.RouteData.Values["action"]?.ToString() == "Home" && 
-                 ViewContext.RouteData.Values["controller"]?.ToString() == "Feeds")
-            {
-                <div class="mb-3">
-                    <a asp-action="GetIp" asp-controller="Feeds" class="btn btn-outline-success">
-                        <i class="fas fa-network-wired me-1"></i> Get Ip Now
-                    </a>
-                </div>
-            }
-
-            @if (TempData["Ip + Info"] != null)
-            {
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    @TempData["Ip + Info"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            }
-
+            
             @* Kiểm tra nếu là tab Following và không có bài đăng *@
             @if (Model.ViewType == "following" && !Model.Posts.Any())
             {
