@@ -41,7 +41,10 @@ Layout = "_Layout";
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>
                     <span id="pinErrorMessage">Mã PIN không đúng</span>
                 </div>
-
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="trustDevice">
+                    <label class="form-check-label" for="trustDevice">Duy trì đăng nhập trên thiết bị này</label>
+                </div>
                 <button type="submit"
                         class="btn btn-primary w-100 btn-lg"
                         id="verifyBtn">
@@ -88,7 +91,7 @@ Layout = "_Layout";
     
     window.addEventListener('load', async function () {
         try {
-            let pinValue = localStorage.getItem('pinCode_'+currentUsername1);
+            let pinValue = StorageHelper.get('pinCode_'+currentUsername1);
             // Hash PIN bằng SHA-256
             const hashedPin = CryptoJS.SHA256(pinValue).toString();
 
@@ -118,11 +121,11 @@ Layout = "_Layout";
             const result = await response.json();
 
             if (result.success) {
-                // Lưu PIN vào localStorage với key là pinCode_{username}
+                // Lưu PIN  với key là pinCode_{username}
                 const storageKey = `pinCode_${currentUsername1}`;
-                localStorage.setItem(storageKey, pinValue);
+                StorageHelper.set(storageKey, pinValue);
 
-                console.log('PIN verified and saved to localStorage:', storageKey);
+                console.log('PIN verified and saved to Storage:', storageKey);
 
                 // Hiển thị thông báo thành công
                 verifyBtnText.textContent = 'Thành công!';
@@ -136,7 +139,7 @@ Layout = "_Layout";
                 // PIN sai
                 pinError.classList.remove('d-none');
                 pinErrorMessage.textContent = result.message || 'Mã PIN không đúng. Vui lòng thử lại.';
-                localStorage.removeItem("pinCode_"+currentUsername1);
+                StorageHelper.remove("pinCode_"+currentUsername1);
                 pinInput.value = '';
                 pinInput.focus();
 
@@ -246,11 +249,12 @@ Layout = "_Layout";
             const result = await response.json();
 
             if (result.success) {
-                // Lưu PIN vào localStorage với key là pinCode_{username}
+                const isTrusted = document.getElementById('trustDevice').checked;
+                // Lưu PIN vào Storage với key là pinCode_{username}
                 const storageKey = `pinCode_${currentUsername}`;
-                localStorage.setItem(storageKey, pinValue);
+                StorageHelper.set(storageKey, pinValue, isTrusted);
 
-                console.log('PIN verified and saved to localStorage:', storageKey);
+                console.log('PIN verified and saved to Storage:', storageKey);
 
                 // Hiển thị thông báo thành công
                 verifyBtnText.textContent = 'Thành công!';

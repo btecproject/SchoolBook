@@ -224,8 +224,7 @@ public class Program
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com/; " +
                 "img-src 'self' data: https://res.cloudinary.com https://*.googleusercontent.com; " +
                 "media-src 'self' https://res.cloudinary.com; " +
-                "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " + 
-                // Cho phép kết nối WebSocket (SignalR)
+                "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
                 "connect-src 'self' wss: https:; " +
                 // Không nhúng web vào iframe (Clickjacking)
                 "frame-ancestors 'self';");

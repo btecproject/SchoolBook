@@ -252,7 +252,7 @@ ViewData["Title"] = "Chat";
 
     async function autoVerifyPin() {
         const storageKey = `pinCode_${currentUsername}`;
-        const savedPin = localStorage.getItem(storageKey);
+        const savedPin = StorageHelper.get(storageKey);
         console.log("AutoVerifyPin Called!");
         if (!savedPin) {
             document.getElementById('autoVerifyMessage').textContent = 'Chưa có mã PIN...';
@@ -271,6 +271,9 @@ ViewData["Title"] = "Chat";
                 myPin = savedPin;
                 setTimeout(() => document.getElementById('autoVerifyScreen').style.display = 'none', 500);
                 return true;
+            }
+            else{
+                StorageHelper.remove(storageKey);
             }
         } catch (e) {}
         document.getElementById('autoVerifyMessage').textContent = 'Lỗi xác thực...';
@@ -1290,7 +1293,7 @@ ViewData["Title"] = "Chat";
                 cipherText: encryptedUrl,
                 messageType: messageType,
                 attachment: {
-                    url: uploadResult.url,
+                    url: encryptedUrl,
                     fileName: uploadResult.fileName,
                     resourceType: uploadResult.resourceType,
                     format: uploadResult.format
