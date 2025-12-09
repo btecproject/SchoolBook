@@ -30,5 +30,10 @@
     remove: function(key) {
         sessionStorage.removeItem(key);
         localStorage.removeItem(key);
+    },
+    
+    clear: function (){
+        localStorage.clear();
+        sessionStorage.clear();
     }
 };

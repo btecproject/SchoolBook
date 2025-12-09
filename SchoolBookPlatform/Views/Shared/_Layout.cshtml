@@ -103,7 +103,7 @@
                                 <li>
                                     <form asp-controller="Authen" asp-action="Logout" method="post" class="d-inline">
                                         @Html.AntiForgeryToken()
-                                        <button type="submit" class="dropdown-item text-danger">
+                                        <button type="submit" class="dropdown-item text-danger" onclick="StorageHelper.clear()">
                                             <i class="bi bi-box-arrow-right"></i>Log out
                                         </button>
                                     </form>
