@@ -126,6 +126,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#upvoted">
+                                <p>Đã thích</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" data-bs-toggle="tab" href="#info">
                                 <p>Thông tin</p>
                             </a>
@@ -168,79 +173,107 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="tab-content">
-                        <!-- Tab Bài viết -->
-                        <div class="tab-pane fade show active" id="posts">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="mb-0">Bài viết (@Model.PostCount)</h5>
-                                @if (Model.IsOwner)
-                                {
-                                    <a asp-controller="Post" asp-action="Create" class="btn btn-primary btn-sm">
-                                        <i class="fas fa-plus me-1"></i> Đăng bài mới
-                                    </a>
-                                }
-                            </div>
-                            
-                            <!-- Phần hiển thị bài viết sử dụng _PostListPartial -->
-                            @if (Model.UserPosts.Any())
+                    
+                <div class="tab-content">
+                    <!-- Tab Bài viết -->
+                    <div class="tab-pane fade show active" id="posts">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">Bài viết (@Model.PostCount)</h5>
+                            @if (Model.IsOwner)
                             {
-                                <div id="profile-posts-container">
-                                    @{
-                                        // Tạo PostListViewModel từ dữ liệu UserPosts
-                                        var postListViewModel = new SchoolBookPlatform.ViewModels.Post.PostListViewModel
-                                        {
-                                            Posts = Model.UserPosts.Select(p => new SchoolBookPlatform.ViewModels.Post.PostViewModel
-                                            {
-                                                Id = p.Id,
-                                                Title = p.Title,
-                                                Content = p.Content,
-                                                AuthorName = Model.FullName ?? Model.Username,
-                                                CreatedAt = p.CreatedAt,
-                                                VisibleToRoles = p.VisibleToRoles,
-                                                UpvoteCount = p.UpvoteCount,
-                                                DownvoteCount = p.DownvoteCount,
-                                                CommentCount = p.CommentCount,
-                                                Attachments = p.Attachments,
-                                                IsOwner = p.IsOwner,
-                                                CanDelete = p.IsOwner || User.IsInRole("Admin")
-                                            }).ToList(),
-                                            CurrentPage = 1,
-                                            TotalPages = 1,
-                                            ViewType = "profile"
-                                        };
-                                    }
-                                    @await Html.PartialAsync("_PostListPartial", postListViewModel)
-                                    
-                                    @if (Model.PostCount > Model.UserPosts.Count)
-                                    {
-                                        <div class="text-center mt-4">
-                                            <a href="@Url.Action("UserPosts", "Post", new { userId = Model.UserId })" class="btn btn-outline-primary">
-                                                Xem tất cả bài viết (@Model.PostCount)
-                                            </a>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="text-center py-5 text-muted">
-                                    <i class="fas fa-newspaper fa-3x mb-3"></i>
-                                    <h5>Chưa có bài viết nào</h5>
-                                    @if (Model.IsOwner)
-                                    {
-                                        <p class="mb-3">Hãy đăng bài đầu tiên của bạn</p>
-                                        <a asp-controller="Post" asp-action="Create" class="btn btn-primary">
-                                            <i class="fas fa-plus me-1"></i> Đăng bài ngay
-                                        </a>
-                                    }
-                                    else
-                                    {
-                                        <p>@Model.Username chưa đăng bài viết nào</p>
-                                    }
-                                </div>
+                                <a asp-controller="Post" asp-action="Create" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus me-1"></i> Đăng bài mới
+                                </a>
                             }
                         </div>
+                        
+                        <!-- Phần hiển thị bài viết sử dụng _PostListPartial -->
+                        @if (Model.UserPosts.Any())
+                        {
+                            <div id="profile-posts-container">
+                                @{
+                                    var postListViewModel = new SchoolBookPlatform.ViewModels.Post.PostListViewModel
+                                    {
+                                        Posts = Model.UserPosts,
+                                        CurrentPage = 1,
+                                        TotalPages = 1,
+                                        ViewType = "profile"
+                                    };
+                                }
+                                @await Html.PartialAsync("_PostListPartial", postListViewModel)
+                                
+                                @if (Model.PostCount > Model.UserPosts.Count)
+                                {
+                                    <div class="text-center mt-4">
+                                        <a href="@Url.Action("UserPosts", "Post", new { userId = Model.UserId })" 
+                                           class="btn btn-outline-primary">
+                                            Xem tất cả bài viết (@Model.PostCount)
+                                        </a>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-5 text-muted">
+                                <i class="fas fa-newspaper fa-3x mb-3"></i>
+                                <h5>Chưa có bài viết nào</h5>
+                                @if (Model.IsOwner)
+                                {
+                                    <p class="mb-3">Hãy đăng bài đầu tiên của bạn</p>
+                                    <a asp-controller="Post" asp-action="Create" class="btn btn-primary">
+                                        <i class="fas fa-plus me-1"></i> Đăng bài ngay
+                                    </a>
+                                }
+                                else
+                                {
+                                    <p>@Model.Username chưa đăng bài viết nào</p>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Tab Bài đã upvote -->
+                    <div class="tab-pane fade" id="upvoted">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">Bài đã upvote (@Model.UpvotedPostCount)</h5>
+                        </div>
+                        
+                        <!-- Phần hiển thị bài đã upvote CŨNG dùng _PostListPartial -->
+                        @if (Model.UpvotedPosts.Any())
+                        {
+                            <div id="upvoted-posts-container">
+                                @{
+                                    var upvotedPostListViewModel = new SchoolBookPlatform.ViewModels.Post.PostListViewModel
+                                    {
+                                        Posts = Model.UpvotedPosts,
+                                        CurrentPage = 1,
+                                        TotalPages = 1,
+                                        ViewType = "profile" // Hoặc "upvoted" nếu bạn muốn phân biệt
+                                    };
+                                }
+                                @await Html.PartialAsync("_PostListPartial", upvotedPostListViewModel)
+                                
+                                @if (Model.UpvotedPostCount > Model.UpvotedPosts.Count)
+                                {
+                                    <div class="text-center mt-4">
+                                        <a href="@Url.Action("UpvotedPosts", "Profile", new { userId = Model.UserId })" 
+                                           class="btn btn-outline-primary">
+                                            Xem tất cả bài đã upvote (@Model.UpvotedPostCount)
+                                        </a>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-5 text-muted">
+                                <i class="fas fa-thumbs-up fa-3x mb-3"></i>
+                                <h5>Chưa upvote bài viết nào</h5>
+                                <p>Hãy upvote những bài viết bạn thấy hữu ích</p>
+                            </div>
+                        }
+                    </div>
 
                         <!-- Tab Thông tin -->
                         <div class="tab-pane fade" id="info">

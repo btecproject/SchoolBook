@@ -78,7 +78,7 @@ public class PostService
     /// <param name="page">Số trang (bắt đầu từ 1)</param>
     /// <param name="pageSize">Số bài đăng mỗi trang</param>
     /// <returns>Danh sách bài đăng</returns>
-    public async Task<List<Post>> GetVisiblePostsAsync(Guid userId, int page = 1, int pageSize = 20)
+    public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page = 1, int pageSize = 20)
     {
         var userRoles = await _db.GetUserRolesAsync(userId);
         var isAdmin = userRoles.Contains("HighAdmin") || 
@@ -101,16 +101,15 @@ public class PostService
         }
         // Admin/Moderator: Xem tất cả (không filter)
 
-        return await query
+        return query
             .Include(p => p.User)
             .ThenInclude(u => u.UserProfile)
-            .Include(p => p.Votes)
+            .Include(p => p.Votes) // QUAN TRỌNG: Đã có
             .Include(p => p.Comments)
             .Include(p => p.Attachments)
             .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+            .Take(pageSize);
     }
     
     /// <summary>
@@ -674,7 +673,7 @@ public class PostService
     /// <param name="page">Số trang (bắt đầu từ 1)</param>
     /// <param name="pageSize">Số bài đăng mỗi trang</param>
     /// <returns>Danh sách bài đăng</returns>
-    public async Task<List<Post>> GetFollowingPostsAsync(Guid userId, int page = 1, int pageSize = 20)
+    public async Task<IQueryable<Post>> GetFollowingPostsAsync(Guid userId, int page = 1, int pageSize = 20)
     {
         // 1. Lấy danh sách người đang follow
         var followingIds = await _db.Following
@@ -685,7 +684,7 @@ public class PostService
         // Nếu không follow ai, trả về danh sách rỗng
         if (!followingIds.Any())
         {
-            return new List<Post>();
+            return _db.Posts.Where(p => false); // Trả về empty query
         }
 
         var userRoles = await _db.GetUserRolesAsync(userId);
@@ -697,7 +696,7 @@ public class PostService
         var query = _db.Posts
             .Where(p => followingIds.Contains(p.UserId));
 
-        // Áp dụng filter quyền xem (tương tự GetVisiblePostsAsync)
+        // Áp dụng filter quyền xem
         if (!isAdmin)
         {
             query = query.Where(p => 
@@ -710,16 +709,15 @@ public class PostService
             );
         }
 
-        return await query
+        return query
             .Include(p => p.User)
             .ThenInclude(u => u.UserProfile)
-            .Include(p => p.Votes)
+            .Include(p => p.Votes) // QUAN TRỌNG: Đã có
             .Include(p => p.Comments)
             .Include(p => p.Attachments)
             .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+            .Take(pageSize);
     }
     
 }

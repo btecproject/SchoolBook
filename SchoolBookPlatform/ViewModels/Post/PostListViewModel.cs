@@ -11,14 +11,8 @@ namespace SchoolBookPlatform.ViewModels.Post
         public int FollowingCount { get; set; }
         public int FollowerCount { get; set; }
         public string ViewType { get; set; } = "home"; // "index", "following", "home"
-        public int TotalItems { get; set; } // Thêm thuộc tính này
-        public bool HasMorePosts { get; set; } = true; // Thêm property này
+        public int TotalItems { get; set; }
+        public bool HasMorePosts { get; set; } = true;
         
-        // Tính toán số trang
-        public int GetTotalPages()
-        {
-            if (TotalPosts == 0 || PageSize == 0) return 1;
-            return (int)Math.Ceiling((double)TotalPosts / PageSize);
-        }
     }
 }
