@@ -23,7 +23,7 @@ namespace SchoolBookPlatform.Controllers
             var currentUser = await HttpContext.GetCurrentUserAsync(db);
             if (currentUser == null) return Unauthorized();
 
-            // Service sẽ tự map currentUser.Id -> ChatUserId
+            //Service sẽ tự map currentUser.Id -> ChatUserId
             var result = await chatService.InitializeConversationKeysAsync(currentUser.Id, request);
 
             if (!result.Success)
@@ -45,7 +45,6 @@ namespace SchoolBookPlatform.Controllers
 
             if (string.IsNullOrEmpty(encryptedKey))
             {
-                // Trả về metadata để client biết cần init lại nếu cần
                 return NotFound(new { message = "Key not found", needInit = true });
             }
 
@@ -99,7 +98,7 @@ namespace SchoolBookPlatform.Controllers
                 {
                     conversationId = result.ConversationId,
                     isNew = result.IsNew,
-                    isKeyInitialized = result.IsKeyInitialized // Tên mới chuẩn
+                    isKeyInitialized = result.IsKeyInitialized
                 });
             }
             catch (Exception ex)
@@ -153,7 +152,7 @@ namespace SchoolBookPlatform.Controllers
         [HttpPost]
         public async Task<IActionResult> MarkRead([FromBody] Guid senderUserId)
         {
-            // Frontend gửi UserId gốc của sender -> Service cần map sang ChatUserId để update noti
+            //Frontend gửi UserId sender -> Service map sang ChatUserId để update noti
             var currentUser = await HttpContext.GetCurrentUserAsync(db);
             if (currentUser == null) return Unauthorized();
              await chatService.MarkMessagesAsReadAsync(currentUser.Id, senderUserId);
@@ -209,11 +208,10 @@ namespace SchoolBookPlatform.Controllers
                 var message = await db.Messages.FindAsync(model.MessageId);
                 if (message == null) return NotFound(new { message = "Message không tồn tại" });
 
-                // Check quyền: Phải tìm ChatUserId của currentUser trước
                 var myChatUser = await db.ChatUsers.FirstOrDefaultAsync(cu => cu.UserId == currentUser.Id && cu.IsActive);
                 if (myChatUser == null) return Unauthorized();
 
-                // SenderId trong Message bây giờ là ChatUserId
+                //SenderId là ChatUserId
                 if (message.SenderId != myChatUser.Id) 
                 {
                     return Forbid();
@@ -244,7 +242,6 @@ namespace SchoolBookPlatform.Controllers
 
             try
             {
-                // Validate extension ... (Giữ nguyên)
                 var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif",
                     ".bmp", ".webp", ".mp4", ".avi", 
                     ".mov", ".wmv", ".flv", ".webm", 
@@ -357,7 +354,7 @@ namespace SchoolBookPlatform.Controllers
         [HttpGet]
         public async Task<IActionResult> GetUserPublicKey(Guid userId)
         {
-            // UserId ở đây là UserId gốc (từ search/contact)
+            // UserId là UserId gốc (từ search/contact)
             try
             {
                 var publicKey = await chatService.GetUserPublicKeyAsync(userId); // Service tự map sang Active ChatUser

@@ -50,8 +50,8 @@ namespace SchoolBookPlatform.Services
 
                 foreach (var item in request.Keys)
                 {
-                    // Lưu ý: item.UserId từ Frontend gửi lên là UserID gốc. 
-                    // Ta cần map sang ChatUserId Active tương ứng.
+                    //Note: item.UserId từ Frontend gửi lên là UserID gốc. 
+                    // map sang ChatUserId Active tương ứng.
                     var targetChatUserId = await GetActiveChatUserIdAsync(item.UserId);
 
                     if (targetChatUserId == null) continue;
@@ -110,21 +110,18 @@ namespace SchoolBookPlatform.Services
 
 
         // Lưu Conversation Key
-        // Lưu Conversation Key (Sửa để dùng ChatUserId)
         public async Task<bool> SaveConversationKeyAsync(Guid userId, Guid conversationId, string encryptedKey, int version)
         {
-            // 1. Lấy Chat User ID đang active
             var chatUserId = await GetActiveChatUserIdAsync(userId);
-            if (chatUserId == null) return false; // Chưa kích hoạt chat
+            if (chatUserId == null) return false;
 
-            // 2. Kiểm tra user có trong conversation không
-            // Lưu ý: Check theo ChatUserId
+            //Kiểm tra user có trong conversation không
             var isMember = await db.ConversationMembers
                 .AnyAsync(cm => cm.ConversationId == conversationId && cm.ChatUserId == chatUserId.Value);
 
             if (!isMember) return false;
 
-            // 3. Tìm key đã tồn tại
+            //Tìm key đã tồn tại
             var existingKey = await db.ConversationKeys
                 .FirstOrDefaultAsync(ck => ck.ChatUserId == chatUserId.Value && // <-- Dùng ChatUserId
                                            ck.ConversationId == conversationId && 
@@ -132,16 +129,16 @@ namespace SchoolBookPlatform.Services
 
             if (existingKey != null)
             {
-                // Update key nếu đã tồn tại
+                //Update key nếu đã tồn tại
                 existingKey.EncryptedKey = encryptedKey;
                 existingKey.UpdatedAt = DateTime.UtcNow.AddHours(7);
             }
             else
             {
-                // Thêm mới
+                //Thêm mới
                 var newKey = new ConversationKey
                 {
-                    ChatUserId = chatUserId.Value, // <-- Dùng ChatUserId
+                    ChatUserId = chatUserId.Value,
                     ConversationId = conversationId,
                     KeyVersion = version,
                     EncryptedKey = encryptedKey,
@@ -187,7 +184,7 @@ namespace SchoolBookPlatform.Services
                 })
                 .ToListAsync();
 
-            // 4. Lấy Avatar từ User Profile (dựa trên UserId gốc)
+            //Lấy Avatar từ User Profile (dựa trên UserId gốc)
             var partnerUserIds = partners.Select(p => p.UserId).Distinct().ToList();
             var avatars = await db.UserProfiles
                 .Where(up => partnerUserIds.Contains(up.UserId))
@@ -223,7 +220,7 @@ namespace SchoolBookPlatform.Services
         }
 
 
-        //2. Đánh dấu đã đọc
+        //ánh dấu đã đọc
         public async Task MarkMessagesAsReadAsync(Guid recipientId, Guid senderId)
         {
             var noti = await db.MessageNotifications.FindAsync(recipientId, senderId);
@@ -307,7 +304,7 @@ namespace SchoolBookPlatform.Services
             }
         }
 
-        // Lưu RSA keys
+        //lưu RSA keys
         public async Task<ServiceResult> SaveUserRsaKeysAsync(Guid userId, string publicKey,
             string privateKeyEncrypted)
         {
@@ -335,7 +332,6 @@ namespace SchoolBookPlatform.Services
             return new ServiceResult { Success = true };
         }
 
-        // Lấy public key của user
         public async Task<string?> GetUserPublicKeyAsync(Guid userId)
         {
             var chatUserId = await GetActiveChatUserIdAsync(userId);
@@ -347,16 +343,14 @@ namespace SchoolBookPlatform.Services
                 .FirstOrDefaultAsync();
         }
 
-        // Tìm kiếm ChatUser theo DisplayName hoặc Username
         public async Task<List<ChatUserSearchResult>> SearchChatUsersAsync(string searchTerm, Guid currentUserId)
         {
-            // Chỉ tìm các ChatUser đang Active và không phải của mình
             var results = await db.ChatUsers
                 .Where(cu => cu.UserId != currentUserId && cu.IsActive == true &&
                              (cu.DisplayName.Contains(searchTerm) || cu.Username.Contains(searchTerm)))
                 .Select(cu => new ChatUserSearchResult
                 {
-                    UserId = cu.UserId, // Trả về UserId gốc để Frontend dùng init chat
+                    UserId = cu.UserId,
                     Username = cu.Username,
                     DisplayName = cu.DisplayName,
                     AvatarUrl = db.UserProfiles.Where(up => up.UserId == cu.UserId).Select(up => up.AvatarUrl)
@@ -367,88 +361,6 @@ namespace SchoolBookPlatform.Services
 
             return results;
         }
-
-
-        // Get or Create Conversation (1-1)
-        // public async Task<ConversationResult> GetOrCreateConversationAsync(Guid userId1, Guid userId2)
-        // {
-        //     var chatUser1 = await GetActiveChatUserIdAsync(userId1);
-        //     var chatUser2 = await GetActiveChatUserIdAsync(userId2);
-        //
-        //     // Nếu đối phương đã reset mà chưa tạo mới, chatUser2 sẽ là null -> Không thể chat
-        //     if (chatUser1 == null || chatUser2 == null)
-        //         throw new Exception("Người dùng chưa kích hoạt chat hoặc đã reset tài khoản.");
-        //
-        //     try
-        //     {
-        //         var existingConv = await db.Conversations
-        //             .Where(c => c.Type == 0) // Type 0 = 1-1
-        //             .Where(c => db.ConversationMembers
-        //                             .Where(cm => cm.ConversationId == c.Id)
-        //                             .Select(cm => cm.ChatUserId)
-        //                             .Contains(chatUser1.Value) &&
-        //                         db.ConversationMembers
-        //                             .Where(cm => cm.ConversationId == c.Id)
-        //                             .Select(cm => cm.ChatUserId)
-        //                             .Contains(chatUser2.Value))
-        //             .FirstOrDefaultAsync();
-        //
-        //         if (existingConv != null)
-        //         {
-        //             var hasValidKey = await db.ConversationKeys
-        //                 .AnyAsync(ck => ck.ConversationId == existingConv.Id && ck.ChatUserId == chatUser1.Value);
-        //
-        //             return new ConversationResult
-        //             {
-        //                 ConversationId = existingConv.Id,
-        //                 IsNew = false,
-        //                 IsKeyInitialized = hasValidKey
-        //             };
-        //         }
-        //
-        //         var newConv = new Conversation
-        //         {
-        //             Id = Guid.NewGuid(),
-        //             Type = 0,
-        //             CreatedAt = DateTime.UtcNow.AddHours(7),
-        //             CreatorId = userId1,
-        //         };
-        //
-        //         db.Conversations.Add(newConv);
-        //
-        //         db.ConversationMembers.Add(new ConversationMember
-        //         {
-        //             ConversationId = newConv.Id,
-        //             ChatUserId = chatUser1.Value,
-        //             JoinedAt = DateTime.UtcNow.AddHours(7),
-        //             Role = 0
-        //         });
-        //
-        //         db.ConversationMembers.Add(new ConversationMember
-        //         {
-        //             ConversationId = newConv.Id,
-        //             ChatUserId = chatUser2.Value,
-        //             JoinedAt = DateTime.UtcNow.AddHours(7),
-        //             Role = 0
-        //         });
-        //
-        //         await db.SaveChangesAsync();
-        //
-        //         return new ConversationResult
-        //         {
-        //             ConversationId = newConv.Id,
-        //             IsNew = true,
-        //             IsKeyInitialized = false
-        //         };
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         logger.LogError(ex, "Error creating conversation");
-        //         throw;
-        //     }
-        // }
-
-        // Get messages with attachments
         
         public async Task<ConversationResult> GetOrCreateConversationAsync(Guid currentUserId, Guid recipientUserId)
     {
@@ -463,10 +375,10 @@ namespace SchoolBookPlatform.Services
             .FirstOrDefaultAsync(u => u.UserId == recipientUserId && u.IsActive);
         
         //Có tài khoản Active
-        //Tìm conversation cũ, nếu không có thì TẠO MỚI.
+        //Tìm conversation cũ, nếu không có tạo mới.
         if (recipientActiveUser != null)
         {
-            // Tìm cuộc trò chuyện giữa A và B_Active
+            //Tìm chat giữa A và B_Active
             var liveConversation = await db.Conversations
                 .Where(c => c.Type == 0)
                 .Where(c => db.ConversationMembers.Any(cm => cm.ConversationId == c.Id && cm.ChatUserId == senderChatUser.Id) &&
@@ -494,7 +406,7 @@ namespace SchoolBookPlatform.Services
         //tìm conversation cũ ko tạo mới
         else
         {
-            // Lấy danh sách tất cả ID cũ của B (để quét lịch sử)
+            //lấy danh sách tất cả ID cũ của B (để quét lịch sử)
             var allRecipientIds = await db.ChatUsers
                 .Where(u => u.UserId == recipientUserId)
                 .Select(u => u.Id)
@@ -580,7 +492,6 @@ namespace SchoolBookPlatform.Services
                 query = query.Where(m => m.Id < beforeId.Value);
             }
 
-            // IsMine: so sánh SenderId (ChatUser) với chatUserId hiện tại
             var messages = await query
                 .OrderByDescending(m => m.Id)
                 .Take(count)
@@ -610,7 +521,6 @@ namespace SchoolBookPlatform.Services
             return messages;
         }
 
-        // Send Message
         public async Task<ServiceResult<long>> SendMessageAsync(Guid conversationId, Guid senderId, string cipherText,
             byte messageType)
         {
@@ -620,7 +530,7 @@ namespace SchoolBookPlatform.Services
 
             try
             {
-                // Check quyền gửi (theo ChatUser)
+                //check quyền gửi (theo ChatUser)
                 var isMember = await db.ConversationMembers
                     .AnyAsync(cm => cm.ConversationId == conversationId && cm.ChatUserId == senderChatUserId.Value);
 
@@ -647,7 +557,7 @@ namespace SchoolBookPlatform.Services
             }
         }
 
-        // Create message (for file upload)
+        //create message (file upload)
         public async Task<ServiceResult<long>> CreateMessageAsync(
             Guid conversationId,
             Guid senderId,
@@ -676,7 +586,7 @@ namespace SchoolBookPlatform.Services
             }
         }
 
-        // Upload file và update message
+        //Upload file và update message tạm
         public async Task<CloudinaryUploadResult> UploadFileAsync(
             IFormFile file,
             Guid userId,
@@ -685,7 +595,6 @@ namespace SchoolBookPlatform.Services
         {
             try
             {
-                // Upload to Cloudinary
                 var uploadResult = await cloudinaryService.UploadChatFileAsync(
                     file, userId, conversationId, messageId);
 
@@ -696,7 +605,7 @@ namespace SchoolBookPlatform.Services
                     return uploadResult;
                 }
 
-                // Chỉ lưu attachment metadata
+                //attachment metadata
                 var attachment = new MessageAttachment
                 {
                     MessageId = messageId,
@@ -732,7 +641,6 @@ namespace SchoolBookPlatform.Services
         public async Task<ServiceResult> ChangePinAsync(Guid userId, string oldPinHash, string newPinHash,
             string newEncryptedPrivateKey)
         {
-            // Tìm ChatUser đang active
             var chatUser = await db.ChatUsers.FirstOrDefaultAsync(u => u.UserId == userId && u.IsActive == true);
             if (chatUser == null)
             {
@@ -744,14 +652,13 @@ namespace SchoolBookPlatform.Services
                 return new ServiceResult { Success = false, Message = "Mã PIN cũ không chính xác." };
             }
 
-            // Tìm RSA Key gắn với ChatUser này
             var rsaKey = await db.UserRsaKeys.FirstOrDefaultAsync(k => k.ChatUserId == chatUser.Id && k.IsActive);
             if (rsaKey == null)
             {
                 return new ServiceResult { Success = false, Message = "Không tìm thấy khóa RSA." };
             }
 
-            using var transaction = await db.Database.BeginTransactionAsync();
+            await using var transaction = await db.Database.BeginTransactionAsync();
             try
             {
                 chatUser.PinCodeHash = newPinHash;
@@ -781,7 +688,6 @@ namespace SchoolBookPlatform.Services
                 {
                     userRsaKey.IsActive = false;
                 }
-                // Không xóa dữ liệu vật lý -> Tránh lỗi FK ở phía người nhận tin nhắn cũ
                 await db.SaveChangesAsync();
             }
             logger.LogInformation("User {UserId} has reset their chat account (Soft Delete).", userId);
