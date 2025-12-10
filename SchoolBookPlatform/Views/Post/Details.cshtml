@@ -4,7 +4,9 @@
     ViewData["Title"] = Model.Post.Title;
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
-<link rel="stylesheet" href="css/page/detail.css" asp-append-version="true"/>
+@* SỬA LỖI: Thêm dấu ~/ để đường dẫn trỏ về thư mục gốc *@
+<link rel="stylesheet" href="~/css/page/detail.css" asp-append-version="true"/>
+
 <div class="container mt-4">
     <div class="row">
         <div class="col-md-12">
@@ -25,7 +27,7 @@
                 </div>
             }
             
-            @* Tạo một PostListViewModel từ dữ liệu hiện có *@
+            @* Tạo một PostListViewModel từ dữ liệu hiện có để tái sử dụng _PostListPartial *@
             @{
                 var postListViewModel = new SchoolBookPlatform.ViewModels.Post.PostListViewModel
                 {
@@ -41,7 +43,6 @@
             
             @await Html.PartialAsync("_PostListPartial", postListViewModel)
 
-            <!-- Modal báo cáo bài đăng -->
             <div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
@@ -50,7 +51,6 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body" id="reportModalBody">
-                            <!-- Form report sẽ được load động vào đây -->
                             <div class="text-center py-3">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
@@ -62,10 +62,10 @@
             </div>
             
             @* Danh sách comment *@
-            <div class="card">
+            <div class="card mb-4">
                 <div class="card-body">
                     <h5 class="card-title">Bình luận (@Model.Comments.Count)</h5>
-                    
+                     
                     @* Form comment mới *@
                     <div class="mb-3">
                         <textarea id="commentContent" class="form-control" rows="3" 
@@ -117,35 +117,8 @@
 
 @section Scripts {
     <script>
-        // Vote functionality
-        document.querySelectorAll('.vote-btn').forEach(btn => {
-            btn.addEventListener('click', async function() {
-                const postId = this.dataset.postId;
-                const isUpvote = this.dataset.voteType === 'true';
-                
-                try {
-                    const response = await fetch('/Post/Vote', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: `postId=${postId}&isUpvote=${isUpvote}`
-                    });
-                    
-                    const data = await response.json();
-                    if (data.success) {
-                        document.querySelector('.upvote-count').textContent = data.upvoteCount;
-                        document.querySelector('.downvote-count').textContent = data.downvoteCount;
-                    } else {
-                        alert(data.message || 'Có lỗi xảy ra');
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Có lỗi xảy ra khi vote');
-                }
-            });
-        });
-
+        // LƯU Ý: Đã xóa đoạn script xử lý Vote cũ vì postVote.js (được nạp trong _PostListPartial/_Layout) đã xử lý việc này.
+        
         // Comment functionality
         document.getElementById('submitComment')?.addEventListener('click', async function() {
             const postId = this.dataset.postId;
@@ -155,6 +128,9 @@
                 alert('Vui lòng nhập nội dung bình luận');
                 return;
             }
+            
+            // Disable button while submitting
+            this.disabled = true;
             
             try {
                 const response = await fetch('/Post/Comment', {
@@ -171,10 +147,12 @@
                     location.reload();
                 } else {
                     alert(data.message || 'Có lỗi xảy ra');
+                    this.disabled = false;
                 }
             } catch (error) {
                 console.error('Error:', error);
                 alert('Có lỗi xảy ra khi gửi bình luận');
+                this.disabled = false;
             }
         });
     </script>

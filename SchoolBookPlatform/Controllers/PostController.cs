@@ -46,12 +46,13 @@ public class PostController(
 
         var post = await db.Posts
             .Include(p => p.User)
-                .ThenInclude(u => u.UserProfile)
+            .ThenInclude(u => u.UserProfile)
             .Include(p => p.Comments)
-                .ThenInclude(c => c.User)
-                    .ThenInclude(u => u.UserProfile)
+            .ThenInclude(c => c.User)
+            .ThenInclude(u => u.UserProfile)
             .Include(p => p.Votes)
-            .Include(p => p.Attachments)
+            .Include(p => p.Attachments).Include(post => post.Comments).ThenInclude(postComment => postComment.Replies)
+            .ThenInclude(postComment => postComment.User).ThenInclude(user => user.UserProfile)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (post == null)

@@ -130,44 +130,72 @@ class PostVote {
         }
     }
 
+    // --- PHẦN REPORT LOGIC ---
+
     bindReportEvents() {
         // Bind report buttons
         document.querySelectorAll('[data-bs-target="#reportModal"]').forEach(button => {
             this.bindReportButton(button);
         });
 
-        // Bind form submit event
+        // Bind form submit event (Global delegate)
         document.addEventListener('submit', async (e) => {
             if (e.target.classList.contains('report-form')) {
                 e.preventDefault();
                 await this.handleReportSubmit(e.target);
             }
         });
+
+        // Event delegation cho nút chọn lý do mẫu (btn-add-reason)
+        document.body.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-add-reason')) {
+                const reason = e.target.dataset.reason;
+                const form = e.target.closest('form');
+                if (form) {
+                    const textarea = form.querySelector('textarea[name="reason"]');
+                    if (textarea) {
+                        if (textarea.value.trim()) {
+                            textarea.value += '\n' + reason;
+                        } else {
+                            textarea.value = reason;
+                        }
+                        textarea.focus();
+                    }
+                }
+            }
+        });
     }
 
+    // SỬA LỖI: Thêm hàm bindReportButton bị thiếu
     bindReportButton(button) {
         const buttonId = button.dataset.buttonId || Math.random().toString(36).substr(2, 9);
+        button.dataset.buttonId = buttonId; // Ensure ID is set
 
         if (!this.initialized.has(`report-${buttonId}`)) {
             this.initialized.add(`report-${buttonId}`);
-
             button.removeEventListener('click', this.handleReportButtonClick);
             button.addEventListener('click', (e) => this.handleReportButtonClick(e, button));
         }
     }
 
     handleReportButtonClick = (e, button) => {
-        e.preventDefault();
-        e.stopPropagation();
+        // Không preventDefault ở đây để modal bootstrap vẫn hoạt động (hiện lên)
+        // Nhưng cần load form
 
-        const postId = button.closest('.post-card')?.dataset.postId;
-        if (!postId) {
-            // Try to get postId from data attribute
+        let postId = null;
+
+        // Tìm postId từ các vị trí có thể
+        const postCard = button.closest('.post-card');
+        if (postCard) {
+            postId = postCard.dataset.postId;
+        } else {
             postId = button.dataset.postId;
         }
 
         if (postId) {
             this.loadReportForm(postId);
+        } else {
+            console.error('Cannot find postId for report button');
         }
     }
 
@@ -243,27 +271,32 @@ class PostVote {
 
         try {
             const formData = new FormData(form);
-            const response = await fetch('/Post/Report', {
+            const response = await fetch('/PostReport/Report', {
                 method: 'POST',
                 body: formData
             });
 
-            if (response.ok) {
+            // Parse JSON response
+            const data = await response.json().catch(() => ({ success: false, message: 'Lỗi phản hồi từ server' }));
+
+            if (response.ok && data.success) {
                 // Success
-                this.showToast('Báo cáo đã được gửi thành công!', 'success');
+                this.showToast(data.message || 'Báo cáo đã được gửi thành công!', 'success');
 
                 // Close modal after delay
                 setTimeout(() => {
-                    if (this.reportModal) {
-                        this.reportModal.hide();
+                    // Hide modal using bootstrap instance
+                    const modalEl = document.getElementById('reportModal');
+                    if (modalEl) {
+                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                        if (modalInstance) modalInstance.hide();
                     }
                 }, 1500);
 
                 // Reset form
                 form.reset();
             } else {
-                // Server error
-                const data = await response.json();
+                // Server returned error (logic or validation)
                 this.showToast(data.message || 'Có lỗi xảy ra khi gửi báo cáo.', 'danger');
             }
         } catch (error) {
@@ -504,13 +537,8 @@ class PostVote {
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    const voteContainers = document.querySelectorAll('.vote-container');
-    const reportButtons = document.querySelectorAll('[data-bs-target="#reportModal"]');
-
-    if (voteContainers.length > 0 || reportButtons.length > 0) {
-        window.postVote = new PostVote();
-        console.log(`Post system initialized for ${voteContainers.length} posts`);
-    }
+    window.postVote = new PostVote();
+    console.log(`PostVote system initialized`);
 });
 
 // Global helper function for loading report form (can be called from inline onclick)
@@ -522,243 +550,5 @@ if (typeof window !== 'undefined') {
             console.error('PostVote system not initialized');
         }
     };
-
     window.PostVote = PostVote;
 }
-
-// Tạo ID duy nhất cho mỗi nút report
-document.querySelectorAll('[data-bs-target="#reportModal"]').forEach((button, index) => {
-    button.dataset.buttonId = `report-btn-${index}`;
-});
-
-// Xử lý click vào nút report trong dropdown
-document.querySelectorAll('.dropdown-item[data-bs-target="#reportModal"]').forEach(button => {
-    button.addEventListener('click', function(e) {
-        e.stopPropagation();
-        const postId = this.closest('.post-card')?.dataset.postId;
-        if (postId) {
-            // Gọi hàm từ postVote instance
-            if (window.postVote) {
-                window.postVote.loadReportForm(postId);
-            }
-        }
-    });
-});
-
-// reportModal.js - Xử lý modal báo cáo bài đăng
-class ReportModal {
-    constructor() {
-        this.modal = null;
-        this.modalBody = null;
-        this.currentPostId = null;
-        this.init();
-    }
-
-    init() {
-        // Khởi tạo modal
-        const modalElement = document.getElementById('reportModal');
-        if (modalElement) {
-            this.modal = new bootstrap.Modal(modalElement);
-            this.modalBody = document.getElementById('reportModalBody');
-
-            // Xử lý sự kiện khi modal đóng
-            modalElement.addEventListener('hidden.bs.modal', () => {
-                this.resetModal();
-            });
-
-            // Xử lý sự kiện khi modal hiển thị
-            modalElement.addEventListener('show.bs.modal', () => {
-                this.onModalShow();
-            });
-        }
-
-        // Bind sự kiện cho tất cả nút báo cáo
-        this.bindReportButtons();
-
-        // Setup MutationObserver cho dynamic content
-        this.setupMutationObserver();
-
-        console.log('ReportModal initialized');
-    }
-
-    bindReportButtons() {
-        // Bind cho nút báo cáo trong dropdown
-        document.querySelectorAll('.dropdown-item.text-warning[data-bs-target="#reportModal"]').forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const postId = this.getPostIdFromElement(button);
-                if (postId) {
-                    this.showReportForm(postId);
-                }
-            });
-        });
-
-        // Bind cho nút báo cáo trực tiếp
-        document.querySelectorAll('[onclick*="loadReportForm"]').forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const postId = this.getPostIdFromElement(button) ||
-                    button.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
-                if (postId) {
-                    this.showReportForm(postId);
-                }
-            });
-        });
-    }
-
-    setupMutationObserver() {
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.addedNodes.length) {
-                    mutation.addedNodes.forEach((node) => {
-                        if (node.nodeType === 1) {
-                            // Bind sự kiện cho nút báo cáo mới
-                            const newReportButtons = node.querySelectorAll ?
-                                node.querySelectorAll('[data-bs-target="#reportModal"], [onclick*="loadReportForm"]') : [];
-
-                            newReportButtons.forEach(button => {
-                                button.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                    const postId = this.getPostIdFromElement(button) ||
-                                        button.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
-                                    if (postId) {
-                                        this.showReportForm(postId);
-                                    }
-                                });
-                            });
-                        }
-                    });
-                }
-            });
-        });
-
-        observer.observe(document.body, { childList: true, subtree: true });
-    }
-
-    getPostIdFromElement(element) {
-        // Lấy postId từ các vị trí có thể
-        const postCard = element.closest('.post-card');
-        if (postCard) {
-            return postCard.dataset.postId;
-        }
-
-        const card = element.closest('.card');
-        if (card) {
-            return card.dataset.postId ||
-                card.querySelector('.post-card')?.dataset.postId;
-        }
-
-        return element.dataset.postId || null;
-    }
-
-    async showReportForm(postId) {
-        this.currentPostId = postId;
-
-        // Hiển thị modal
-        if (this.modal) {
-            this.modal.show();
-        }
-
-        // Hiển thị loading
-        this.showLoading();
-
-        try {
-            // Load form báo cáo
-            const response = await fetch(`/PostReport/ReportForm/${postId}`);
-
-            if (!response.ok) {
-                throw new Error(`HTTP error: ${response.status}`);
-            }
-
-            const html = await response.text();
-
-            // Nếu response là JSON error
-            if (html.trim().startsWith('{')) {
-                const data = JSON.parse(html);
-                this.showError(data.message || 'Không thể tải form báo cáo.');
-                return;
-            }
-
-            // Cập nhật modal với form
-            this.modalBody.innerHTML = html;
-
-            // Thêm animation
-            const formContainer = this.modalBody.querySelector('.report-form-container');
-            if (formContainer) {
-                formContainer.style.opacity = '0';
-                formContainer.style.transform = 'translateY(10px)';
-                formContainer.style.transition = 'all 0.3s ease';
-
-                setTimeout(() => {
-                    formContainer.style.opacity = '1';
-                    formContainer.style.transform = 'translateY(0)';
-                }, 50);
-            }
-
-        } catch (error) {
-            console.error('Error loading report form:', error);
-            this.showError('Lỗi kết nối mạng. Vui lòng thử lại.');
-        }
-    }
-
-    showLoading() {
-        if (this.modalBody) {
-            this.modalBody.innerHTML = `
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-3 text-muted">Đang tải form báo cáo...</p>
-                </div>
-            `;
-        }
-    }
-
-    showError(message) {
-        if (this.modalBody) {
-            this.modalBody.innerHTML = `
-                <div class="text-center py-5">
-                    <div class="mb-3">
-                        <i class="fas fa-exclamation-triangle text-danger fa-4x"></i>
-                    </div>
-                    <h5 class="text-danger">Lỗi!</h5>
-                    <p class="text-muted">${message}</p>
-                    <div class="mt-4">
-                        <button class="btn btn-secondary me-2" data-bs-dismiss="modal">Đóng</button>
-                        <button class="btn btn-primary" onclick="reportModal.retryLoadForm()">Thử lại</button>
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    retryLoadForm() {
-        if (this.currentPostId) {
-            this.showReportForm(this.currentPostId);
-        }
-    }
-
-    resetModal() {
-        if (this.modalBody) {
-            this.modalBody.innerHTML = `
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div>
-            `;
-        }
-        this.currentPostId = null;
-    }
-
-    onModalShow() {
-        // Có thể thêm các xử lý khi modal hiển thị
-        console.log('Report modal shown for post:', this.currentPostId);
-    }
-}
-
-// Khởi tạo khi DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-    window.reportModal = new ReportModal();
-    console.log('ReportModal system ready');
-});

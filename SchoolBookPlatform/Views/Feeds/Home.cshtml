@@ -1,8 +1,7 @@
 ﻿@model SchoolBookPlatform.ViewModels.Post.PostListViewModel
 @{
-    ViewData["Title"] = "Trang chủ";
-    Layout = "~/Views/Shared/_Layout.cshtml";
-
+ViewData["Title"] = "Trang chủ";
+Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
 <div class="container mt-4">
@@ -12,11 +11,11 @@
                 <h2>
                     @if (Model.ViewType == "home")
                     {
-                        <span>Bài đăng gần đây</span>
+                    <span>Bài đăng gần đây</span>
                     }
                     else
                     {
-                        <span>Đang theo dõi</span>
+                    <span>Đang theo dõi</span>
                     }
                 </h2>
                 <a asp-controller="Post" asp-action="Create" class="btn btn-primary">
@@ -27,31 +26,31 @@
             @* Hiển thị thông báo *@
             @if (TempData["SuccessMessage"] != null)
             {
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    @TempData["SuccessMessage"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @TempData["SuccessMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
             }
 
             @if (TempData["ErrorMessage"] != null)
             {
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    @TempData["ErrorMessage"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @TempData["ErrorMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
             }
-            
+
             @* Kiểm tra nếu là tab Following và không có bài đăng *@
             @if (Model.ViewType == "following" && !Model.Posts.Any())
             {
-                <div class="empty-following text-center py-5">
-                    <i class="fas fa-user-friends fa-3x text-muted mb-3"></i>
-                    <h4 class="text-muted">Bạn chưa follow ai</h4>
-                    <p class="text-muted">Follow người khác để xem bài đăng của họ tại đây</p>
-                    <a href="@Url.Action("Explore", "User")" class="btn btn-primary">
-                        <i class="fas fa-search"></i> Khám phá người dùng
-                    </a>
-                </div>
+            <div class="empty-following text-center py-5">
+                <i class="fas fa-user-friends fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">Bạn chưa follow ai</h4>
+                <p class="text-muted">Follow người khác để xem bài đăng của họ tại đây</p>
+                <a href="@Url.Action("Explore", "User")" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Khám phá người dùng
+                </a>
+            </div>
             }
 
             @* Modal hiển thị ảnh/video toàn màn hình *@
@@ -62,21 +61,17 @@
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body p-0 position-relative">
-                            <!-- Background mờ -->
                             <div id="blurredBackground" class="position-absolute top-0 start-0 w-100 h-100"></div>
-                            
-                            <!-- Carousel Modal -->
+
                             <div id="modalCarousel" class="carousel slide h-100" data-bs-ride="carousel">
                                 <div class="carousel-inner h-100"></div>
-                                
-                                <!-- Counter cho modal -->
+
                                 <div class="carousel-counter-modal position-absolute top-0 end-0 m-3">
                                     <span id="modalCurrentSlide" class="badge bg-dark bg-opacity-75 p-2">1</span>
                                     <span class="text-white">/</span>
                                     <span id="modalTotalSlides" class="badge bg-dark bg-opacity-75 p-2">0</span>
                                 </div>
-                                
-                                <!-- Navigation buttons -->
+
                                 <button class="carousel-control-prev" type="button" data-bs-target="#modalCarousel" data-bs-slide="prev">
                                     <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                                     <span class="visually-hidden">Previous</span>
@@ -100,7 +95,6 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body" id="reportModalBody">
-                            <!-- Form report sẽ được load động vào đây -->
                             <div class="text-center py-3">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
@@ -110,17 +104,15 @@
                     </div>
                 </div>
             </div>
-            
-            @* Danh sách bài đăng - Thay toàn bộ phần này *@
+
+            @* Danh sách bài đăng *@
             <div id="posts-container">
                 @await Html.PartialAsync("_PostListPartial", Model)
             </div>
-            
-            <!-- Loading text cho lazyload -->
+
             <div id="loading-text" class="text-center my-3 @(Model.HasMorePosts && Model.Posts.Any() ? "" : "d-none")">
             </div>
-            
-            <!-- No more posts message -->
+
             <div id="no-more-posts" class="text-center my-5" style="display: none;">
                 <p class="text-muted">Đã hiển thị tất cả bài đăng</p>
             </div>
@@ -128,10 +120,29 @@
     </div>
 </div>
 
-
-<script src="~/js/postVote.js" asp-append-version="true"></script>
 @section Scripts {
 <script>
+    // DEFINE MISSING VARIABLES
+    const postMediaMap = new Map();
+    const postCarousels = new Map();
+    const playingVideos = new Map();
+
+    // DOM Element references
+    let imageModal = null;
+    let modalCarousel = null;
+    let modalCarouselInner = null;
+    let modalCurrentSlideSpan = null;
+    let modalTotalSlidesSpan = null;
+    let blurredBackground = null;
+    let prevButton = null;
+    let nextButton = null;
+
+    // State variables
+    let currentPostId = null;
+    let currentPostMedia = [];
+    let currentPostCarousel = null;
+    let lastModalMediaIndex = 0;
+
     // Biến toàn cục để quản lý lazyload
     let currentPage = @Model.CurrentPage;
     let isLoading = false;
@@ -161,7 +172,6 @@
         // Quan sát loading text
         const loadingText = document.getElementById('loading-text');
         const noMorePosts = document.getElementById('no-more-posts');
-
         if (loadingText) {
             // Chỉ show loading text nếu còn bài đăng
             if (hasMorePosts && @(Model.Posts?.Count ?? 0) > 0) {
@@ -186,7 +196,6 @@
             hasMorePosts,
             currentPage: currentPage + 1
         });
-
         if (isLoading || !hasMorePosts) {
             console.log('Skipping: isLoading=' + isLoading + ', hasMorePosts=' + hasMorePosts);
             return;
@@ -205,19 +214,16 @@
             loadingText.innerHTML = '<p class="text-muted">Đang tải...</p>';
         }
         if (noMorePosts) noMorePosts.style.display = 'none';
-
         try {
             // Xác định action dựa trên viewType
             const action = viewType === 'following' ? 'Following' : 'Home';
             const url = `/Feeds/${action}?page=${pageToLoad}`;
             console.log('Fetching from:', url);
-
             const response = await fetch(url, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             });
-
             console.log('Response status:', response.status);
 
             if (response.ok) {
@@ -227,7 +233,6 @@
                 if (html.trim()) {
                     // Thêm bài đăng mới vào container
                     const postsContainer = document.getElementById('posts-container');
-
                     // Tạo container mới cho bài đăng
                     const newPostsContainer = document.createElement('div');
                     newPostsContainer.innerHTML = html;
@@ -239,20 +244,16 @@
                     if (postCards.length > 0) {
                         // Thêm vào DOM
                         postsContainer.appendChild(newPostsContainer);
-
                         // Cập nhật current page
                         currentPage = pageToLoad;
-
                         // Khởi tạo lại các sự kiện cho bài đăng mới
                         initializeNewPosts();
-
                         // Kiểm tra xem còn bài đăng không
                         hasMorePosts = postCards.length === @Model.PageSize;
                         console.log('Has more posts:', hasMorePosts);
 
                         // Cập nhật UI dựa trên hasMorePosts
                         updateLoadingUI();
-
                     } else {
                         console.log('No posts in response');
                         hasMorePosts = false;
@@ -388,7 +389,6 @@
                 }
             });
             postMediaMap.set(postId, mediaItems);
-
             // Lưu carousel instance
             const carouselElement = document.getElementById(`carousel-${postId}`);
             if (carouselElement) {
@@ -463,7 +463,6 @@
                             img.addEventListener('click', function () {
                                 if (imageModal) imageModal.hide();
                             });
-
                             mediaContainer.appendChild(img);
                         } else if (media.type === 'video') {
                             const videoContainer = document.createElement('div');
@@ -479,14 +478,12 @@
                             video.style.maxWidth = '95vw';
                             video.style.objectFit = 'contain';
                             video.style.backgroundColor = '#000';
-
                             const source = document.createElement('source');
                             source.src = media.src;
                             source.type = 'video/mp4';
 
                             video.appendChild(source);
                             video.appendChild(document.createTextNode('Trình duyệt của bạn không hỗ trợ video.'));
-
                             video.dataset.mediaIndex = index;
 
                             video.addEventListener('play', function () {
@@ -497,11 +494,9 @@
                                     }
                                 });
                             });
-
                             video.addEventListener('pause', function () {
                                 playingVideos.delete(index);
                             });
-
                             videoContainer.appendChild(video);
                             mediaContainer.appendChild(videoContainer);
                         }
@@ -515,10 +510,8 @@
                         const modalCarouselInstance = new bootstrap.Carousel(modalCarousel, {
                             interval: false
                         });
-
                         // Điều hướng đến media được click
                         modalCarouselInstance.to(mediaIndex);
-
                         // Cập nhật số slide hiện tại
                         if (modalCurrentSlideSpan) {
                             modalCurrentSlideSpan.textContent = mediaIndex + 1;
@@ -540,12 +533,10 @@
     // Hàm cập nhật background mờ
     function updateBlurredBackground(slideIndex) {
         if (!blurredBackground) return;
-
         blurredBackground.innerHTML = '';
 
         if (currentPostMedia.length > 0 && slideIndex < currentPostMedia.length) {
             const currentMedia = currentPostMedia[slideIndex];
-
             if (currentMedia.type === 'image') {
                 const backgroundImage = document.createElement('img');
                 backgroundImage.src = currentMedia.src;
@@ -562,27 +553,6 @@
                 blurredBackground.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
             }
         }
-    }
-
-    // Hàm khởi tạo các sự kiện cho bài đăng mới
-    function initializeNewPosts() {
-        // Khởi tạo sự kiện click cho bài đăng mới
-        document.querySelectorAll('.post-card:not([data-initialized])').forEach(card => {
-            card.setAttribute('data-initialized', 'true');
-            card.addEventListener('click', function () {
-                const postId = this.dataset.postId;
-                window.location.href = `/Post/Details/${postId}`;
-            });
-
-            // Khởi tạo media cho bài post
-            initializePostMedia(card);
-
-            // Thiết lập sự kiện click cho media
-            setupMediaClickEvents(card);
-        });
-
-        // Khởi tạo carousel cho bài đăng mới
-        initializeNewCarousels();
     }
 
     // Hàm khởi tạo carousel cho bài đăng mới
@@ -604,359 +574,7 @@
         });
     }
 
-    // Khởi tạo khi trang được tải
-    document.addEventListener('DOMContentLoaded', function () {
-        console.log('DOM loaded, initializing...');
-        console.log('Initial data:', {
-            currentPage: @Model.CurrentPage,
-            hasMorePosts: @Json.Serialize(Model.HasMorePosts),
-            postsCount: @(Model.Posts?.Count ?? 0),
-            pageSize: @Model.PageSize
-        });
-
-        // Khởi tạo modal
-        initializeModal();
-
-        // Kiểm tra nếu không có bài đăng nào
-        if (@(Model.Posts?.Count ?? 0) === 0) {
-            console.log('No posts');
-            const loadingText = document.getElementById('loading-text');
-            const noMorePosts = document.getElementById('no-more-posts');
-
-            if (loadingText) {
-                loadingText.classList.add('d-none');
-            }
-            if (noMorePosts) {
-                noMorePosts.style.display = 'none';
-            }
-        } else {
-            // Có bài đăng, thiết lập lazyloading
-            console.log('Posts found, setting up lazy loading');
-            setupLazyLoading();
-        }
-
-        // Khởi tạo bài đăng ban đầu
-        initializeNewPosts();
-
-        console.log('Initialization complete');
-
-        // Thêm nút test thủ công (tùy chọn)
-        const testButton = document.createElement('button');
-        testButton.textContent = 'Test Load More';
-        testButton.className = 'btn btn-sm btn-outline-warning mt-2';
-        testButton.onclick = function() {
-            console.log('Manual test triggered');
-            loadMorePosts();
-        };
-
-        const container = document.querySelector('.container');
-        if (container) {
-            container.appendChild(testButton);
-        }
-    });
-    
-    // ========== XỬ LÝ MODAL BÁO CÁO ==========
-
-    // Biến lưu modal instance
-    let reportModal = null;
-    let currentReportPostId = null;
-
-    // Khởi tạo modal báo cáo
-    function initReportModal() {
-        const modalElement = document.getElementById('reportModal');
-        if (modalElement) {
-            reportModal = new bootstrap.Modal(modalElement, {
-                backdrop: 'static', // Ngăn không cho đóng khi click ra ngoài
-                keyboard: true      // Cho phép đóng bằng phím ESC
-            });
-
-            // Xử lý khi modal đóng HOÀN TOÀN
-            modalElement.addEventListener('hidden.bs.modal', function() {
-                console.log('Report modal fully hidden');
-                resetReportModal();
-
-                // Đảm bảo backdrop được xóa
-                cleanupModalBackdrops();
-
-                // Khôi phục body style
-                document.body.classList.remove('modal-open');
-                document.body.style.paddingRight = '';
-            });
-
-            console.log('Report modal initialized');
-        }
-    }
-
-    // Hàm tải form báo cáo
-    async function loadReportForm(postId) {
-        currentReportPostId = postId;
-
-        const modalBody = document.getElementById('reportModalBody');
-        const modalLabel = document.getElementById('reportModalLabel');
-        if (!modalBody) return;
-
-        // Hiển thị loading
-        modalBody.innerHTML = `
-            <div class="text-center py-5">
-                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-3 text-muted">Đang tải form báo cáo...</p>
-            </div>
-        `;
-
-        // Đảm bảo modal được hiển thị
-        if (reportModal) {
-            reportModal.show();
-        }
-
-        try {
-            const response = await fetch(`/Post/ReportForm/${postId}`);
-
-            if (response.ok) {
-                const html = await response.text();
-
-                // Kiểm tra nếu response là JSON error
-                if (html.trim().startsWith('{')) {
-                    try {
-                        const data = JSON.parse(html);
-                        modalBody.innerHTML = `
-                            <div class="alert alert-danger">
-                                <i class="fas fa-exclamation-circle me-2"></i>
-                                ${data.message || 'Không thể tải form báo cáo.'}
-                            </div>
-                            <div class="text-center mt-3">
-                                <button class="btn btn-secondary" onclick="retryLoadReportForm()">Thử lại</button>
-                                <button class="btn btn-outline-secondary ms-2" data-bs-dismiss="modal">Đóng</button>
-                            </div>
-                        `;
-                        return;
-                    } catch (e) {
-                        // Không phải JSON, tiếp tục xử lý
-                    }
-                }
-
-                modalBody.innerHTML = html;
-
-                // Thêm animation cho form
-                const formContainer = modalBody.querySelector('.report-form-container');
-                if (formContainer) {
-                    formContainer.style.opacity = '0';
-                    formContainer.style.transform = 'translateY(10px)';
-                    formContainer.style.transition = 'all 0.3s ease';
-
-                    setTimeout(() => {
-                        formContainer.style.opacity = '1';
-                        formContainer.style.transform = 'translateY(0)';
-                    }, 50);
-                }
-
-                // Cập nhật tiêu đề modal
-                if (modalLabel) {
-                    modalLabel.textContent = 'Báo cáo bài đăng';
-                }
-
-                // Bind sự kiện submit form
-                bindReportFormSubmit();
-            } else {
-                modalBody.innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-circle me-2"></i>
-                        Không thể tải form báo cáo. Vui lòng thử lại.
-                    </div>
-                    <div class="text-center mt-3">
-                        <button class="btn btn-secondary" onclick="retryLoadReportForm()">Thử lại</button>
-                        <button class="btn btn-outline-secondary ms-2" data-bs-dismiss="modal">Đóng</button>
-                    </div>
-                `;
-            }
-        } catch (error) {
-            console.error('Error loading report form:', error);
-            modalBody.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-circle me-2"></i>
-                    Lỗi kết nối mạng. Vui lòng kiểm tra kết nối và thử lại.
-                </div>
-                <div class="text-center mt-3">
-                    <button class="btn btn-secondary" onclick="retryLoadReportForm()">Thử lại</button>
-                    <button class="btn btn-outline-secondary ms-2" data-bs-dismiss="modal">Đóng</button>
-                </div>
-            `;
-        }
-    }
-
-    // Hàm bind sự kiện submit form báo cáo
-    function bindReportFormSubmit() {
-        const form = document.querySelector('#reportModalBody .report-form');
-        if (!form) return;
-
-        // Xóa event listener cũ nếu có
-        const newForm = form.cloneNode(true);
-        form.parentNode.replaceChild(newForm, form);
-
-        newForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-
-            // Hiển thị loading
-            submitBtn.innerHTML = `
-                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                Đang gửi...
-            `;
-            submitBtn.disabled = true;
-
-            try {
-                const formData = new FormData(this);
-                const response = await fetch('/PostReport/Report', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (response.ok) {
-                    // Hiển thị thông báo thành công
-                    showReportSuccess('Báo cáo đã được gửi thành công!');
-
-                    // Đóng modal sau 2 giây
-                    setTimeout(() => {
-                        if (reportModal) {
-                            reportModal.hide();
-                        }
-                    }, 2000);
-                } else {
-                    const errorData = await response.json().catch(() => ({}));
-                    showReportError(errorData.message || 'Có lỗi xảy ra khi gửi báo cáo.');
-                    submitBtn.innerHTML = originalText;
-                    submitBtn.disabled = false;
-                }
-            } catch (error) {
-                console.error('Error submitting report:', error);
-                showReportError('Lỗi kết nối mạng. Vui lòng thử lại.');
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            }
-        });
-    }
-
-    // Hàm hiển thị thông báo thành công
-    function showReportSuccess(message) {
-        const modalBody = document.getElementById('reportModalBody');
-        if (modalBody) {
-            modalBody.innerHTML = `
-                <div class="text-center py-5">
-                    <div class="mb-3">
-                        <i class="fas fa-check-circle text-success fa-4x"></i>
-                    </div>
-                    <h5 class="text-success">Thành công!</h5>
-                    <p class="text-muted">${message}</p>
-                    <div class="mt-4">
-                        <p class="text-muted small">Modal sẽ tự động đóng trong 2 giây...</p>
-                        <button class="btn btn-outline-secondary" onclick="closeReportModal()">Đóng ngay</button>
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    // Hàm hiển thị thông báo lỗi
-    function showReportError(message) {
-        const modalBody = document.getElementById('reportModalBody');
-        if (modalBody) {
-            const errorAlert = document.createElement('div');
-            errorAlert.className = 'alert alert-danger alert-dismissible fade show mb-3';
-            errorAlert.innerHTML = `
-                <i class="fas fa-exclamation-circle me-2"></i>
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-
-            modalBody.prepend(errorAlert);
-
-            // Tự động đóng alert sau 5 giây
-            setTimeout(() => {
-                if (errorAlert.parentNode) {
-                    const bsAlert = new bootstrap.Alert(errorAlert);
-                    bsAlert.close();
-                }
-            }, 5000);
-        }
-    }
-
-    // Hàm đóng modal báo cáo
-    function closeReportModal() {
-        if (reportModal) {
-            reportModal.hide();
-        }
-    }
-
-    // Hàm reset modal về trạng thái ban đầu
-    function resetReportModal() {
-        const modalBody = document.getElementById('reportModalBody');
-        if (modalBody) {
-            modalBody.innerHTML = `
-                <div class="text-center py-3">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div>
-            `;
-        }
-        currentReportPostId = null;
-
-        // Reset backdrop và body classes
-        cleanupModalBackdrops();
-    }
-
-    // Hàm dọn dẹp backdrop
-    function cleanupModalBackdrops() {
-        // Xóa tất cả backdrop
-        const backdrops = document.querySelectorAll('.modal-backdrop');
-        backdrops.forEach(backdrop => {
-            backdrop.remove();
-        });
-
-        // Xóa modal-open class nếu không có modal nào đang mở
-        const openModals = document.querySelectorAll('.modal.show');
-        if (openModals.length === 0) {
-            document.body.classList.remove('modal-open');
-            document.body.style.paddingRight = '';
-        }
-    }
-
-    // Hàm retry tải form báo cáo
-    function retryLoadReportForm() {
-        if (currentReportPostId) {
-            loadReportForm(currentReportPostId);
-        }
-    }
-
-    // Khởi tạo sự kiện cho các nút báo cáo trong bài đăng mới
-    function initReportButtonsForNewPosts() {
-        // Xử lý click vào nút báo cáo trong dropdown của bài đăng mới
-        document.querySelectorAll('.post-card:not([data-report-initialized])').forEach(card => {
-            card.setAttribute('data-report-initialized', 'true');
-
-            const reportButton = card.querySelector('.dropdown-item.text-warning[data-bs-target="#reportModal"]');
-            if (reportButton) {
-                reportButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    const postId = card.dataset.postId;
-                    if (postId) {
-                        console.log('Loading report form for post:', postId);
-                        loadReportForm(postId);
-                    }
-                });
-            }
-        });
-    }
-
-    // ========== CẬP NHẬT HÀM initializeNewPosts ==========
-
-    // Cập nhật hàm initializeNewPosts để bao gồm khởi tạo nút báo cáo
+    // Cập nhật hàm initializeNewPosts
     function initializeNewPosts() {
         // Khởi tạo sự kiện click cho bài đăng mới
         document.querySelectorAll('.post-card:not([data-initialized])').forEach(card => {
@@ -975,121 +593,28 @@
 
         // Khởi tạo carousel cho bài đăng mới
         initializeNewCarousels();
-
-        // Khởi tạo nút báo cáo cho bài đăng mới
-        initReportButtonsForNewPosts();
     }
 
-    // Khởi tạo sự kiện cho các nút báo cáo
-    function initReportButtons() {
-        // Xử lý click vào nút báo cáo trong dropdown
-        document.querySelectorAll('.dropdown-item.text-warning[data-bs-target="#reportModal"]').forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                // Lấy postId từ bài đăng cha
-                const postCard = this.closest('.post-card') ||
-                    this.closest('.card') ||
-                    this.closest('[data-post-id]');
-
-                let postId = null;
-
-                if (postCard) {
-                    postId = postCard.dataset.postId;
-                }
-
-                // Nếu không tìm thấy, thử lấy từ onclick attribute
-                if (!postId && this.getAttribute('onclick')) {
-                    const match = this.getAttribute('onclick').match(/loadReportForm\('([^']+)'\)/);
-                    if (match) {
-                        postId = match[1];
-                    }
-                }
-
-                if (postId) {
-                    console.log('Loading report form for post:', postId);
-                    loadReportForm(postId);
-                } else {
-                    console.error('Could not find postId for report button');
-                }
-            });
-        });
-    }
-
-    // Thêm CSS cho modal báo cáo
+    // Thêm CSS cho modal báo cáo (Simplified)
     function addReportModalStyles() {
         const style = document.createElement('style');
         style.textContent = `
             /* Modal báo cáo styling */
-            #reportModal .modal-dialog {
-                max-width: 500px;
-            }
-            
-            #reportModal .modal-header {
-                background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-                color: white;
-                border-bottom: none;
-            }
-            
-            #reportModal .modal-header .btn-close {
-                filter: invert(1);
-                opacity: 0.8;
-                background: none;
-                font-size: 1.5rem;
-            }
-            
-            #reportModal .modal-header .btn-close:hover {
-                opacity: 1;
-                background: rgba(255, 255, 255, 0.1);
-            }
-            
-            /* Nút báo cáo trong dropdown */
-            .dropdown-item.text-warning {
-                color: #ffc107 !important;
-            }
-            
-            .dropdown-item.text-warning:hover {
-                background-color: rgba(255, 193, 7, 0.1) !important;
-                color: #e0a800 !important;
-            }
-            
-            /* Form báo cáo */
-            .report-form textarea {
-                resize: vertical;
-                min-height: 120px;
-            }
-            
-            .report-form textarea:focus {
-                border-color: #ffc107;
-                box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
-            }
-            
-            /* Fix backdrop và z-index cho các modal */
-            .modal-backdrop {
-                z-index: 1040 !important;
-            }
-            
-            #imageModal {
-                z-index: 1060 !important;
-            }
-            
-            #reportModal {
-                z-index: 1055 !important;
-            }
-            
-            /* Fix cho dropdown trong post card */
-            .post-card .dropdown-menu {
-                z-index: 1070 !important;
-            }
+            #reportModal .modal-dialog { max-width: 500px; }
+            #reportModal .modal-header { background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; border-bottom: none; }
+            #reportModal .modal-header .btn-close { filter: invert(1); opacity: 0.8; background: none; font-size: 1.5rem; }
+            #reportModal .modal-header .btn-close:hover { opacity: 1; background: rgba(255, 255, 255, 0.1); }
+            .dropdown-item.text-warning { color: #ffc107 !important; }
+            .dropdown-item.text-warning:hover { background-color: rgba(255, 193, 7, 0.1) !important; color: #e0a800 !important; }
+            .report-form textarea { resize: vertical; min-height: 120px; }
+            .report-form textarea:focus { border-color: #ffc107; box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25); }
+            .modal-backdrop { z-index: 1040 !important; }
+            #imageModal { z-index: 1060 !important; }
+            #reportModal { z-index: 1055 !important; }
+            .post-card .dropdown-menu { z-index: 1070 !important; }
         `;
         document.head.appendChild(style);
     }
-
-    // Global functions để gọi từ HTML
-    window.loadReportForm = loadReportForm;
-    window.retryLoadReportForm = retryLoadReportForm;
-    window.closeReportModal = closeReportModal;
 
     // ========== KHỞI TẠO KHI DOM READY ==========
 
@@ -1098,9 +623,6 @@
 
         // Khởi tạo modal image
         initializeModal();
-
-        // Khởi tạo modal báo cáo
-        initReportModal();
 
         // Khởi tạo media cho các bài post ban đầu
         document.querySelectorAll('.card').forEach(card => {
@@ -1112,9 +634,6 @@
             setupMediaClickEvents(card);
         });
 
-        // Khởi tạo sự kiện cho các nút báo cáo
-        initReportButtons();
-
         // Thiết lập sự kiện chuyển slide cho modal image
         if (modalCarousel) {
             modalCarousel.addEventListener('slide.bs.carousel', function (event) {
@@ -1124,7 +643,6 @@
                     modalCurrentSlideSpan.textContent = nextSlide + 1;
                 }
                 updateBlurredBackground(nextSlide);
-
                 playingVideos.forEach(video => {
                     if (!video.paused) {
                         video.pause();
@@ -1148,17 +666,11 @@
         document.querySelector('#imageModal .btn-close')?.addEventListener('click', function () {
             if (imageModal) imageModal.hide();
         });
-
         // Cho phép đóng modal bằng phím ESC
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
-                // Đóng image modal nếu đang mở
                 if (imageModal && imageModal._isShown) {
                     imageModal.hide();
-                }
-                // Đóng report modal nếu đang mở
-                if (reportModal && reportModal._isShown) {
-                    reportModal.hide();
                 }
             }
 
@@ -1172,7 +684,6 @@
                 }
             }
         });
-
         // Click bên ngoài media để đóng modal image
         const imageModalElement = document.getElementById('imageModal');
         if (imageModalElement) {
@@ -1210,8 +721,7 @@
 
         // Khởi tạo bài đăng ban đầu
         initializeNewPosts();
-
-        console.log('Feed page initialization complete with report modal');
+        console.log('Feed page initialization complete');
     });
 </script>
 }

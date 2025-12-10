@@ -61,6 +61,14 @@
                         @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
                         {
                             <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Admin" asp-action="ApprovePosts">
+                                    <i class="bi bi-people"></i> Post Approval
+                                </a>
+                            </li>
+                        }
+                        @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
+                        {
+                            <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="Admin" asp-action="Reports">
                                     <i class="bi bi-people"></i> Post Report
                                 </a>
@@ -192,6 +200,7 @@
             var isUserManageIndex = currentController == "Admin" && currentAction == "Index";
             var isApprovePost = currentController == "Admin" && currentAction == "ApprovePosts";
             var isReportManage = currentController == "Admin" && currentAction == "Reports";
+            var isChatManage = currentController == "ChatReportController" && currentAction == "Index";
             var isProfileIndex = currentController == "Profile" && currentAction == "Index";
             var isSettingIndex = currentController == "Setting" && currentAction == "Index";
         }
@@ -218,7 +227,12 @@
             
             <a class="sidebar-button @(isReportManage ? "active" : "")" href="@Url.Action("Reports", "Admin")">
                 <i class="fas fa-flag"></i>
-                <span>Report Management</span>
+                <span>Post Report</span>
+                @await Component.InvokeAsync("PendingReportsBadge")
+            </a>
+            <a class="sidebar-button @(isChatManage ? "active" : "")" href="@Url.Action("Index", "ChatReport")">
+                <i class="fas bi-mailbox-flag"></i>
+                <span>Chat Report</span>
                 @await Component.InvokeAsync("PendingReportsBadge")
             </a>
         }
