@@ -176,26 +176,67 @@ html, body {
     font-weight: bold;
     font-size: 1.2rem;
 }
-
 /* ==========================================================================
    4. MESSAGES AREA (VÙNG HIỂN THỊ TIN NHẮN) - ĐÃ SỬA
    ========================================================================== */
 #messagesArea {
-    flex: 1 1 auto; /* Cho phép co giãn nhưng có giới hạn */
+    flex: 1 1 auto;
     overflow-y: auto;
     overflow-x: hidden;
     padding: 15px;
     background-color: #fff;
     scroll-behavior: smooth;
-    max-height: calc(100vh - 250px); /* Giới hạn chiều cao tối đa */
-    min-height: 100px; /* Chiều cao tối thiểu */
+    /* Tính toán chiều cao linh động dựa trên input area */
+    max-height: calc(90vh - 68px - 65px); /* 68px input, 65px header */
+    min-height: 100px;
+    transition: max-height 0.3s ease;
 }
 
-/* Trạng thái welcome khi chưa có tin nhắn */
-#messagesArea:empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+/* Khi có file preview, giảm chiều cao messages area */
+#messagesArea:has(~ .message-input-area:has(#filePreview:not(.d-none))) {
+    max-height: calc(100vh - 140px - 65px); /* 140px input với preview, 65px header */
+}
+
+/* File Preview (Card nổi lên trên input) */
+#filePreview {
+    margin-bottom: 12px;
+    animation: slideUp 0.3s ease;
+    max-height: 120px;
+    overflow: hidden;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#filePreview .card {
+    border-radius: 12px;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    border: 1px solid #f0f2f5;
+    max-height: 80px;
+    overflow: hidden;
+}
+
+/* Responsive cho mobile */
+@media (max-width: 768px) {
+    #messagesArea {
+        max-height: calc(100vh - 130px);
+    }
+
+    #messagesArea:has(~ .message-input-area:has(#filePreview:not(.d-none))) {
+        max-height: calc(100vh - 200px);
+    }
+
+    .message-input-area:has(#filePreview:not(.d-none)) {
+        min-height: 160px;
+    }
 }
 
 /* ==========================================================================
@@ -512,8 +553,14 @@ html, body {
     padding: 12px 16px;
     position: relative;
     z-index: 20;
+    min-height: 68px; /* Chiều cao tối thiểu khi không có file preview */
+    transition: min-height 0.3s ease;
 }
 
+/* Khi có file preview, tăng chiều cao input area */
+.message-input-area:has(#filePreview:not(.d-none)) {
+    min-height: 140px; /* Tăng chiều cao để chứa file preview */
+}
 /* Đảm bảo form input không bị che */
 #messageForm {
     display: flex;

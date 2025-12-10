@@ -1222,7 +1222,13 @@ ViewData["Title"] = "Chat";
         const fileNameLabel = document.getElementById('fileName');
         const fileSizeLabel = document.getElementById('fileSize');
         const fileIcon = document.getElementById('fileIcon');
-        
+        const removeBtn = document.getElementById('removeFileBtn');
+
+        if (!files || files.length === 0) {
+            preview.classList.add('d-none');
+            return;
+        }
+
         let totalSize = 0;
         files.forEach(f => totalSize += f.size);
 
@@ -1232,12 +1238,20 @@ ViewData["Title"] = "Chat";
             // Đổi icon theo file đầu tiên
             updateFileIcon(files[0].name, fileIcon);
         } else {
-            fileNameLabel.textContent = `${files.length} files: ${files[0].name} ...`;
+            fileNameLabel.textContent = `${files.length} tệp: ${files[0].name}${files.length > 1 ? `, +${files.length - 1} tệp khác` : ''}`;
             fileIcon.className = `bi bi-files fs-3 text-primary me-2`; // Icon folder/multiple
         }
 
         fileSizeLabel.textContent = formatFileSize(totalSize);
         preview.classList.remove('d-none');
+
+        // Cuộn xuống để xem file preview
+        setTimeout(() => {
+            const inputArea = document.querySelector('.message-input-area');
+            if (inputArea) {
+                inputArea.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+        }, 100);
     }
 
     //Helpẻ đổi icon
