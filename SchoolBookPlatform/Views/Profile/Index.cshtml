@@ -174,6 +174,26 @@
                         </div>
                     </div>
                     
+                    <!-- Modal báo cáo bài đăng -->
+                    <div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="reportModalLabel">Báo cáo bài đăng</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body" id="reportModalBody">
+                                    <!-- Form report sẽ được load động vào đây -->
+                                    <div class="text-center py-3">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                 <div class="tab-content">
                     <!-- Tab Bài viết -->
                     <div class="tab-pane fade show active" id="posts">
@@ -677,7 +697,6 @@
             })
         })
             .then(res => {
-                console.log('Response status:', res.status);
                 if (!res.ok) {
                     throw new Error(`HTTP error! status: ${res.status}`);
                 }
@@ -1309,5 +1328,417 @@
             });
         });
     });
+    // ========== XỬ LÝ MODAL BÁO CÁO ==========
+
+    // Biến lưu modal instance
+    let reportModal = null;
+    let currentReportPostId = null;
+
+    // ========== XỬ LÝ MODAL BÁO CÁO ==========
+
+    // Biến lưu modal instance
+    let reportModal = null;
+    let currentReportPostId = null;
+
+    // Khởi tạo modal báo cáo
+    function initReportModal() {
+        const modalElement = document.getElementById('reportModal');
+        if (modalElement) {
+            reportModal = new bootstrap.Modal(modalElement, {
+                backdrop: 'static', // Ngăn không cho đóng khi click ra ngoài
+                keyboard: true      // Cho phép đóng bằng phím ESC
+            });
+
+            // Xử lý khi modal đóng HOÀN TOÀN
+            modalElement.addEventListener('hidden.bs.modal', function() {
+                console.log('Report modal fully hidden');
+                resetReportModal();
+
+                // Đảm bảo backdrop được xóa
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop && backdrop.classList.contains('show')) {
+                    backdrop.remove();
+                }
+
+                // Khôi phục body style
+                document.body.classList.remove('modal-open');
+                document.body.style.paddingRight = '';
+            });
+
+            // Xử lý khi modal bắt đầu ẩn
+            modalElement.addEventListener('hide.bs.modal', function() {
+                console.log('Report modal starting to hide');
+            });
+
+            console.log('Report modal initialized');
+        }
+    }
+
+    // Hàm tải form báo cáo
+    async function loadReportForm(postId) {
+        currentReportPostId = postId;
+
+        const modalBody = document.getElementById('reportModalBody');
+        const modalLabel = document.getElementById('reportModalLabel');
+        if (!modalBody) return;
+
+        // Hiển thị loading
+        modalBody.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3 text-muted">Đang tải form báo cáo...</p>
+            </div>
+        `;
+
+        // Đảm bảo modal được hiển thị
+        if (reportModal) {
+            reportModal.show();
+        }
+
+        try {
+            const response = await fetch(`/PostReport/ReportForm/${postId}`);
+
+            if (response.ok) {
+                const html = await response.text();
+
+                // Kiểm tra nếu response là JSON error
+                if (html.trim().startsWith('{')) {
+                    try {
+                        const data = JSON.parse(html);
+                        modalBody.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                ${data.message || 'Không thể tải form báo cáo.'}
+                            </div>
+                            <div class="text-center mt-3">
+                                <button class="btn btn-secondary" onclick="retryLoadReportForm()">Thử lại</button>
+                                <button class="btn btn-outline-secondary ms-2" data-bs-dismiss="modal">Đóng</button>
+                            </div>
+                        `;
+                        return;
+                    } catch (e) {
+                        // Không phải JSON, tiếp tục xử lý
+                    }
+                }
+
+                modalBody.innerHTML = html;
+
+                // Thêm animation cho form
+                const formContainer = modalBody.querySelector('.report-form-container');
+                if (formContainer) {
+                    formContainer.style.opacity = '0';
+                    formContainer.style.transform = 'translateY(10px)';
+                    formContainer.style.transition = 'all 0.3s ease';
+
+                    setTimeout(() => {
+                        formContainer.style.opacity = '1';
+                        formContainer.style.transform = 'translateY(0)';
+                    }, 50);
+                }
+
+                // Cập nhật tiêu đề modal
+                if (modalLabel) {
+                    modalLabel.textContent = 'Báo cáo bài đăng';
+                }
+
+                // Bind sự kiện submit form
+                bindReportFormSubmit();
+            } else {
+                modalBody.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Không thể tải form báo cáo. Vui lòng thử lại.
+                    </div>
+                    <div class="text-center mt-3">
+                        <button class="btn btn-secondary" onclick="retryLoadReportForm()">Thử lại</button>
+                        <button class="btn btn-outline-secondary ms-2" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading report form:', error);
+            modalBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    Lỗi kết nối mạng. Vui lòng kiểm tra kết nối và thử lại.
+                </div>
+                <div class="text-center mt-3">
+                    <button class="btn btn-secondary" onclick="retryLoadReportForm()">Thử lại</button>
+                    <button class="btn btn-outline-secondary ms-2" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            `;
+        }
+    }
+
+    // Hàm bind sự kiện submit form báo cáo
+    function bindReportFormSubmit() {
+        const form = document.querySelector('#reportModalBody .report-form');
+        if (!form) return;
+
+        // Xóa event listener cũ nếu có
+        const newForm = form.cloneNode(true);
+        form.parentNode.replaceChild(newForm, form);
+
+        newForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+
+            // Hiển thị loading
+            submitBtn.innerHTML = `
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Đang gửi...
+            `;
+            submitBtn.disabled = true;
+
+            try {
+                const formData = new FormData(this);
+                const response = await fetch('/PostReport/Report', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    // Hiển thị thông báo thành công
+                    showReportSuccess('Báo cáo đã được gửi thành công!');
+
+                    // Đóng modal sau 2 giây
+                    setTimeout(() => {
+                        if (reportModal) {
+                            reportModal.hide();
+                        }
+                    }, 2000);
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    showReportError(errorData.message || 'Có lỗi xảy ra khi gửi báo cáo.');
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error submitting report:', error);
+                showReportError('Lỗi kết nối mạng. Vui lòng thử lại.');
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    }
+
+    // Hàm hiển thị thông báo thành công
+    function showReportSuccess(message) {
+        const modalBody = document.getElementById('reportModalBody');
+        if (modalBody) {
+            modalBody.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        
+                    </div>
+                    <h5 class="text-success">Thành công!</h5>
+                    <p class="text-muted">${message}</p>
+                    <div class="mt-4">
+                        <p class="text-muted small">Modal sẽ tự động đóng trong 2 giây...</p>
+                        <button class="btn" onclick="closeReportModal()">Đóng ngay</button>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Hàm hiển thị thông báo lỗi
+    function showReportError(message) {
+        const modalBody = document.getElementById('reportModalBody');
+        if (modalBody) {
+            const errorAlert = document.createElement('div');
+            errorAlert.className = 'alert alert-danger alert-dismissible fade show mb-3';
+            errorAlert.innerHTML = `
+                <i class="fas fa-exclamation-circle me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            modalBody.prepend(errorAlert);
+
+            // Tự động đóng alert sau 5 giây
+            setTimeout(() => {
+                if (errorAlert.parentNode) {
+                    const bsAlert = new bootstrap.Alert(errorAlert);
+                    bsAlert.close();
+                }
+            }, 5000);
+        }
+    }
+
+    // Hàm đóng modal báo cáo
+    function closeReportModal() {
+        if (reportModal) {
+            reportModal.hide();
+        }
+    }
+
+    // Hàm reset modal về trạng thái ban đầu
+    function resetReportModal() {
+        const modalBody = document.getElementById('reportModalBody');
+        if (modalBody) {
+            modalBody.innerHTML = `
+                <div class="text-center py-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            `;
+        }
+        currentReportPostId = null;
+
+        // Reset backdrop và body classes
+        cleanupModalBackdrops();
+    }
+
+    // Hàm dọn dẹp backdrop
+    function cleanupModalBackdrops() {
+        // Xóa tất cả backdrop
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => {
+            backdrop.remove();
+        });
+
+        // Xóa modal-open class nếu không có modal nào đang mở
+        const openModals = document.querySelectorAll('.modal.show');
+        if (openModals.length === 0) {
+            document.body.classList.remove('modal-open');
+            document.body.style.paddingRight = '';
+        }
+    }
+
+    // Hàm retry tải form báo cáo
+    function retryLoadReportForm() {
+        if (currentReportPostId) {
+            loadReportForm(currentReportPostId);
+        }
+    }
+
+    // Khởi tạo sự kiện cho các nút báo cáo
+    function initReportButtons() {
+        // Xử lý click vào nút báo cáo trong dropdown
+        document.querySelectorAll('.dropdown-item.text-warning[data-bs-target="#reportModal"]').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Lấy postId từ bài đăng cha
+                const postCard = this.closest('.post-card') ||
+                    this.closest('.card') ||
+                    this.closest('[data-post-id]');
+
+                let postId = null;
+
+                if (postCard) {
+                    postId = postCard.dataset.postId;
+                }
+
+                // Nếu không tìm thấy, thử lấy từ onclick attribute
+                if (!postId && this.getAttribute('onclick')) {
+                    const match = this.getAttribute('onclick').match(/loadReportForm\('([^']+)'\)/);
+                    if (match) {
+                        postId = match[1];
+                    }
+                }
+
+                if (postId) {
+                    console.log('Loading report form for post:', postId);
+                    loadReportForm(postId);
+                } else {
+                    console.error('Could not find postId for report button');
+                }
+            });
+        });
+    }
+
+    // ========== KHỞI TẠO KHI DOM READY ==========
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Khởi tạo modal báo cáo
+        initReportModal();
+
+        // Khởi tạo sự kiện cho các nút báo cáo
+        initReportButtons();
+
+        // Thêm CSS cho modal báo cáo
+        addReportModalStyles();
+
+        // Xử lý ESC key để đóng modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && reportModal && reportModal._isShown) {
+                reportModal.hide();
+            }
+        });
+    });
+
+    // Thêm CSS cho modal báo cáo
+    function addReportModalStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Modal báo cáo styling */
+            #reportModal .modal-dialog {
+                max-width: 500px;
+            }
+            
+            #reportModal .modal-header {
+                background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+                color: white;
+                border-bottom: none;
+            }
+            
+            #reportModal .modal-header .btn-close {
+                filter: invert(1);
+                opacity: 0.8;
+                background: none;
+                font-size: 1.5rem;
+            }
+            
+            #reportModal .modal-header .btn-close:hover {
+                opacity: 1;
+                background: rgba(255, 255, 255, 0.1);
+            }
+            
+            /* Nút báo cáo trong dropdown */
+            .dropdown-item.text-warning {
+                color: #ffc107 !important;
+            }
+            
+            .dropdown-item.text-warning:hover {
+                background-color: rgba(255, 193, 7, 0.1) !important;
+                color: #e0a800 !important;
+            }
+            
+            /* Form báo cáo */
+            .report-form textarea {
+                resize: vertical;
+                min-height: 120px;
+            }
+            
+            .report-form textarea:focus {
+                border-color: #ffc107;
+                box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+            }
+            
+            /* Fix backdrop z-index */
+            .modal-backdrop {
+                z-index: 1040;
+            }
+            
+            #reportModal {
+                z-index: 1055;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Global function để gọi từ HTML
+    window.loadReportForm = loadReportForm;
+    window.retryLoadReportForm = retryLoadReportForm;
+    window.closeReportModal = closeReportModal;
 </script>
 }

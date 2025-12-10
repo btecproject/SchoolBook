@@ -6,11 +6,12 @@
     var statistics = ViewBag.Statistics as SchoolBookPlatform.ViewModels.Admin.ReportStatisticsViewModel;
     var currentFilter = ViewBag.CurrentFilter as string ?? "all";
 }
+<link rel="stylesheet" href="~/css/page/report.css" asp-append-version="true"/>
 
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="mb-0"><i class="bi bi-flag-fill text-danger"></i> Quản lý báo cáo</h2>
+            <h2 class="mb-0" style="color: #fd964b;"><i class="bi bi-flag-fill" style="color: #fd964b;"></i> Quản lý báo cáo</h2>
             <small class="text-muted">Danh sách báo cáo bài đăng vi phạm</small>
         </div>
     </div>
@@ -80,22 +81,39 @@
         </div>
     }
 
-    <!-- Filter -->
-    <div class="mb-3">
-        <div class="btn-group" role="group">
-            <a asp-action="Reports" asp-route-status="all" class="btn btn-outline-secondary @(currentFilter == "all" ? "active" : "")">
+    <!-- Filter - New Tab Bar -->
+    <div class="mb-4">
+        <nav class="tab-link">
+            <a asp-action="Reports" asp-route-status="all" class="@(currentFilter == "all" ? "active" : "")">
                 Tất cả
+                @if (statistics != null)
+                {
+                    <span class="tab-badge">@statistics.TotalCount</span>
+                }
             </a>
-            <a asp-action="Reports" asp-route-status="Pending" class="btn btn-outline-warning @(currentFilter == "Pending" ? "active" : "")">
+            <a asp-action="Reports" asp-route-status="Pending" class="@(currentFilter == "Pending" ? "active" : "")">
                 Đang chờ
+                @if (statistics != null)
+                {
+                    <span class="tab-badge">@statistics.PendingCount</span>
+                }
             </a>
-            <a asp-action="Reports" asp-route-status="Approved" class="btn btn-outline-success @(currentFilter == "Approved" ? "active" : "")">
+            <a asp-action="Reports" asp-route-status="Approved" class="@(currentFilter == "Approved" ? "active" : "")">
                 Đã duyệt
+                @if (statistics != null)
+                {
+                    <span class="tab-badge">@statistics.ApprovedCount</span>
+                }
             </a>
-            <a asp-action="Reports" asp-route-status="Rejected" class="btn btn-outline-secondary @(currentFilter == "Rejected" ? "active" : "")">
+            <a asp-action="Reports" asp-route-status="Rejected" class="@(currentFilter == "Rejected" ? "active" : "")">
                 Đã từ chối
+                @if (statistics != null)
+                {
+                    <span class="tab-badge">@statistics.RejectedCount</span>
+                }
             </a>
-        </div>
+            <hr/>
+        </nav>
     </div>
 
     <!-- Reports List -->
@@ -168,4 +186,3 @@
         </div>
     }
 </div>
-

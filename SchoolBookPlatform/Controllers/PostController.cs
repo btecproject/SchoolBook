@@ -371,35 +371,7 @@ public class PostController(
         });
     }
 
-    /// <summary>
-    /// POST: Post/Report
-    /// Tạo báo cáo về bài đăng
-    /// </summary>
-    /// <param name="postId">ID của bài đăng bị báo cáo</param>
-    /// <param name="reason">Lý do báo cáo</param>
-    /// <returns>Redirect về Details</returns>
-    [HttpPost("Report")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Report(Guid postId, string reason)
-    {
-        if (string.IsNullOrWhiteSpace(reason))
-        {
-            TempData["ErrorMessage"] = "Vui lòng nhập lý do báo cáo.";
-            return RedirectToAction(nameof(Details), new { id = postId });
-        }
-
-        var userId = GetCurrentUserId();
-        var report = await postService.CreateReportAsync(userId, postId, reason);
-
-        if (report == null)
-        {
-            TempData["ErrorMessage"] = "Không thể tạo báo cáo.";
-            return RedirectToAction(nameof(Details), new { id = postId });
-        }
-
-        TempData["SuccessMessage"] = "Báo cáo đã được gửi thành công!";
-        return RedirectToAction(nameof(Details), new { id = postId });
-    }
+    
 
     /// <summary>
     /// GET: Post/ModeratorDelete/{id}
@@ -513,4 +485,5 @@ public class PostController(
             voteType = vote?.VoteType // true = upvote, false = downvote, null = chưa vote
         });
     }
+    
 }

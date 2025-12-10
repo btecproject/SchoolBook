@@ -251,10 +251,10 @@
                         {
                             var role = claim.Value;
                             <span class="role-badge @(role == "HighAdmin" ? "bg-danger" : 
-                                                     role == "Admin" ? "bg-warning text-dark" : 
-                                                     role == "Moderator" ? "bg-info text-dark" : 
-                                                     role == "Teacher" ? "bg-success" : 
-                                                     role == "Student" ? "bg-secondary" : "bg-light text-dark")">
+                                                    role == "Admin" ? "bg-warning text-dark" : 
+                                                    role == "Moderator" ? "bg-info text-dark" : 
+                                                    role == "Teacher" ? "bg-success" : 
+                                                    role == "Student" ? "bg-secondary" : "bg-light text-dark")">
                                 @role
                             </span>
                         }
@@ -407,4 +407,5 @@
 
 @await RenderSectionAsync("Scripts", required: false)
 </body>
+<script src="~/js/postVote.js" asp-append-version="true"></script>
 </html>

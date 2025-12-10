@@ -251,4 +251,31 @@ public class FeedsController(
             displayScore       // Thêm
         });
     }
+    
+        
+    /// <summary>
+    /// GET: Post/ReportForm/{postId}
+    /// Hiển thị form báo cáo dưới dạng Partial View
+    /// </summary>
+    [HttpGet("ReportForm/{postId}")]
+    public async Task<IActionResult> ReportForm(Guid postId)
+    {
+        var post = await db.Posts
+            .Include(p => p.User)
+            .FirstOrDefaultAsync(p => p.Id == postId);
+
+        if (post == null)
+        {
+            return NotFound();
+        }
+
+        var viewModel = new ReportFormViewModel
+        {
+            PostId = postId,
+            PostTitle = post.Title,
+            AuthorName = post.User.Username
+        };
+
+        return PartialView("_ReportFormPartial", viewModel);
+    }
 }

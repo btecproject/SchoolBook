@@ -1,0 +1,205 @@
+﻿.tab-link {
+    display: flex;
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+}
+
+.tab-link hr {
+    transition: all 375ms cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, background;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 4px 4px 0 0;
+    height: 3px;
+    width: calc(100% / 4);
+    background: #cf8c64;
+    z-index: 2;
+}
+
+.tab-link a {
+    display: block;
+    width: calc(100% / 4);
+    padding: 16px 20px;
+    text-align: center;
+    text-transform: capitalize;
+    text-decoration: none;
+    color: #495057;
+    font-weight: 500;
+    transition: all 250ms ease;
+    position: relative;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.tab-link a:hover {
+    color: #cf8c64;
+    background: rgba(207, 140, 100, 0.05);
+}
+
+.tab-link a.active {
+    color: #cf8c64;
+    font-weight: 600;
+}
+
+.tab-link a:active {
+    background: rgba(207, 140, 100, 0.1);
+}
+
+/* Tab positioning logic - FIXED */
+/* Tính toán vị trí cho 4 tabs */
+.tab-link a:nth-child(1).active ~ hr {
+    transform: translateX(0);
+}
+
+.tab-link a:nth-child(2).active ~ hr {
+    transform: translateX(100%);
+}
+
+.tab-link a:nth-child(3).active ~ hr {
+    transform: translateX(200%);
+}
+
+.tab-link a:nth-child(4).active ~ hr {
+    transform: translateX(300%);
+}
+
+/* Hover effects - FIXED */
+.tab-link a:nth-child(1):hover:not(.active) ~ hr,
+.tab-link a:nth-child(1):focus:not(.active) ~ hr {
+    transform: translateX(0);
+    background: rgba(207, 140, 100, 0.5);
+}
+
+.tab-link a:nth-child(2):hover:not(.active) ~ hr,
+.tab-link a:nth-child(2):focus:not(.active) ~ hr {
+    transform: translateX(100%);
+    background: rgba(207, 140, 100, 0.5);
+}
+
+.tab-link a:nth-child(3):hover:not(.active) ~ hr,
+.tab-link a:nth-child(3):focus:not(.active) ~ hr {
+    transform: translateX(200%);
+    background: rgba(207, 140, 100, 0.5);
+}
+
+.tab-link a:nth-child(4):hover:not(.active) ~ hr,
+.tab-link a:nth-child(4):focus:not(.active) ~ hr {
+    transform: translateX(300%);
+    background: rgba(207, 140, 100, 0.5);
+}
+
+/* Khi tab đã active, giữ nguyên màu */
+.tab-link a.active ~ hr {
+    background: rgba(253, 150, 75, 0.93) !important;
+}
+
+/* Override cho active khi hover */
+.tab-link a.active:hover ~ hr,
+.tab-link a.active:focus ~ hr {
+    background: rgba(253, 150, 75, 0.93) !important;
+}
+
+/* Badge styling */
+.tab-badge {
+    margin-left: 6px;
+    font-size: 0.75em;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: rgba(207, 140, 100, 0.1);
+    color: rgba(253, 150, 75, 0.93);
+    transition: all 250ms ease;
+}
+
+.tab-link a.active .tab-badge {
+    background: rgba(253, 150, 75, 0.93);
+    color: white;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .tab-link {
+        flex-wrap: wrap;
+    }
+
+    .tab-link a {
+        width: 50%;
+        padding: 12px;
+    }
+
+    .tab-link hr {
+        width: 50%;
+    }
+
+    /* Vị trí cho mobile (2 tabs mỗi hàng) */
+    .tab-link a:nth-child(1).active ~ hr {
+        transform: translateX(0);
+    }
+
+    .tab-link a:nth-child(2).active ~ hr {
+        transform: translateX(100%);
+    }
+
+    .tab-link a:nth-child(3).active ~ hr {
+        transform: translateX(0);
+    }
+
+    .tab-link a:nth-child(4).active ~ hr {
+        transform: translateX(100%);
+    }
+
+    /* Hover effects cho mobile */
+    .tab-link a:nth-child(1):hover:not(.active) ~ hr,
+    .tab-link a:nth-child(1):focus:not(.active) ~ hr {
+        transform: translateX(0);
+    }
+
+    .tab-link a:nth-child(2):hover:not(.active) ~ hr,
+    .tab-link a:nth-child(2):focus:not(.active) ~ hr {
+        transform: translateX(100%);
+    }
+
+    .tab-link a:nth-child(3):hover:not(.active) ~ hr,
+    .tab-link a:nth-child(3):focus:not(.active) ~ hr {
+        transform: translateX(0);
+    }
+
+    .tab-link a:nth-child(4):hover:not(.active) ~ hr,
+    .tab-link a:nth-child(4):focus:not(.active) ~ hr {
+        transform: translateX(100%);
+    }
+}
+
+@media (max-width: 480px) {
+    .tab-link {
+        flex-direction: column;
+    }
+
+    .tab-link a {
+        width: 100%;
+        font-size: 14px;
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .tab-link a:last-child {
+        border-bottom: none;
+    }
+
+    .tab-link hr {
+        display: none;
+    }
+
+    .tab-link a.active {
+        background: rgba(207, 140, 100, 0.1);
+        border-left: 3px solid rgba(253, 150, 75, 0.93);
+    }
+}
