@@ -22,14 +22,26 @@
     <div class="card mb-3 post-card" data-post-id="@post.Id" style="cursor: pointer;">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
+                
                 <div class="flex-grow-1">
+                    <a asp-controller="Profile" asp-action="Index" asp-route-username="@post.AuthorName">
+                    <img src="@(string.IsNullOrEmpty(post.AuthorAvatar) ? "/images/avatars/default.png" : post.AuthorAvatar)"
+                         alt="@post.AuthorName"
+                         class="rounded-circle me-2"
+                         width="40" height="40"
+                         style="object-fit: cover; border: 1px solid #dee2e6;">
+                    </a>
                     <small class="text-muted">
                         <!-- Thêm link đến profile bằng username -->
-                        <a asp-controller="Profile" asp-action="Index" asp-route-username="@post.AuthorName" 
-                           class="text-decoration-none fw-bold author-link" 
+                        <a asp-controller="Profile" asp-action="Index" asp-route-username="@post.AuthorName"
+                           class="text-decoration-none fw-bold author-link"
                            onclick="event.stopPropagation();">
                             @post.AuthorName
                         </a> •
+                        @if (post.IsDeleted)
+                        {
+                            <span class="badge bg-danger me-2">Đã xóa</span>
+                        }
                         @post.CreatedAt.ToString("g")
                         @if (!string.IsNullOrEmpty(post.VisibleToRoles) && post.VisibleToRoles != "All")
                         {
@@ -41,10 +53,10 @@
                     </h5>
                     <p class="card-text">@post.Content</p>
                 </div>
-                
+
                 @* dropdwon *@
                 <div class="dropdown">
-                    <button class="btn btn-sm dropdown-toggle-no-border" type="button" 
+                    <button class="btn btn-sm dropdown-toggle-no-border" type="button"
                             data-bs-toggle="dropdown" aria-expanded="false"
                             onclick="event.stopPropagation();">
                         <i class="fas fa-ellipsis-v"></i>
@@ -58,18 +70,18 @@
                                 </a>
                             </li>
                         }
-                        
+
                         <!-- Nút báo cáo - luôn hiển thị -->
                         <li>
-                            <button class="dropdown-item text-warning report-button" 
-                                    type="button" 
+                            <button class="dropdown-item text-warning report-button"
+                                    type="button"
                                     data-post-id="@post.Id"
-                                    data-bs-toggle="modal" 
+                                    data-bs-toggle="modal"
                                     data-bs-target="#reportModal">
                                 <i class="fas fa-flag me-2"></i> Báo cáo bài viết
                             </button>
                         </li>
-                        
+
                         @if (post.CanDelete)
                         {
                             <li>
