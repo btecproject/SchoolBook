@@ -699,7 +699,7 @@ namespace SchoolBookPlatform.Services
         {
             var chatUser = await db.ChatUsers.FirstOrDefaultAsync(u => u.UserId == userId && u.IsActive == true);
             if (chatUser == null) return false;
-            var chatUserId = chatUser.UserId;
+            var chatUserId = await GetActiveChatUserIdAsync(userId);
 
             try
             {
@@ -712,7 +712,7 @@ namespace SchoolBookPlatform.Services
                 var isMember = await db.ConversationMembers
                     .AnyAsync(cm => cm.ConversationId == message.ConversationId && cm.ChatUserId == chatUserId);
 
-                if (!isMember || message.SenderId != userId)
+                if (!isMember || message.SenderId != chatUserId)
                 {
                     return false;
                 }

@@ -76,11 +76,16 @@ ViewData["Title"] = "Chat";
                     <div class="d-flex align-items-center">
                         <div class="avatar-chat me-3">
                             <div class="avatar-circle-chat" id="headerAvatar">
-                                <i class="bi bi-person-fill"></i>
+                                <img id = "chatWindowAvatar"
+                                     src="~/images/icon/chatIcon.png"
+                                     alt="~/images/icon/chatIcon.png"
+                                     class="rounded-circle"
+                                     width="40" height="40"
+                                     style="object-fit: cover;">
                             </div>
                         </div>
                         <div class="flex-grow-1">
-                            <h6 class="mb-0 fw-semibold" id="chatDisplayName">Display Name</h6>
+                            <h6 class="mb-0 fw-semibold" id="chatDisplayName"></h6>
                             <small class="text-muted" id="chatUsername"></small>
                         </div>
                     </div>
@@ -91,7 +96,7 @@ ViewData["Title"] = "Chat";
                         <div class="avatar-large mb-3">
                             <i class="bi bi-person-fill"></i>
                         </div>
-                        <h5 class="fw-semibold" id="welcomeName">Tên người dùng</h5>
+                        <h5 class="fw-semibold" id="welcomeName"></h5>
                         <p class="text-muted small">
                             <i class="bi bi-lock-fill"></i> Tin nhắn được mã hóa đầu cuối
                         </p>
@@ -203,20 +208,20 @@ ViewData["Title"] = "Chat";
         }
 
         try {
-            // 2. Gọi API GetConvKey (API mới bạn vừa tạo ở Controller)
+            //Gọi API GetConvKey
             const resp = await fetch(`@Url.Action("GetConversationKey", "Chat")?conversationId=${convId}`);
 
             if (resp.ok) {
                 const data = await resp.json();
                 // data.encryptedKey là AES Key được mã hóa bằng RSA Public Key của MÌNH
 
-                // 3. Lấy Private Key của mình (đã được PIN bảo vệ) để giải mã
+                //Lấy Private Key của mình (đã được PIN bảo vệ) để giải mã
                 const myPrivateKeyEnc = await getMyPrivateKey();
                 const myPin = getMyPin();
 
                 if (!myPrivateKeyEnc || !myPin) return null;
 
-                // Giải mã Private Key bằng PIN
+                //Giải mã Private Key bằng PIN
                 const decryptedBytes = CryptoJS.AES.decrypt(myPrivateKeyEnc, myPin);
                 let myPrivateKey;
                 try {
@@ -228,13 +233,13 @@ ViewData["Title"] = "Chat";
                     return null;
                 }
 
-                // 4. Dùng Private Key giải mã ra Conversation Key (AES Key)
+                //Dùng Private Key giải mã ra Conversation Key (AES Key)
                 const decrypt = new JSEncrypt();
                 decrypt.setPrivateKey(myPrivateKey);
                 const plainConvKey = decrypt.decrypt(data.encryptedKey);
 
                 if (plainConvKey) {
-                    // Lưu vào cache để dùng lại
+                    //Lưu vào cache để dùng lại
                     conversationKeysCache.set(convId, plainConvKey);
                     return plainConvKey;
                 }
@@ -472,7 +477,35 @@ ViewData["Title"] = "Chat";
     `}).join('');
     }
 
-    // ===== DECRYPT LOGIC =====
+    // ===== LOGOUT CHAT =====
+    async function logoutFromChat(){
+        if (!confirm("Bạn có chắc chắn muốn đăng xuất?")) {
+            return;
+        }
+        showLoading("Đang đăng xuất...");
+        try{
+            if(connection){
+                await connection.stop();
+            }
+            myPin = null;
+            conversationKeysCache.clear();
+            myPrivateKeyEncrypted = null;
+            currentConversationId = null;
+            StorageHelper.clear();
+            
+            const tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = '__RequestVerificationToken';
+            tokenInput.value = getToken();
+            window.location.replace('/Feeds/Home')
+            hideLoading();
+            
+        }
+        catch (e) {
+            console.error("Lỗi khi đăng xuất:", e);
+            window.location.reload();
+        }
+    }
 
     // ===== MAIN CHAT FUNCTIONS =====
     async function setupNewConversation(convId, partnerId, partnerPublicKey) {
@@ -657,7 +690,7 @@ ViewData["Title"] = "Chat";
 
             const messages = await loadMessagesAndReturn(currentConversationId);
             await displayMessages(messages);
-            showChatWindow(username, displayName);
+            showChatWindow(userId, username, displayName);
             setTimeout(() => scrollToBottom(false), 100);
 
         } catch (e) {
@@ -845,7 +878,7 @@ ViewData["Title"] = "Chat";
         }
     }
     
-    function showChatWindow(username, displayName) {
+    function showChatWindow(userId, username, displayName) {
         document.getElementById('welcomeScreen').style.display = 'none';
         document.getElementById('chatWindow').style.display = 'flex';
 
@@ -858,6 +891,10 @@ ViewData["Title"] = "Chat";
         const elWelcome = document.getElementById('welcomeName');
         if(elWelcome) elWelcome.textContent = displayName;
 
+        const elAvatar = document.getElementById('chatWindowAvatar');
+        if (elAvatar && userId) {
+            elAvatar.src = `/api/AvatarApi?userId=${userId}&t=${new Date().getTime()}`;
+        }
         const input = document.getElementById('messageInput');
         const btn = document.getElementById('sendBtn');
         if(input) { input.disabled = false; input.focus(); }
@@ -1049,7 +1086,27 @@ ViewData["Title"] = "Chat";
         connection.on("UserStoppedTyping", (data) => {
             if (data.conversationId === currentConversationId && data.userId !== currentUserId) hideTypingIndicator();
         });
+        
+        connection.on("MessageDeleted", (messageId) => {
+            console.log("🗑 Message deleted:", messageId);
+            // Tìm element tin nhắn trong DOM
+            const el = document.getElementById(`msg-${messageId}`);
+            if (el) {
+                //Thêm hiệu ứng mờ dần
+                el.style.transition = "all 0.3s ease";
+                el.style.opacity = "0";
+                el.style.transform = "scale(0.9)";
+                setTimeout(() => {
+                    el.remove();
 
+                    //không còn tin nhắn nào thì hiện thông báo rỗng
+                    const area = document.getElementById('messagesArea');
+                    if (area && area.children.length === 0) {
+                        area.innerHTML = '<div class="text-center py-4 text-muted"><p>Chưa có tin nhắn</p></div>';
+                    }
+                }, 300);
+            }
+        });
         try { await connection.start(); console.log("SignalR Connected"); } catch(e) {}
     }
 
@@ -1451,6 +1508,25 @@ ViewData["Title"] = "Chat";
             </a>
         </div>
     `;
+    }
+    // ==== Delete Message ====
+    async function handleDeleteMessage(messageId){
+        try{
+            const resp = await fetch("@Url.Action("DeleteMessage","Chat")", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    'RequestVerificationToken': getToken()
+                },
+                body: JSON.stringify({messageId: messageId})
+            });
+            if (!resp.ok) {
+                const data = await resp.json();
+                alert(data.message || "Error on deleting message");
+            }
+        } catch (e){
+            console.error("Lỗi xóa tin nhắn: ", e);
+        }
     }
     // ==== Scroll (pagination) ====
     document.getElementById('messagesArea').addEventListener('scroll', async function() {

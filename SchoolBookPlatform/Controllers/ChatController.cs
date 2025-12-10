@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
 using SchoolBookPlatform.DTOs;
+using SchoolBookPlatform.Hubs;
 using SchoolBookPlatform.Manager;
 using SchoolBookPlatform.Services;
 using SchoolBookPlatform.ViewModels.Chat;
@@ -11,7 +13,7 @@ using SchoolBookPlatform.ViewModels.Chat;
 namespace SchoolBookPlatform.Controllers
 {
     [Authorize]
-    public class ChatController(AppDbContext db, ChatService chatService, ILogger<ChatController> logger)
+    public class ChatController(AppDbContext db, ChatService chatService, ILogger<ChatController> logger, IHubContext<ChatHub> hubContext)
         : Controller
     {
         [HttpPost]
@@ -289,7 +291,32 @@ namespace SchoolBookPlatform.Controllers
             }
         }
         
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteMessage([FromBody] DeleteMessageModel model)
+        {
+            var currentUser = await HttpContext.GetCurrentUserAsync(db);
+            if (currentUser == null) return Unauthorized();
 
+            var messageId = model.MessageId; 
+    
+            var message = await db.Messages.FindAsync(messageId);
+            if (message == null) return NotFound(new { message = "Message not found" });
+    
+            var conversationId = message.ConversationId.ToString();
+    
+            var success = await chatService.DeleteMessageWithAttachmentAsync(messageId, currentUser.Id);
+    
+            if (!success)
+            {
+                return BadRequest(new { message = "Không thể xóa tin nhắn." });
+            }
+    
+            await hubContext.Clients.Group(conversationId).SendAsync("MessageDeleted", messageId);
+    
+            return Ok(new { message = "Delete message complete" });
+        }
+        
         [HttpGet]
         public async Task<IActionResult> GetCurrentUserInfo()
         {
@@ -610,5 +637,11 @@ namespace SchoolBookPlatform.Controllers
         [System.ComponentModel.DataAnnotations.Required]
         public long MessageId { get; set; }
         public string EncryptedUrl { get; set; } = string.Empty;
+    }
+    
+    public class DeleteMessageModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public long MessageId { get; set; }
     }
 }
