@@ -42,39 +42,51 @@
                     <p class="card-text">@post.Content</p>
                 </div>
                 
-                <!-- Dropdown cho nút Sửa/Xóa - KHÔNG BORDER -->
-                @if (post.IsOwner || post.CanDelete)
-                {
-                    <div class="dropdown">
-                        <button class="btn btn-sm dropdown-toggle-no-border" type="button" 
-                                data-bs-toggle="dropdown" aria-expanded="false"
-                                onclick="event.stopPropagation();">
-                            <i class="fas fa-ellipsis-v"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            @if (post.IsOwner)
-                            {
-                                <li>
-                                    <a class="dropdown-item" asp-controller="Post" asp-action="Edit" asp-route-id="@post.Id">
-                                        <i class="fas fa-edit me-2"></i> Sửa bài
-                                    </a>
-                                </li>
-                            }
-                            @if (post.CanDelete)
-                            {
-                                <li>
-                                    <form asp-controller="Post" asp-action="Delete" asp-route-id="@post.Id" method="post" class="d-inline">
-                                        @Html.AntiForgeryToken()
-                                        <button type="submit" class="dropdown-item text-danger"
-                                                onclick="event.stopPropagation(); return confirm('Bạn có chắc muốn xóa bài đăng này?');">
-                                            <i class="fas fa-trash me-2"></i> Xóa bài
-                                        </button>
-                                    </form>
-                                </li>
-                            }
-                        </ul>
-                    </div>
-                }
+                @* dropdwon *@
+                <div class="dropdown">
+                    <button class="btn btn-sm dropdown-toggle-no-border" type="button" 
+                            data-bs-toggle="dropdown" aria-expanded="false"
+                            onclick="event.stopPropagation();">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        @if (post.IsOwner)
+                        {
+                            <li>
+                                <a class="dropdown-item" asp-controller="Post" asp-action="Edit" asp-route-id="@post.Id">
+                                    <i class="fas fa-edit me-2"></i> Sửa bài
+                                </a>
+                            </li>
+                        }
+                        
+                        <!-- Nút báo cáo - luôn hiển thị -->
+                        <li>
+                            <button class="dropdown-item text-warning report-button" 
+                                    type="button" 
+                                    data-post-id="@post.Id"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#reportModal">
+                                <i class="fas fa-flag me-2"></i> Báo cáo bài viết
+                            </button>
+                        </li>
+                        
+                        @if (post.CanDelete)
+                        {
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                <form asp-controller="Post" asp-action="Delete" asp-route-id="@post.Id" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="dropdown-item text-danger"
+                                            onclick="event.stopPropagation(); return confirm('Bạn có chắc muốn xóa bài đăng này?');">
+                                        <i class="fas fa-trash me-2"></i> Xóa bài
+                                    </button>
+                                </form>
+                            </li>
+                        }
+                    </ul>
+                </div>
             </div>
 
             @* Hiển thị file đính kèm (nếu có) *@

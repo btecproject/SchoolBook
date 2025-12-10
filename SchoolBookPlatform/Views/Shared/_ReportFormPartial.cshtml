@@ -1,0 +1,171 @@
+﻿@model SchoolBookPlatform.ViewModels.Post.ReportFormViewModel
+
+<div class="report-form-container">
+    <form asp-controller="Post" asp-action="Report" method="post" class="report-form" id="reportForm-@Model.PostId">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="postId" value="@Model.PostId" />
+        
+        <div class="mb-3">
+            <!-- Thông tin bài đăng -->
+            <div class="alert alert-light border mb-3">
+                <p class="mb-1"><strong>Bài đăng:</strong> @Model.PostTitle</p>
+                <p class="mb-0"><strong>Tác giả:</strong> @Model.AuthorName</p>
+            </div>
+            
+            <!-- Lý do báo cáo -->
+            <label class="form-label fw-semibold">Lý do báo cáo <span class="text-danger">*</span></label>
+            <textarea name="reason" class="form-control" rows="5" 
+                      placeholder="Vui lòng mô tả chi tiết lý do bạn báo cáo bài đăng này..."
+                      required></textarea>
+            <div class="form-text">
+                <i class="fas fa-info-circle me-1"></i> 
+                Báo cáo của bạn sẽ được gửi đến quản trị viên để xem xét.
+            </div>
+        </div>
+        
+        <!-- Các lý do mẫu (optional) -->
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Chọn lý do mẫu (không bắt buộc)</label>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addReason('Nội dung không phù hợp')">
+                    Nội dung không phù hợp
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addReason('Spam hoặc quảng cáo')">
+                    Spam/quảng cáo
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addReason('Ngôn từ không phù hợp')">
+                    Ngôn từ không phù hợp
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addReason('Bản quyền/tác giả')">
+                    Vấn đề bản quyền
+                </button>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-end gap-2 pt-2 border-top">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                <i class="fas fa-times me-1"></i> Hủy
+            </button>
+            <button type="submit" class="btn btn-warning">
+                <i class="fas fa-paper-plane me-1"></i> Gửi báo cáo
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Hàm thêm lý do mẫu vào textarea
+    function addReason(reason) {
+        const textarea = document.querySelector('textarea[name="reason"]');
+        if (textarea) {
+            if (textarea.value.trim()) {
+                textarea.value += '\n' + reason;
+            } else {
+                textarea.value = reason;
+            }
+            textarea.focus();
+        }
+    }
+    
+    // Xử lý submit form
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('.report-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                
+                // Hiển thị loading
+                submitBtn.innerHTML = `
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Đang gửi...
+                `;
+                submitBtn.disabled = true;
+                
+                const formData = new FormData(this);
+                
+                // Gửi request
+                fetch('/Post/Report', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Hiển thị thông báo thành công
+                        showReportSuccess('Báo cáo của bạn đã được gửi thành công!');
+                        
+                        // Đóng modal sau 2 giây
+                        setTimeout(() => {
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('reportModal'));
+                            if (modal) {
+                                modal.hide();
+                            }
+                        }, 2000);
+                    } else {
+                        showReportError(data.message || 'Có lỗi xảy ra khi gửi báo cáo.');
+                        submitBtn.innerHTML = originalText;
+                        submitBtn.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showReportError('Lỗi kết nối mạng. Vui lòng thử lại.');
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                });
+            });
+        }
+    });
+    
+    function showReportSuccess(message) {
+        // Cập nhật modal hiển thị thông báo thành công
+        const modalBody = document.getElementById('reportModalBody');
+        if (modalBody) {
+            modalBody.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-check-circle text-success fa-4x"></i>
+                    </div>
+                    <h5 class="text-success">Thành công!</h5>
+                    <p class="text-muted">${message}</p>
+                    <p class="text-muted small">Modal sẽ tự động đóng trong 2 giây...</p>
+                </div>
+            `;
+        }
+    }
+    
+    function showReportError(message) {
+        // Thêm thông báo lỗi vào modal
+        const modalBody = document.getElementById('reportModalBody');
+        if (modalBody) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger alert-dismissible fade show';
+            errorDiv.innerHTML = `
+                <i class="fas fa-exclamation-circle me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            modalBody.prepend(errorDiv);
+        }
+    }
+</script>
+
+<style>
+    .report-form-container {
+        padding: 5px;
+    }
+    
+    .report-form textarea {
+        resize: vertical;
+        min-height: 120px;
+        max-height: 250px;
+    }
+    
+    .report-form textarea:focus {
+        border-color: #ffc107;
+        box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+    }
+</style>

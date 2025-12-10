@@ -2,25 +2,22 @@
 class PostVote {
     constructor() {
         this.initialized = new Set();
-        this.voteStatusCache = new Map(); // Cache: postId -> { isUpvoted, isDownvoted }
+        this.voteStatusCache = new Map();
+        this.reportModal = null;
         this.init();
     }
 
     init() {
-        // Cache initial vote status from server-rendered HTML
         this.cacheInitialVoteStatus();
-
-        // Bind vote events
         this.bindVoteEvents();
-
-        // Set up observer for dynamically loaded content
+        this.bindReportEvents();
         this.setupMutationObserver();
+        this.initializeReportModal();
 
-        console.log('PostVote system initialized');
+        console.log('PostVote system initialized with report functionality');
     }
 
     cacheInitialVoteStatus() {
-        // Cache vote status from existing posts
         document.querySelectorAll('.vote-container').forEach(container => {
             const postElement = container.closest('.post-card');
             if (!postElement) return;
@@ -28,7 +25,6 @@ class PostVote {
             const postId = postElement.dataset.postId;
             if (!postId) return;
 
-            // Extract vote status from CSS classes
             const isUpvoted = container.classList.contains('vote-container-upvoted');
             const isDownvoted = container.classList.contains('vote-container-downvoted');
 
@@ -40,12 +36,34 @@ class PostVote {
         });
     }
 
+    initializeReportModal() {
+        const modalElement = document.getElementById('reportModal');
+        if (modalElement) {
+            this.reportModal = new bootstrap.Modal(modalElement);
+
+            // Reset modal content when hidden
+            modalElement.addEventListener('hidden.bs.modal', () => {
+                const modalBody = document.getElementById('reportModalBody');
+                if (modalBody) {
+                    modalBody.innerHTML = `
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
+    }
+
     setupMutationObserver() {
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.addedNodes.length) {
                     mutation.addedNodes.forEach((node) => {
-                        if (node.nodeType === 1) { // Element node
+                        if (node.nodeType === 1) {
+                            // Initialize vote containers
                             const newContainers = node.querySelectorAll ?
                                 node.querySelectorAll('.vote-container') : [];
 
@@ -58,6 +76,14 @@ class PostVote {
                                         this.bindVoteEventsForContainer(container);
                                     }
                                 }
+                            });
+
+                            // Initialize report buttons in new posts
+                            const newReportButtons = node.querySelectorAll ?
+                                node.querySelectorAll('[data-bs-target="#reportModal"]') : [];
+
+                            newReportButtons.forEach(button => {
+                                this.bindReportButton(button);
                             });
                         }
                     });
@@ -98,13 +124,155 @@ class PostVote {
 
         if (!this.initialized.has(buttonId)) {
             this.initialized.add(buttonId);
-
-            // Remove old listener and add new one
             button.removeEventListener('click', this.handleVoteClick);
             button.addEventListener('click', (e) => this.handleVoteClick(e, button));
-
-            // Add tooltip
             button.title = voteType === 'true' ? 'Upvote' : 'Downvote';
+        }
+    }
+
+    bindReportEvents() {
+        // Bind report buttons
+        document.querySelectorAll('[data-bs-target="#reportModal"]').forEach(button => {
+            this.bindReportButton(button);
+        });
+
+        // Bind form submit event
+        document.addEventListener('submit', async (e) => {
+            if (e.target.classList.contains('report-form')) {
+                e.preventDefault();
+                await this.handleReportSubmit(e.target);
+            }
+        });
+    }
+
+    bindReportButton(button) {
+        const buttonId = button.dataset.buttonId || Math.random().toString(36).substr(2, 9);
+
+        if (!this.initialized.has(`report-${buttonId}`)) {
+            this.initialized.add(`report-${buttonId}`);
+
+            button.removeEventListener('click', this.handleReportButtonClick);
+            button.addEventListener('click', (e) => this.handleReportButtonClick(e, button));
+        }
+    }
+
+    handleReportButtonClick = (e, button) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const postId = button.closest('.post-card')?.dataset.postId;
+        if (!postId) {
+            // Try to get postId from data attribute
+            postId = button.dataset.postId;
+        }
+
+        if (postId) {
+            this.loadReportForm(postId);
+        }
+    }
+
+    async loadReportForm(postId) {
+        const modalBody = document.getElementById('reportModalBody');
+        const modalLabel = document.getElementById('reportModalLabel');
+
+        if (!modalBody) return;
+
+        // Show loading
+        modalBody.innerHTML = `
+            <div class="text-center py-3">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+
+        try {
+            // Load report form via AJAX
+            const response = await fetch(`/PostReport/ReportForm/${postId}`);
+
+            if (response.ok) {
+                const html = await response.text();
+                modalBody.innerHTML = html;
+
+                // Update modal title
+                if (modalLabel) {
+                    modalLabel.textContent = 'Báo cáo bài đăng';
+                }
+
+                // Add animation to the form
+                const form = modalBody.querySelector('.report-form');
+                if (form) {
+                    form.style.opacity = '0';
+                    form.style.transform = 'translateY(10px)';
+                    form.style.transition = 'all 0.3s ease';
+
+                    setTimeout(() => {
+                        form.style.opacity = '1';
+                        form.style.transform = 'translateY(0)';
+                    }, 10);
+                }
+            } else {
+                modalBody.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Không thể tải form báo cáo. Vui lòng thử lại.
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading report form:', error);
+            modalBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    Lỗi kết nối mạng. Vui lòng kiểm tra kết nối và thử lại.
+                </div>
+            `;
+        }
+    }
+
+    async handleReportSubmit(form) {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+
+        // Show loading state
+        submitBtn.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Đang gửi...
+        `;
+        submitBtn.disabled = true;
+
+        try {
+            const formData = new FormData(form);
+            const response = await fetch('/Post/Report', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                // Success
+                this.showToast('Báo cáo đã được gửi thành công!', 'success');
+
+                // Close modal after delay
+                setTimeout(() => {
+                    if (this.reportModal) {
+                        this.reportModal.hide();
+                    }
+                }, 1500);
+
+                // Reset form
+                form.reset();
+            } else {
+                // Server error
+                const data = await response.json();
+                this.showToast(data.message || 'Có lỗi xảy ra khi gửi báo cáo.', 'danger');
+            }
+        } catch (error) {
+            console.error('Error submitting report:', error);
+            this.showToast('Lỗi kết nối mạng. Vui lòng thử lại.', 'danger');
+        } finally {
+            // Restore button
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
         }
     }
 
@@ -115,16 +283,10 @@ class PostVote {
         const postId = button.dataset.postId;
         const isUpvote = button.dataset.voteType === 'true';
 
-        console.log(`Vote click: post ${postId}, isUpvote: ${isUpvote}`);
-
-        // Get current vote status
-        const currentStatus = this.voteStatusCache.get(postId) || { isUpvoted: false, isDownvoted: false };
-
         // Visual feedback
         this.animateVoteClick(button);
 
         try {
-            // Send vote request to server
             const response = await fetch('/Post/Vote', {
                 method: 'POST',
                 headers: {
@@ -138,30 +300,26 @@ class PostVote {
             }
 
             const data = await response.json();
-            console.log('Vote response:', data);
 
             if (data.success) {
-                // Update UI with server response
                 this.updateVoteUI(postId, data, isUpvote);
+                this.showToast('Đã cập nhật vote thành công!', 'success');
             } else {
-                alert(data.message || 'Vote failed');
+                this.showToast(data.message || 'Vote thất bại', 'danger');
             }
         } catch (error) {
             console.error('Vote error:', error);
-            alert('Network error. Please try again.');
+            this.showToast('Lỗi kết nối mạng. Vui lòng thử lại.', 'danger');
         }
     }
 
     animateVoteClick(button) {
-        // Add ripple effect
         const ripple = document.createElement('span');
         ripple.className = 'vote-ripple';
         button.appendChild(ripple);
 
-        // Button animation
         button.classList.add('voting');
 
-        // Clean up
         setTimeout(() => {
             button.classList.remove('voting');
             if (ripple.parentNode === button) {
@@ -181,34 +339,23 @@ class PostVote {
 
         if (!container || !upvoteBtn || !downvoteBtn || !scoreElement) return;
 
-        // Determine new vote status based on server response or toggle logic
+        // Determine new vote status
         let newIsUpvoted = false;
         let newIsDownvoted = false;
 
         if (data.userVoteStatus !== undefined) {
-            // Use server response if available
             if (data.userVoteStatus === true) {
                 newIsUpvoted = true;
-                newIsDownvoted = false;
             } else if (data.userVoteStatus === false) {
-                newIsUpvoted = false;
                 newIsDownvoted = true;
-            } else {
-                newIsUpvoted = false;
-                newIsDownvoted = false;
             }
         } else {
-            // Fallback: toggle logic
             const currentStatus = this.voteStatusCache.get(postId) || { isUpvoted: false, isDownvoted: false };
 
             if (isUpvote) {
-                // Toggle upvote
                 newIsUpvoted = !currentStatus.isUpvoted;
-                newIsDownvoted = false;
             } else {
-                // Toggle downvote
                 newIsDownvoted = !currentStatus.isDownvoted;
-                newIsUpvoted = false;
             }
         }
 
@@ -243,7 +390,6 @@ class PostVote {
     }
 
     updateScore(scoreElement, data) {
-        // Calculate display score
         let displayScore;
 
         if (data.displayScore !== undefined) {
@@ -254,12 +400,11 @@ class PostVote {
             const totalScore = data.upvoteCount - data.downvoteCount;
             displayScore = totalScore < 0 ? 0 : totalScore;
         } else {
-            // Get current score and update based on vote
             const currentScore = parseInt(scoreElement.textContent) || 0;
             displayScore = currentScore;
         }
 
-        // Update score display with animation
+        // Add animation
         scoreElement.textContent = displayScore;
         scoreElement.classList.add('score-updated');
 
@@ -268,7 +413,60 @@ class PostVote {
         }, 500);
     }
 
-    // Public method to manually update vote status (can be called from outside)
+    showToast(message, type = 'info') {
+        // Create toast container if not exists
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(toastContainer);
+        }
+
+        // Create toast
+        const toastId = 'toast-' + Date.now();
+        const toast = document.createElement('div');
+        toast.id = toastId;
+        toast.className = `toast align-items-center text-bg-${type} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+
+        const iconClass = {
+            'success': 'fa-check-circle',
+            'danger': 'fa-exclamation-circle',
+            'warning': 'fa-exclamation-triangle',
+            'info': 'fa-info-circle'
+        }[type] || 'fa-info-circle';
+
+        toast.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="toast-icon me-2">
+                    <i class="fas ${iconClass}"></i>
+                </div>
+                <div class="toast-body flex-grow-1">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+
+        toastContainer.appendChild(toast);
+
+        // Show toast
+        const bsToast = new bootstrap.Toast(toast, {
+            autohide: true,
+            delay: 3000
+        });
+        bsToast.show();
+
+        // Remove toast after hide
+        toast.addEventListener('hidden.bs.toast', function() {
+            toast.remove();
+        });
+    }
+
+    // Public method to manually update vote status
     updatePostVoteStatus(postId, isUpvoted, isDownvoted) {
         const postElement = document.querySelector(`.post-card[data-post-id="${postId}"]`);
         if (!postElement) return;
@@ -279,7 +477,6 @@ class PostVote {
 
         if (!container || !upvoteBtn || !downvoteBtn) return;
 
-        // Update container
         container.classList.remove('vote-container-upvoted', 'vote-container-downvoted');
 
         if (isUpvoted) {
@@ -288,7 +485,6 @@ class PostVote {
             container.classList.add('vote-container-downvoted');
         }
 
-        // Update buttons
         upvoteBtn.classList.remove('active');
         downvoteBtn.classList.remove('active');
 
@@ -298,7 +494,6 @@ class PostVote {
             downvoteBtn.classList.add('active');
         }
 
-        // Update cache
         this.voteStatusCache.set(postId, {
             isUpvoted,
             isDownvoted,
@@ -309,125 +504,261 @@ class PostVote {
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if vote system should be initialized
     const voteContainers = document.querySelectorAll('.vote-container');
+    const reportButtons = document.querySelectorAll('[data-bs-target="#reportModal"]');
 
-    if (voteContainers.length > 0) {
+    if (voteContainers.length > 0 || reportButtons.length > 0) {
         window.postVote = new PostVote();
-        console.log(`Vote system initialized for ${voteContainers.length} posts`);
+        console.log(`Post system initialized for ${voteContainers.length} posts`);
     }
 });
 
-// Export for global access
+// Global helper function for loading report form (can be called from inline onclick)
 if (typeof window !== 'undefined') {
+    window.loadReportForm = function(postId) {
+        if (window.postVote && window.postVote.loadReportForm) {
+            window.postVote.loadReportForm(postId);
+        } else {
+            console.error('PostVote system not initialized');
+        }
+    };
+
     window.PostVote = PostVote;
 }
 
-// Xử lý sự kiện vote
-document.addEventListener('DOMContentLoaded', function() {
-    // Lắng nghe sự kiện click trên nút vote
-    document.addEventListener('click', async function(e) {
-        // Kiểm tra nếu click vào nút vote
-        if (e.target.closest('.vote-up-btn') || e.target.closest('.vote-down-btn')) {
-            e.preventDefault();
-            e.stopPropagation();
+// Tạo ID duy nhất cho mỗi nút report
+document.querySelectorAll('[data-bs-target="#reportModal"]').forEach((button, index) => {
+    button.dataset.buttonId = `report-btn-${index}`;
+});
 
-            const voteBtn = e.target.closest('.vote-up-btn') || e.target.closest('.vote-down-btn');
-            const postId = voteBtn.dataset.postId;
-            const isUpvote = voteBtn.dataset.voteType === 'true';
-            const voteAction = voteBtn.dataset.voteAction || 'toggle'; // toggle, set, remove
-
-            await handleVote(postId, isUpvote, voteAction, voteBtn);
+// Xử lý click vào nút report trong dropdown
+document.querySelectorAll('.dropdown-item[data-bs-target="#reportModal"]').forEach(button => {
+    button.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const postId = this.closest('.post-card')?.dataset.postId;
+        if (postId) {
+            // Gọi hàm từ postVote instance
+            if (window.postVote) {
+                window.postVote.loadReportForm(postId);
+            }
         }
     });
+});
 
-    // Hàm xử lý vote
-async function handleVote(postId, isUpvote, action, voteBtn) {
-        try {
-            const response = await fetch('/Post/Vote', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                },
-                body: `postId=${postId}&isUpvote=${isUpvote}&action=${action}`
+// reportModal.js - Xử lý modal báo cáo bài đăng
+class ReportModal {
+    constructor() {
+        this.modal = null;
+        this.modalBody = null;
+        this.currentPostId = null;
+        this.init();
+    }
+
+    init() {
+        // Khởi tạo modal
+        const modalElement = document.getElementById('reportModal');
+        if (modalElement) {
+            this.modal = new bootstrap.Modal(modalElement);
+            this.modalBody = document.getElementById('reportModalBody');
+
+            // Xử lý sự kiện khi modal đóng
+            modalElement.addEventListener('hidden.bs.modal', () => {
+                this.resetModal();
             });
 
-            const data = await response.json();
+            // Xử lý sự kiện khi modal hiển thị
+            modalElement.addEventListener('show.bs.modal', () => {
+                this.onModalShow();
+            });
+        }
 
-            if (data.success) {
-                updateVoteUI(postId, data);
-                showToast('Đã cập nhật vote thành công', 'success');
-            } else {
-                showToast(data.message || 'Có lỗi xảy ra khi vote', 'error');
+        // Bind sự kiện cho tất cả nút báo cáo
+        this.bindReportButtons();
+
+        // Setup MutationObserver cho dynamic content
+        this.setupMutationObserver();
+
+        console.log('ReportModal initialized');
+    }
+
+    bindReportButtons() {
+        // Bind cho nút báo cáo trong dropdown
+        document.querySelectorAll('.dropdown-item.text-warning[data-bs-target="#reportModal"]').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const postId = this.getPostIdFromElement(button);
+                if (postId) {
+                    this.showReportForm(postId);
+                }
+            });
+        });
+
+        // Bind cho nút báo cáo trực tiếp
+        document.querySelectorAll('[onclick*="loadReportForm"]').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const postId = this.getPostIdFromElement(button) ||
+                    button.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+                if (postId) {
+                    this.showReportForm(postId);
+                }
+            });
+        });
+    }
+
+    setupMutationObserver() {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.addedNodes.length) {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1) {
+                            // Bind sự kiện cho nút báo cáo mới
+                            const newReportButtons = node.querySelectorAll ?
+                                node.querySelectorAll('[data-bs-target="#reportModal"], [onclick*="loadReportForm"]') : [];
+
+                            newReportButtons.forEach(button => {
+                                button.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    const postId = this.getPostIdFromElement(button) ||
+                                        button.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+                                    if (postId) {
+                                        this.showReportForm(postId);
+                                    }
+                                });
+                            });
+                        }
+                    });
+                }
+            });
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    getPostIdFromElement(element) {
+        // Lấy postId từ các vị trí có thể
+        const postCard = element.closest('.post-card');
+        if (postCard) {
+            return postCard.dataset.postId;
+        }
+
+        const card = element.closest('.card');
+        if (card) {
+            return card.dataset.postId ||
+                card.querySelector('.post-card')?.dataset.postId;
+        }
+
+        return element.dataset.postId || null;
+    }
+
+    async showReportForm(postId) {
+        this.currentPostId = postId;
+
+        // Hiển thị modal
+        if (this.modal) {
+            this.modal.show();
+        }
+
+        // Hiển thị loading
+        this.showLoading();
+
+        try {
+            // Load form báo cáo
+            const response = await fetch(`/PostReport/ReportForm/${postId}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error: ${response.status}`);
             }
+
+            const html = await response.text();
+
+            // Nếu response là JSON error
+            if (html.trim().startsWith('{')) {
+                const data = JSON.parse(html);
+                this.showError(data.message || 'Không thể tải form báo cáo.');
+                return;
+            }
+
+            // Cập nhật modal với form
+            this.modalBody.innerHTML = html;
+
+            // Thêm animation
+            const formContainer = this.modalBody.querySelector('.report-form-container');
+            if (formContainer) {
+                formContainer.style.opacity = '0';
+                formContainer.style.transform = 'translateY(10px)';
+                formContainer.style.transition = 'all 0.3s ease';
+
+                setTimeout(() => {
+                    formContainer.style.opacity = '1';
+                    formContainer.style.transform = 'translateY(0)';
+                }, 50);
+            }
+
         } catch (error) {
-            console.error('Error:', error);
-            showToast('Có lỗi xảy ra khi kết nối', 'error');
+            console.error('Error loading report form:', error);
+            this.showError('Lỗi kết nối mạng. Vui lòng thử lại.');
         }
     }
 
-    // Hàm cập nhật giao diện vote
-    function updateVoteUI(postId, voteData) {
-        const voteContainer = document.querySelector(`.vote-container[data-post-id="${postId}"]`);
-        const voteScoreElement = document.querySelector(`.vote-score[data-post-id="${postId}"]`);
-        const upvoteBtn = document.querySelector(`.vote-up-btn[data-post-id="${postId}"]`);
-        const downvoteBtn = document.querySelector(`.vote-down-btn[data-post-id="${postId}"]`);
-
-        if (!voteContainer || !voteScoreElement || !upvoteBtn || !downvoteBtn) return;
-
-        // Cập nhật điểm số
-        const displayScore = voteData.voteScore < 0 ? 0 : voteData.voteScore;
-        voteScoreElement.textContent = displayScore;
-        voteScoreElement.dataset.initialScore = displayScore;
-
-        // Cập nhật trạng thái nút
-        if (voteData.userVote === true) {
-            // Đã upvote
-            upvoteBtn.classList.add('active');
-            downvoteBtn.classList.remove('active');
-            voteContainer.classList.add('vote-container-upvoted');
-            voteContainer.classList.remove('vote-container-downvoted');
-        } else if (voteData.userVote === false) {
-            // Đã downvote
-            upvoteBtn.classList.remove('active');
-            downvoteBtn.classList.add('active');
-            voteContainer.classList.remove('vote-container-upvoted');
-            voteContainer.classList.add('vote-container-downvoted');
-        } else {
-            // Chưa vote
-            upvoteBtn.classList.remove('active');
-            downvoteBtn.classList.remove('active');
-            voteContainer.classList.remove('vote-container-upvoted');
-            voteContainer.classList.remove('vote-container-downvoted');
-        }
-
-        // Cập nhật số lượng upvote/downvote nếu có trong response
-        if (voteData.upvoteCount !== undefined) {
-            // Nếu bạn hiển thị số upvote/downvote riêng biệt
-            // Có thể cập nhật ở đây
+    showLoading() {
+        if (this.modalBody) {
+            this.modalBody.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Đang tải form báo cáo...</p>
+                </div>
+            `;
         }
     }
 
-    // Hàm hiển thị toast
-    function showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.className = `alert alert-${type === 'error' ? 'danger' : type} position-fixed bottom-0 end-0 m-3`;
-        toast.style.zIndex = '9999';
-        toast.style.minWidth = '300px';
-        toast.innerHTML = `
-            <div class="d-flex align-items-center">
-                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
-                <span>${message}</span>
-            </div>
-        `;
-
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transition = 'opacity 0.5s';
-            setTimeout(() => toast.remove(), 500);
-        }, 3000);
+    showError(message) {
+        if (this.modalBody) {
+            this.modalBody.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-exclamation-triangle text-danger fa-4x"></i>
+                    </div>
+                    <h5 class="text-danger">Lỗi!</h5>
+                    <p class="text-muted">${message}</p>
+                    <div class="mt-4">
+                        <button class="btn btn-secondary me-2" data-bs-dismiss="modal">Đóng</button>
+                        <button class="btn btn-primary" onclick="reportModal.retryLoadForm()">Thử lại</button>
+                    </div>
+                </div>
+            `;
+        }
     }
+
+    retryLoadForm() {
+        if (this.currentPostId) {
+            this.showReportForm(this.currentPostId);
+        }
+    }
+
+    resetModal() {
+        if (this.modalBody) {
+            this.modalBody.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            `;
+        }
+        this.currentPostId = null;
+    }
+
+    onModalShow() {
+        // Có thể thêm các xử lý khi modal hiển thị
+        console.log('Report modal shown for post:', this.currentPostId);
+    }
+}
+
+// Khởi tạo khi DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+    window.reportModal = new ReportModal();
+    console.log('ReportModal system ready');
 });

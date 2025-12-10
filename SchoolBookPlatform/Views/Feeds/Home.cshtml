@@ -91,11 +91,35 @@
                 </div>
             </div>
 
+            @* Modal báo cáo bài đăng *@
+            <div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="reportModalLabel">Báo cáo bài đăng</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body" id="reportModalBody">
+                            <!-- Form report sẽ được load động vào đây -->
+                            <div class="text-center py-3">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             @* Danh sách bài đăng - Thay toàn bộ phần này *@
             <div id="posts-container">
                 @await Html.PartialAsync("_PostListPartial", Model)
             </div>
-
+            
+            <!-- Loading text cho lazyload -->
+            <div id="loading-text" class="text-center my-3 @(Model.HasMorePosts && Model.Posts.Any() ? "" : "d-none")">
+            </div>
+            
             <!-- No more posts message -->
             <div id="no-more-posts" class="text-center my-5" style="display: none;">
                 <p class="text-muted">Đã hiển thị tất cả bài đăng</p>
@@ -115,28 +139,15 @@
     const viewType = "@Model.ViewType";
     let observer = null;
 
-    // Biến cho modal
-    let imageModal = null;
-    let modalCarousel = null;
-    let modalCarouselInner = null;
-    let modalCurrentSlideSpan = null;
-    let modalTotalSlidesSpan = null;
-    let blurredBackground = null;
-    let prevButton = null;
-    let nextButton = null;
-    let currentPostMedia = [];
-    let currentPostId = null;
-    let currentPostCarousel = null;
-    let lastModalMediaIndex = 0;
-    let playingVideos = new Map();
-    const postMediaMap = new Map();
-    const postCarousels = new Map();
-
     // Hàm lazyload khi scroll đến cuối
     function setupLazyLoading() {
+        console.log('Setting up lazy loading...');
+
         // Tạo observer mới
         observer = new IntersectionObserver((entries) => {
             const entry = entries[0];
+            console.log('Loading text visible:', entry.isIntersecting);
+
             if (entry.isIntersecting && !isLoading && hasMorePosts) {
                 console.log('Loading more posts triggered!');
                 loadMorePosts();
@@ -147,20 +158,18 @@
             threshold: 0.1
         });
 
-        // Quan sát loading spinner
-        const loadingSpinner = document.getElementById('loading-spinner');
+        // Quan sát loading text
+        const loadingText = document.getElementById('loading-text');
         const noMorePosts = document.getElementById('no-more-posts');
 
-        if (loadingSpinner) {
-            // Chỉ show loading spinner nếu còn bài đăng
+        if (loadingText) {
+            // Chỉ show loading text nếu còn bài đăng
             if (hasMorePosts && @(Model.Posts?.Count ?? 0) > 0) {
-                loadingSpinner.classList.remove('hidden');
-                loadingSpinner.classList.add('visible');
-                observer.observe(loadingSpinner);
-                console.log('Observer attached to loading spinner');
+                loadingText.classList.remove('d-none');
+                observer.observe(loadingText);
+                console.log('Observer attached to loading text');
             } else {
-                loadingSpinner.classList.add('hidden');
-                loadingSpinner.classList.remove('visible');
+                loadingText.classList.add('d-none');
             }
         }
 
@@ -172,16 +181,28 @@
 
     // Hàm tải thêm bài đăng
     async function loadMorePosts() {
+        console.log('loadMorePosts called', {
+            isLoading,
+            hasMorePosts,
+            currentPage: currentPage + 1
+        });
+
+        if (isLoading || !hasMorePosts) {
+            console.log('Skipping: isLoading=' + isLoading + ', hasMorePosts=' + hasMorePosts);
+            return;
+        }
+
         isLoading = true;
         const pageToLoad = currentPage + 1;
+        console.log('Loading page:', pageToLoad);
 
-        // Hiển thị loading spinner
-        const loadingSpinner = document.getElementById('loading-spinner');
+        // Hiển thị loading text
+        const loadingText = document.getElementById('loading-text');
         const noMorePosts = document.getElementById('no-more-posts');
 
-        if (loadingSpinner) {
-            loadingSpinner.style.display = 'block';
-            loadingSpinner.style.opacity = '1';
+        if (loadingText) {
+            loadingText.classList.remove('d-none');
+            loadingText.innerHTML = '<p class="text-muted">Đang tải...</p>';
         }
         if (noMorePosts) noMorePosts.style.display = 'none';
 
@@ -189,6 +210,7 @@
             // Xác định action dựa trên viewType
             const action = viewType === 'following' ? 'Following' : 'Home';
             const url = `/Feeds/${action}?page=${pageToLoad}`;
+            console.log('Fetching from:', url);
 
             const response = await fetch(url, {
                 headers: {
@@ -196,8 +218,11 @@
                 }
             });
 
+            console.log('Response status:', response.status);
+
             if (response.ok) {
                 const html = await response.text();
+                console.log('HTML received, length:', html.length);
 
                 if (html.trim()) {
                     // Thêm bài đăng mới vào container
@@ -209,6 +234,7 @@
 
                     // Kiểm tra xem có bài đăng không
                     const postCards = newPostsContainer.querySelectorAll('.post-card');
+                    console.log('New posts found:', postCards.length);
 
                     if (postCards.length > 0) {
                         // Thêm vào DOM
@@ -222,44 +248,67 @@
 
                         // Kiểm tra xem còn bài đăng không
                         hasMorePosts = postCards.length === @Model.PageSize;
+                        console.log('Has more posts:', hasMorePosts);
 
-                        // Nếu không còn bài đăng, hiển thị thông báo
-                        if (!hasMorePosts) {
-                            if (noMorePosts) {
-                                noMorePosts.style.display = 'block';
-                                noMorePosts.style.opacity = '1';
-                            }
-                        }
+                        // Cập nhật UI dựa trên hasMorePosts
+                        updateLoadingUI();
+
                     } else {
+                        console.log('No posts in response');
                         hasMorePosts = false;
-                        if (noMorePosts) {
-                            noMorePosts.style.display = 'block';
-                            noMorePosts.style.opacity = '1';
-                        }
+                        updateLoadingUI();
                     }
                 } else {
+                    console.log('Empty response');
                     hasMorePosts = false;
-                    if (noMorePosts) {
-                        noMorePosts.style.display = 'block';
-                        noMorePosts.style.opacity = '1';
-                    }
+                    updateLoadingUI();
                 }
             } else {
+                console.error('Fetch failed:', response.status);
                 hasMorePosts = false;
+                updateLoadingUI();
             }
         } catch (error) {
             console.error('Error loading more posts:', error);
+            hasMorePosts = false;
+            updateLoadingUI();
         } finally {
             isLoading = false;
-
-            // Ẩn loading spinner
-            if (loadingSpinner) {
-                loadingSpinner.style.opacity = '0.5';
-            }
+            console.log('Loading completed, isLoading:', isLoading);
 
             // Nếu không còn bài đăng, ngừng quan sát
             if (!hasMorePosts && observer) {
                 observer.disconnect();
+                console.log('Observer disconnected - no more posts');
+            }
+        }
+    }
+
+    // Hàm cập nhật UI cho loading
+    function updateLoadingUI() {
+        const loadingText = document.getElementById('loading-text');
+        const noMorePosts = document.getElementById('no-more-posts');
+
+        console.log('Updating loading UI, hasMorePosts:', hasMorePosts);
+
+        if (loadingText) {
+            if (hasMorePosts) {
+                // Còn bài đăng: hiển thị "Đang tải thêm bài đăng..."
+                loadingText.classList.remove('d-none');
+                loadingText.innerHTML = '<p class="text-muted">Đang tải thêm bài đăng...</p>';
+            } else {
+                // Hết bài đăng: ẩn loading text
+                loadingText.classList.add('d-none');
+            }
+        }
+
+        if (noMorePosts) {
+            if (!hasMorePosts && @(Model.Posts?.Count ?? 0) > 0) {
+                // Hết bài đăng và có bài đăng: hiển thị "Đã hiển thị tất cả bài đăng"
+                noMorePosts.style.display = 'block';
+                console.log('Showing "no more posts" message');
+            } else {
+                noMorePosts.style.display = 'none';
             }
         }
     }
@@ -558,9 +607,500 @@
     // Khởi tạo khi trang được tải
     document.addEventListener('DOMContentLoaded', function () {
         console.log('DOM loaded, initializing...');
+        console.log('Initial data:', {
+            currentPage: @Model.CurrentPage,
+            hasMorePosts: @Json.Serialize(Model.HasMorePosts),
+            postsCount: @(Model.Posts?.Count ?? 0),
+            pageSize: @Model.PageSize
+        });
 
         // Khởi tạo modal
         initializeModal();
+
+        // Kiểm tra nếu không có bài đăng nào
+        if (@(Model.Posts?.Count ?? 0) === 0) {
+            console.log('No posts');
+            const loadingText = document.getElementById('loading-text');
+            const noMorePosts = document.getElementById('no-more-posts');
+
+            if (loadingText) {
+                loadingText.classList.add('d-none');
+            }
+            if (noMorePosts) {
+                noMorePosts.style.display = 'none';
+            }
+        } else {
+            // Có bài đăng, thiết lập lazyloading
+            console.log('Posts found, setting up lazy loading');
+            setupLazyLoading();
+        }
+
+        // Khởi tạo bài đăng ban đầu
+        initializeNewPosts();
+
+        console.log('Initialization complete');
+
+        // Thêm nút test thủ công (tùy chọn)
+        const testButton = document.createElement('button');
+        testButton.textContent = 'Test Load More';
+        testButton.className = 'btn btn-sm btn-outline-warning mt-2';
+        testButton.onclick = function() {
+            console.log('Manual test triggered');
+            loadMorePosts();
+        };
+
+        const container = document.querySelector('.container');
+        if (container) {
+            container.appendChild(testButton);
+        }
+    });
+    
+    // ========== XỬ LÝ MODAL BÁO CÁO ==========
+
+    // Biến lưu modal instance
+    let reportModal = null;
+    let currentReportPostId = null;
+
+    // Khởi tạo modal báo cáo
+    function initReportModal() {
+        const modalElement = document.getElementById('reportModal');
+        if (modalElement) {
+            reportModal = new bootstrap.Modal(modalElement, {
+                backdrop: 'static', // Ngăn không cho đóng khi click ra ngoài
+                keyboard: true      // Cho phép đóng bằng phím ESC
+            });
+
+            // Xử lý khi modal đóng HOÀN TOÀN
+            modalElement.addEventListener('hidden.bs.modal', function() {
+                console.log('Report modal fully hidden');
+                resetReportModal();
+
+                // Đảm bảo backdrop được xóa
+                cleanupModalBackdrops();
+
+                // Khôi phục body style
+                document.body.classList.remove('modal-open');
+                document.body.style.paddingRight = '';
+            });
+
+            console.log('Report modal initialized');
+        }
+    }
+
+    // Hàm tải form báo cáo
+    async function loadReportForm(postId) {
+        currentReportPostId = postId;
+
+        const modalBody = document.getElementById('reportModalBody');
+        const modalLabel = document.getElementById('reportModalLabel');
+        if (!modalBody) return;
+
+        // Hiển thị loading
+        modalBody.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3 text-muted">Đang tải form báo cáo...</p>
+            </div>
+        `;
+
+        // Đảm bảo modal được hiển thị
+        if (reportModal) {
+            reportModal.show();
+        }
+
+        try {
+            const response = await fetch(`/Post/ReportForm/${postId}`);
+
+            if (response.ok) {
+                const html = await response.text();
+
+                // Kiểm tra nếu response là JSON error
+                if (html.trim().startsWith('{')) {
+                    try {
+                        const data = JSON.parse(html);
+                        modalBody.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                ${data.message || 'Không thể tải form báo cáo.'}
+                            </div>
+                            <div class="text-center mt-3">
+                                <button class="btn btn-secondary" onclick="retryLoadReportForm()">Thử lại</button>
+                                <button class="btn btn-outline-secondary ms-2" data-bs-dismiss="modal">Đóng</button>
+                            </div>
+                        `;
+                        return;
+                    } catch (e) {
+                        // Không phải JSON, tiếp tục xử lý
+                    }
+                }
+
+                modalBody.innerHTML = html;
+
+                // Thêm animation cho form
+                const formContainer = modalBody.querySelector('.report-form-container');
+                if (formContainer) {
+                    formContainer.style.opacity = '0';
+                    formContainer.style.transform = 'translateY(10px)';
+                    formContainer.style.transition = 'all 0.3s ease';
+
+                    setTimeout(() => {
+                        formContainer.style.opacity = '1';
+                        formContainer.style.transform = 'translateY(0)';
+                    }, 50);
+                }
+
+                // Cập nhật tiêu đề modal
+                if (modalLabel) {
+                    modalLabel.textContent = 'Báo cáo bài đăng';
+                }
+
+                // Bind sự kiện submit form
+                bindReportFormSubmit();
+            } else {
+                modalBody.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Không thể tải form báo cáo. Vui lòng thử lại.
+                    </div>
+                    <div class="text-center mt-3">
+                        <button class="btn btn-secondary" onclick="retryLoadReportForm()">Thử lại</button>
+                        <button class="btn btn-outline-secondary ms-2" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading report form:', error);
+            modalBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    Lỗi kết nối mạng. Vui lòng kiểm tra kết nối và thử lại.
+                </div>
+                <div class="text-center mt-3">
+                    <button class="btn btn-secondary" onclick="retryLoadReportForm()">Thử lại</button>
+                    <button class="btn btn-outline-secondary ms-2" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            `;
+        }
+    }
+
+    // Hàm bind sự kiện submit form báo cáo
+    function bindReportFormSubmit() {
+        const form = document.querySelector('#reportModalBody .report-form');
+        if (!form) return;
+
+        // Xóa event listener cũ nếu có
+        const newForm = form.cloneNode(true);
+        form.parentNode.replaceChild(newForm, form);
+
+        newForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+
+            // Hiển thị loading
+            submitBtn.innerHTML = `
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Đang gửi...
+            `;
+            submitBtn.disabled = true;
+
+            try {
+                const formData = new FormData(this);
+                const response = await fetch('/PostReport/Report', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    // Hiển thị thông báo thành công
+                    showReportSuccess('Báo cáo đã được gửi thành công!');
+
+                    // Đóng modal sau 2 giây
+                    setTimeout(() => {
+                        if (reportModal) {
+                            reportModal.hide();
+                        }
+                    }, 2000);
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    showReportError(errorData.message || 'Có lỗi xảy ra khi gửi báo cáo.');
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error submitting report:', error);
+                showReportError('Lỗi kết nối mạng. Vui lòng thử lại.');
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    }
+
+    // Hàm hiển thị thông báo thành công
+    function showReportSuccess(message) {
+        const modalBody = document.getElementById('reportModalBody');
+        if (modalBody) {
+            modalBody.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-check-circle text-success fa-4x"></i>
+                    </div>
+                    <h5 class="text-success">Thành công!</h5>
+                    <p class="text-muted">${message}</p>
+                    <div class="mt-4">
+                        <p class="text-muted small">Modal sẽ tự động đóng trong 2 giây...</p>
+                        <button class="btn btn-outline-secondary" onclick="closeReportModal()">Đóng ngay</button>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Hàm hiển thị thông báo lỗi
+    function showReportError(message) {
+        const modalBody = document.getElementById('reportModalBody');
+        if (modalBody) {
+            const errorAlert = document.createElement('div');
+            errorAlert.className = 'alert alert-danger alert-dismissible fade show mb-3';
+            errorAlert.innerHTML = `
+                <i class="fas fa-exclamation-circle me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            modalBody.prepend(errorAlert);
+
+            // Tự động đóng alert sau 5 giây
+            setTimeout(() => {
+                if (errorAlert.parentNode) {
+                    const bsAlert = new bootstrap.Alert(errorAlert);
+                    bsAlert.close();
+                }
+            }, 5000);
+        }
+    }
+
+    // Hàm đóng modal báo cáo
+    function closeReportModal() {
+        if (reportModal) {
+            reportModal.hide();
+        }
+    }
+
+    // Hàm reset modal về trạng thái ban đầu
+    function resetReportModal() {
+        const modalBody = document.getElementById('reportModalBody');
+        if (modalBody) {
+            modalBody.innerHTML = `
+                <div class="text-center py-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            `;
+        }
+        currentReportPostId = null;
+
+        // Reset backdrop và body classes
+        cleanupModalBackdrops();
+    }
+
+    // Hàm dọn dẹp backdrop
+    function cleanupModalBackdrops() {
+        // Xóa tất cả backdrop
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => {
+            backdrop.remove();
+        });
+
+        // Xóa modal-open class nếu không có modal nào đang mở
+        const openModals = document.querySelectorAll('.modal.show');
+        if (openModals.length === 0) {
+            document.body.classList.remove('modal-open');
+            document.body.style.paddingRight = '';
+        }
+    }
+
+    // Hàm retry tải form báo cáo
+    function retryLoadReportForm() {
+        if (currentReportPostId) {
+            loadReportForm(currentReportPostId);
+        }
+    }
+
+    // Khởi tạo sự kiện cho các nút báo cáo trong bài đăng mới
+    function initReportButtonsForNewPosts() {
+        // Xử lý click vào nút báo cáo trong dropdown của bài đăng mới
+        document.querySelectorAll('.post-card:not([data-report-initialized])').forEach(card => {
+            card.setAttribute('data-report-initialized', 'true');
+
+            const reportButton = card.querySelector('.dropdown-item.text-warning[data-bs-target="#reportModal"]');
+            if (reportButton) {
+                reportButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const postId = card.dataset.postId;
+                    if (postId) {
+                        console.log('Loading report form for post:', postId);
+                        loadReportForm(postId);
+                    }
+                });
+            }
+        });
+    }
+
+    // ========== CẬP NHẬT HÀM initializeNewPosts ==========
+
+    // Cập nhật hàm initializeNewPosts để bao gồm khởi tạo nút báo cáo
+    function initializeNewPosts() {
+        // Khởi tạo sự kiện click cho bài đăng mới
+        document.querySelectorAll('.post-card:not([data-initialized])').forEach(card => {
+            card.setAttribute('data-initialized', 'true');
+            card.addEventListener('click', function () {
+                const postId = this.dataset.postId;
+                window.location.href = `/Post/Details/${postId}`;
+            });
+
+            // Khởi tạo media cho bài post
+            initializePostMedia(card);
+
+            // Thiết lập sự kiện click cho media
+            setupMediaClickEvents(card);
+        });
+
+        // Khởi tạo carousel cho bài đăng mới
+        initializeNewCarousels();
+
+        // Khởi tạo nút báo cáo cho bài đăng mới
+        initReportButtonsForNewPosts();
+    }
+
+    // Khởi tạo sự kiện cho các nút báo cáo
+    function initReportButtons() {
+        // Xử lý click vào nút báo cáo trong dropdown
+        document.querySelectorAll('.dropdown-item.text-warning[data-bs-target="#reportModal"]').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Lấy postId từ bài đăng cha
+                const postCard = this.closest('.post-card') ||
+                    this.closest('.card') ||
+                    this.closest('[data-post-id]');
+
+                let postId = null;
+
+                if (postCard) {
+                    postId = postCard.dataset.postId;
+                }
+
+                // Nếu không tìm thấy, thử lấy từ onclick attribute
+                if (!postId && this.getAttribute('onclick')) {
+                    const match = this.getAttribute('onclick').match(/loadReportForm\('([^']+)'\)/);
+                    if (match) {
+                        postId = match[1];
+                    }
+                }
+
+                if (postId) {
+                    console.log('Loading report form for post:', postId);
+                    loadReportForm(postId);
+                } else {
+                    console.error('Could not find postId for report button');
+                }
+            });
+        });
+    }
+
+    // Thêm CSS cho modal báo cáo
+    function addReportModalStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Modal báo cáo styling */
+            #reportModal .modal-dialog {
+                max-width: 500px;
+            }
+            
+            #reportModal .modal-header {
+                background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+                color: white;
+                border-bottom: none;
+            }
+            
+            #reportModal .modal-header .btn-close {
+                filter: invert(1);
+                opacity: 0.8;
+                background: none;
+                font-size: 1.5rem;
+            }
+            
+            #reportModal .modal-header .btn-close:hover {
+                opacity: 1;
+                background: rgba(255, 255, 255, 0.1);
+            }
+            
+            /* Nút báo cáo trong dropdown */
+            .dropdown-item.text-warning {
+                color: #ffc107 !important;
+            }
+            
+            .dropdown-item.text-warning:hover {
+                background-color: rgba(255, 193, 7, 0.1) !important;
+                color: #e0a800 !important;
+            }
+            
+            /* Form báo cáo */
+            .report-form textarea {
+                resize: vertical;
+                min-height: 120px;
+            }
+            
+            .report-form textarea:focus {
+                border-color: #ffc107;
+                box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+            }
+            
+            /* Fix backdrop và z-index cho các modal */
+            .modal-backdrop {
+                z-index: 1040 !important;
+            }
+            
+            #imageModal {
+                z-index: 1060 !important;
+            }
+            
+            #reportModal {
+                z-index: 1055 !important;
+            }
+            
+            /* Fix cho dropdown trong post card */
+            .post-card .dropdown-menu {
+                z-index: 1070 !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Global functions để gọi từ HTML
+    window.loadReportForm = loadReportForm;
+    window.retryLoadReportForm = retryLoadReportForm;
+    window.closeReportModal = closeReportModal;
+
+    // ========== KHỞI TẠO KHI DOM READY ==========
+
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('DOM loaded, initializing...');
+
+        // Khởi tạo modal image
+        initializeModal();
+
+        // Khởi tạo modal báo cáo
+        initReportModal();
 
         // Khởi tạo media cho các bài post ban đầu
         document.querySelectorAll('.card').forEach(card => {
@@ -572,7 +1112,10 @@
             setupMediaClickEvents(card);
         });
 
-        // Thiết lập sự kiện chuyển slide cho modal
+        // Khởi tạo sự kiện cho các nút báo cáo
+        initReportButtons();
+
+        // Thiết lập sự kiện chuyển slide cho modal image
         if (modalCarousel) {
             modalCarousel.addEventListener('slide.bs.carousel', function (event) {
                 const nextSlide = event.to;
@@ -601,15 +1144,22 @@
             });
         }
 
-        // Lắng nghe click vào nút đóng modal
+        // Lắng nghe click vào nút đóng modal image
         document.querySelector('#imageModal .btn-close')?.addEventListener('click', function () {
             if (imageModal) imageModal.hide();
         });
 
         // Cho phép đóng modal bằng phím ESC
         document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape' && imageModal && imageModal._isShown) {
-                imageModal.hide();
+            if (e.key === 'Escape') {
+                // Đóng image modal nếu đang mở
+                if (imageModal && imageModal._isShown) {
+                    imageModal.hide();
+                }
+                // Đóng report modal nếu đang mở
+                if (reportModal && reportModal._isShown) {
+                    reportModal.hide();
+                }
             }
 
             // Thêm phím mũi tên để chuyển media (chỉ khi có nhiều hơn 1 media)
@@ -623,7 +1173,7 @@
             }
         });
 
-        // Click bên ngoài media để đóng modal
+        // Click bên ngoài media để đóng modal image
         const imageModalElement = document.getElementById('imageModal');
         if (imageModalElement) {
             imageModalElement.addEventListener('click', function (e) {
@@ -638,6 +1188,9 @@
                 }
             });
         }
+
+        // Thêm CSS cho modal
+        addReportModalStyles();
 
         // Kiểm tra nếu không có bài đăng nào, ẩn loading spinner ngay
         if (@(Model.Posts?.Count ?? 0) === 0) {
@@ -658,7 +1211,7 @@
         // Khởi tạo bài đăng ban đầu
         initializeNewPosts();
 
-        console.log('Initialization complete');
+        console.log('Feed page initialization complete with report modal');
     });
 </script>
 }
