@@ -201,7 +201,7 @@ public class Program
             
             // Post feature policy: Moderator, Admin, HighAdmin có quyền xử lý bài đăng
             options.AddPolicy("ModeratorOrHigher", policy =>
-                policy.RequireRole("HighAdmin", "Admin", "Moderator"));
+                policy.RequireRole("HighAdmin", "Moderator"));
         });
         
         var app = builder.Build();

@@ -99,7 +99,7 @@
                                 <th>SĐT</th>
                                 <th>Vai trò</th>
                                 <th>Trạng thái</th>
-                                <th>Khuôn mặt</th>
+                                <th>MFA</th>
                                 <th>Ngày tạo</th>
                                 <th class="text-center">Thao tác</th>
                             </tr>
@@ -121,7 +121,7 @@
                                                    class="fw-bold text-decoration-none hover-primary">
                                                     @user.Username
                                                 </a>
-                                                <br><small class="text-muted">@user.Id.ToString()[..8]...</small>
+                                                <br><small class="text-muted">@user.Id.ToString()</small>
                                             </div>
                                         </div>
                                     </td>
@@ -148,7 +148,7 @@
                                         </span>
                                     </td>
                                     <td class="text-center">
-                                        <i class="bi @(user.FaceRegistered ? "bi-person-check-fill text-success" : "bi-person-x text-muted") fs-4"></i>
+                                        <i class="bi @(user.TwoFactorEnabled!.Value ? "bi-person-check-fill text-success" : "bi-person-x text-muted") fs-4"></i>
                                     </td>
                                     <td><small>@user.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small></td>
                                     <td class="text-center">

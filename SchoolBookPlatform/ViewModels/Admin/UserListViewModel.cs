@@ -11,6 +11,7 @@ public class UserListViewModel
     public List<string> Roles { get; set; } = new();
     public bool IsActive { get; set; }
     public bool FaceRegistered { get; set; }
+    public bool? TwoFactorEnabled { get; set; } = false;
     public DateTime CreatedAt { get; set; }
     public string? AvatarUrl { get; set; }
 }

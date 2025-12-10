@@ -49,6 +49,7 @@ public class AdminController(
             Roles = u.UserRoles?.Select(ur => ur.Role.Name).ToList() ?? new List<string>(),
             IsActive = u.IsActive,
             FaceRegistered = u.FaceRegistered,
+            TwoFactorEnabled = u.TwoFactorEnabled,
             CreatedAt = u.CreatedAt,
             AvatarUrl = avatarService.GetAvatar(u)
         }).ToList();
@@ -750,6 +751,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
             Roles = user.UserRoles?.Select(ur => ur.Role.Name).ToList() ?? new List<string>(),
             IsActive = user.IsActive,
             FaceRegistered = user.FaceRegistered,
+            TwoFactorEnabled = user.TwoFactorEnabled,
             CreatedAt = user.CreatedAt
         };
 
