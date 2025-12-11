@@ -233,7 +233,7 @@
             <a class="sidebar-button @(isChatManage ? "active" : "")" href="@Url.Action("Index", "ChatReport")">
                 <i class="fas bi-mailbox-flag"></i>
                 <span>Chat Report</span>
-                @await Component.InvokeAsync("PendingReportsBadge")
+                @* @await Component.InvokeAsync("PendingReportsBadge") *@
             </a>
         }
         
