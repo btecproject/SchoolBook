@@ -10,29 +10,18 @@ using Twilio.Types;
 
 namespace SchoolBookPlatform.Services;
 
-public class OtpService
+public class OtpService(AppDbContext db, IConfiguration config, ILogger<OtpService> logger, EmailService emailService)
 {
-    private readonly IConfiguration _config;
-    private readonly AppDbContext _db;
-    private readonly ILogger<OtpService> _logger;
-
-    public OtpService(AppDbContext db, IConfiguration config, ILogger<OtpService> logger)
-    {
-        _db = db;
-        _logger = logger;
-        _config = config;
-    }
-
     public async Task<string> GenerateOtpAsync(User user, string type)
     {
         //Xóa otp cũ
-        var oldOtps = _db.OtpCodes
+        var oldOtps = db.OtpCodes
             .Where(o => o.UserId == user.Id
                         && o.Type == type
                         && !o.IsUsed
                         && o.ExpiresAt > DateTime.UtcNow.AddHours(7));
-        _db.OtpCodes.RemoveRange(oldOtps);
-        await _db.SaveChangesAsync();
+        db.OtpCodes.RemoveRange(oldOtps);
+        await db.SaveChangesAsync();
 
         var code = new Random().Next(100000, 999999).ToString();
         var otp = new OtpCode
@@ -44,17 +33,17 @@ public class OtpService
             IsUsed = false,
             CreatedAt = DateTime.UtcNow.AddHours(7)
         };
-        _db.OtpCodes.Add(otp);
-        await _db.SaveChangesAsync();
+        db.OtpCodes.Add(otp);
+        await db.SaveChangesAsync();
         try
         {
             await SendOtpAsync(user, type, code);
-            _logger.LogInformation("Gửi OTP {code} thành công cho {EmailOrPhone} qua {Type}",
+            logger.LogInformation("Gửi OTP {code} thành công cho {EmailOrPhone} qua {Type}",
                code, type == "Email" ? user.Email : user.PhoneNumber, type);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Lỗi gửi OTP qua {Type}", type);
+            logger.LogError(ex, "Lỗi gửi OTP qua {Type}", type);
             throw;
         }
 
@@ -99,52 +88,12 @@ public class OtpService
 
     private async Task SendEmailOtpAsync(User user, string code)
     {
-        var apiKey = _config["SendGrid:ApiKey"];
-        var fromEmail = _config["SendGrid:FromEmail"];
-        var fromName = _config["SendGrid:FromName"];
-
-        if (string.IsNullOrEmpty(apiKey))
-            throw new InvalidOperationException("SendGrid API Key chưa cấu hình.");
-
-        var client = new SendGridClient(apiKey);
-        var from = new EmailAddress(fromEmail, fromName);
-        var to = new EmailAddress(user.Email);
-        var subject = "Mã OTP Xác Thực Đăng Nhập - SchoolBook";
-
-        var htmlContent = $@"
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;'>
-            <h2 style='text-align: center; color: #007bff;'>SchoolBook Platform</h2>
-            <p>Xin chào <strong>{user.Username}</strong>,</p>
-            <p>Mã OTP của bạn là:</p>
-            <div style='text-align: center; margin: 20px 0;'>
-                <span style='font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #007bff;'>
-                    {code}
-                </span>
-            </div>
-            <p><strong>Hiệu lực trong 3 phút</strong></p>
-            <hr>
-            <small style='color: #666;'>
-                Nếu bạn không yêu cầu, vui lòng bỏ qua email này.<br>
-                Email được gửi tự động, không trả lời.
-            </small>
-        </div>";
-
-        var msg = MailHelper.CreateSingleEmail(from, to, subject, null, htmlContent);
-        var response = await client.SendEmailAsync(msg);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorBody = await response.Body.ReadAsStringAsync();
-            _logger.LogError("SendGrid lỗi {Status}: {Body}", response.StatusCode, errorBody);
-            throw new InvalidOperationException($"SendGrid lỗi: {response.StatusCode}");
-        }
-
-        _logger.LogInformation("Email OTP gửi thành công đến {Email}", user.Email);
+        await emailService.SendEmailOtpAsync(user, code);
     }
 
     public async Task<bool> VerifyOtpAsync(Guid userId, string code, string type)
     {
-        var otp = await _db.OtpCodes.FirstOrDefaultAsync(o =>
+        var otp = await db.OtpCodes.FirstOrDefaultAsync(o =>
             o.UserId == userId &&
             o.Code == code &&
             o.Type == type &&
@@ -153,8 +102,8 @@ public class OtpService
         );
         if (otp == null) return false;
         otp.IsUsed = true;
-        _db.OtpCodes.Update(otp);
-        await _db.SaveChangesAsync();
+        db.OtpCodes.Update(otp);
+        await db.SaveChangesAsync();
         return true;
     }
 }
