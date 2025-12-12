@@ -37,6 +37,10 @@ public class AppDbContext : DbContext
     public DbSet<MessageAttachment> MessageAttachments { get; set; } = null!;
     public DbSet<MessageNotification> MessageNotifications { get; set; } = null!;
     public DbSet<ConversationKey>  ConversationKeys { get; set; } = null!;
+    
+    // Chat report
+    public DbSet<MessageReport> MessageReports { get; set; }
+    public DbSet<UserWarning> UserWarnings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

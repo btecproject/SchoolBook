@@ -46,6 +46,8 @@ public class Program
         builder.Services.AddScoped<RecoveryCodeService>();
         builder.Services.AddScoped<CloudinaryService>();
         builder.Services.AddScoped<ChatService>();
+        builder.Services.AddScoped<EmailService>();
+        builder.Services.AddScoped<MessageReportService>();
         
         // Post feature service
         builder.Services.AddScoped<PostService>();

@@ -77,7 +77,7 @@
                         @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="ChatReport" asp-action="Index">
+                                <a class="nav-link text-dark" asp-controller="MessageReport" asp-action="Index">
                                     <i class="bi bi-people"></i> Chat Report
                                 </a>
                             </li>
@@ -200,7 +200,7 @@
             var isUserManageIndex = currentController == "Admin" && currentAction == "Index";
             var isApprovePost = currentController == "Admin" && currentAction == "ApprovePosts";
             var isReportManage = currentController == "Admin" && currentAction == "Reports";
-            var isChatManage = currentController == "ChatReportController" && currentAction == "Index";
+            var isChatManage = currentController == "MessageReportController" && currentAction == "Index";
             var isProfileIndex = currentController == "Profile" && currentAction == "Index";
             var isSettingIndex = currentController == "Setting" && currentAction == "Index";
         }
@@ -230,7 +230,7 @@
                 <span>Post Report</span>
                 @await Component.InvokeAsync("PendingReportsBadge")
             </a>
-            <a class="sidebar-button @(isChatManage ? "active" : "")" href="@Url.Action("Index", "ChatReport")">
+            <a class="sidebar-button @(isChatManage ? "active" : "")" href="@Url.Action("Index", "MessageReport")">
                 <i class="fas bi-mailbox-flag"></i>
                 <span>Chat Report</span>
                 @* @await Component.InvokeAsync("PendingReportsBadge") *@

@@ -161,6 +161,47 @@ ViewData["Title"] = "Chat";
     </div>
 </div>
 
+<div class="modal fade" id="reportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Báo cáo tin nhắn</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="reportMessageId">
+                <input type="hidden" id="reportDecryptedContent">
+                <input type="hidden" id="reportFileUrl">
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Nội dung vi phạm:</label>
+                    <div id="previewReportContent" class="p-2 bg-light rounded text-muted small fst-italic text-truncate"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Lý do báo cáo:</label>
+                    <select class="form-select" id="reportReason">
+                        <option value="Spam">Spam / Tin rác</option>
+                        <option value="Harassment">Quấy rối / Đe dọa</option>
+                        <option value="Inappropriate">Nội dung không phù hợp / 18+</option>
+                        <option value="HateSpeech">Ngôn từ thù ghét</option>
+                        <option value="Scam">Lừa đảo</option>
+                        <option value="Other">Khác</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Chi tiết thêm (tùy chọn):</label>
+                    <textarea class="form-control" id="reportDetails" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger" onclick="submitReport()">Gửi báo cáo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>
@@ -185,6 +226,8 @@ ViewData["Title"] = "Chat";
     let oldestMessageId = null;
     let isLoadingHistory = false;
     let isAllLoaded = false;
+
+    let reportModalInstance = null;
 
     const FALLBACK_IMAGE = '/images/file-error.png'; // Đường dẫn đến PNG fallback
     
@@ -1580,6 +1623,82 @@ ViewData["Title"] = "Chat";
             }
         }
     });
+    // ===== REPORT =====
+
+    function handleReportMessage(messageId) {
+        const msgElement = document.getElementById(`msg-${messageId}`);
+        if (!msgElement) return;
+
+        //lấy tẽt
+        const contentBubble = msgElement.querySelector('.message-bubble');
+        let content = "Nội dung không xác định";
+        let fileUrl = null;
+
+        //check có phải file ko
+        const img = contentBubble.querySelector('img');
+        const video = contentBubble.querySelector('video');
+        const link = contentBubble.querySelector('a');
+
+        if (img) {
+            content = "[Hình ảnh]";
+            fileUrl = img.src;
+        } else if (video) {
+            content = "[Video]";
+            fileUrl = video.querySelector('source')?.src;
+        } else if (link && link.innerText.includes("File")) {
+            content = "[Tập tin] " + link.innerText;
+            fileUrl = link.href;
+        } else {
+            content = contentBubble.innerText;
+        }
+
+        //điền dữ liệu vào Modal
+        document.getElementById('reportMessageId').value = messageId;
+        document.getElementById('reportDecryptedContent').value = content;
+        document.getElementById('reportFileUrl').value = fileUrl || "";
+        document.getElementById('previewReportContent').textContent = content;
+
+        //Reset form
+        document.getElementById('reportReason').value = 'Spam';
+        document.getElementById('reportDetails').value = '';
+
+        //Hiện Modal
+        const el = document.getElementById('reportModal');
+        if (!reportModalInstance) reportModalInstance = new bootstrap.Modal(el);
+        reportModalInstance.show();
+    }
+
+    async function submitReport() {
+        const payload = {
+            messageId: document.getElementById('reportMessageId').value,
+            reason: document.getElementById('reportReason').value,
+            details: document.getElementById('reportDetails').value,
+            decryptedContent: document.getElementById('reportDecryptedContent').value,
+            decryptedFileUrl: document.getElementById('reportFileUrl').value
+        };
+
+        try {
+            const resp = await fetch('@Url.Action("Create", "MessageReport")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': getToken()
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await resp.json();
+            if (resp.ok) {
+                alert(data.message);
+                reportModalInstance.hide();
+            } else {
+                alert("Lỗi: " + data.message);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Lỗi kết nối");
+        }
+    }
     // ===== INIT =====
     window.addEventListener('load', async () => {
         if (await autoVerifyPin() && await loadCurrentUserInfo()) {

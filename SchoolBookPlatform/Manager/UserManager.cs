@@ -12,6 +12,13 @@ namespace SchoolBookPlatform.Manager
             if (user == null) return null;
             return user.Email;
         }
+
+        public static async Task<string> GetUserNameByIdAsync(this AppDbContext db, Guid userId)
+        {
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) return null;
+            return user.Username;
+        }
         public static async Task<User?> GetUserByIdAsync(this AppDbContext db, Guid userId)
         {
             var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId);

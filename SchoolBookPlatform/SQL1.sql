@@ -757,3 +757,43 @@ FROM Users u
 GO
 
 PRINT 'Database schema created successfully with Post system!';
+
+
+------Report Messages------
+-- 1. Bảng lưu báo cáo tin nhắn
+CREATE TABLE MessageReports (
+                                Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                                MessageId BIGINT NOT NULL,
+                                ReporterId UNIQUEIDENTIFIER NOT NULL, -- Người báo cáo (Identity User Id)
+                                ReportedUserId UNIQUEIDENTIFIER NOT NULL, -- Người bị báo cáo (Identity User Id)
+                                Reason NVARCHAR(255) NOT NULL, -- Lý do
+                                Details NVARCHAR(1000) NULL, -- Ghi chú thêm
+
+    -- Snapshot nội dung để Mod xem
+                                DecryptedContent NVARCHAR(MAX) NULL,
+                                FileUrl NVARCHAR(1000) NULL, -- URL file/ảnh
+
+                                Status NVARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending', 'Resolved', 'Denied')),
+                                CreatedAt DATETIME2 DEFAULT GETUTCDATE(),
+                                ResolvedAt DATETIME2 NULL,
+                                ResolvedBy UNIQUEIDENTIFIER NULL,
+                                ResolutionNotes NVARCHAR(1000) NULL,
+
+                                FOREIGN KEY (MessageId) REFERENCES Messages(Id) ON DELETE CASCADE,
+                                FOREIGN KEY (ReporterId) REFERENCES Users(Id),
+                                FOREIGN KEY (ReportedUserId) REFERENCES Users(Id)
+);
+
+-- 2. Bảng theo dõi số lần cảnh cáo
+CREATE TABLE UserWarnings (
+                              Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                              UserId UNIQUEIDENTIFIER NOT NULL,
+                              Reason NVARCHAR(500) NOT NULL,
+                              WarnedBy UNIQUEIDENTIFIER NULL, -- Moderator nào cảnh cáo
+                              CreatedAt DATETIME2 DEFAULT GETUTCDATE(),
+                              FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+);
+
+
+CREATE INDEX IX_MessageReports_Status ON MessageReports(Status);
+CREATE INDEX IX_UserWarnings_UserId ON UserWarnings(UserId);
