@@ -5,6 +5,7 @@ using SchoolBookPlatform.ViewModels.Post;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using SchoolBookPlatform.Data;
+using SchoolBookPlatform.Manager;
 
 namespace SchoolBookPlatform.Controllers;
 
@@ -20,20 +21,42 @@ public class FeedsController(
     /// </summary>
     private Guid GetCurrentUserId() => 
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-
-    /// <summary>
-    /// GET: Feeds/Home
-    /// Hiển thị trang feed chính (bài đăng từ tất cả mọi người)
-    /// </summary>
-    /// <param name="page">Số trang (bắt đầu từ 1)</param>
-    /// <param name="pageSize">Số bài đăng mỗi trang</param>
-    /// <returns>View danh sách bài đăng</returns>
-    public async Task<IActionResult> Home(int page = 1, int pageSize = 10)
+/// <summary>
+/// GET: Feeds/Home
+/// Hiển thị trang feed chính với các tùy chọn sắp xếp và lọc
+/// </summary>
+/// <param name="page">Số trang (bắt đầu từ 1)</param>
+/// <param name="pageSize">Số bài đăng mỗi trang</param>
+/// <param name="sortBy">Tiêu chí sắp xếp: "newest", "hot"</param>
+/// <param name="filterRole">Lọc theo role: "All", "Student", "Teacher", "Admin"</param>
+/// <returns>View danh sách bài đăng</returns>
+public async Task<IActionResult> Home(int page = 1, int pageSize = 10, 
+    string sortBy = "newest", string filterRole = "All")
 {
     var userId = GetCurrentUserId();
+    var userRoles = await GetCurrentUserRoles();
     
-    // Lấy bài đăng từ tất cả mọi người
-    var posts = await postService.GetVisiblePostsAsync(userId, page, pageSize);
+    // Lấy bài đăng với các tham số sắp xếp và lọc
+    var posts = await postService.GetVisiblePostsAsync(userId, page, pageSize, sortBy, filterRole);
+
+    // Tạo ViewModel cho dropdown lọc role
+    var availableRoles = new List<string> { "All" };
+    
+    if (userRoles.Contains("Admin") || userRoles.Contains("HighAdmin"))
+    {
+        // Admin có thể xem tất cả role
+        availableRoles.AddRange(new[] { "Student", "Teacher", "Admin" });
+    }
+    else if (userRoles.Contains("Teacher"))
+    {
+        // Teacher có thể xem bài của Student và Teacher
+        availableRoles.AddRange(new[] { "Student", "Teacher" });
+    }
+    else if (userRoles.Contains("Student"))
+    {
+        // Student chỉ có thể xem bài của Student
+        availableRoles.Add("Student");
+    }
 
     // Nếu là AJAX request, trả về Partial View
     if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
@@ -74,7 +97,10 @@ public class FeedsController(
             CurrentPage = page,
             PageSize = pageSize,
             HasMorePosts = posts.Count() == pageSize,
-            ViewType = "home"
+            ViewType = "home",
+            SortBy = sortBy,
+            FilterRole = filterRole,
+            AvailableRoles = availableRoles
         };
 
         return PartialView("_PostListPartial", partialViewModel);
@@ -116,67 +142,48 @@ public class FeedsController(
         CurrentPage = page,
         PageSize = pageSize,
         HasMorePosts = posts.Count() == pageSize,
-        ViewType = "home"
+        ViewType = "home",
+        SortBy = sortBy,
+        FilterRole = filterRole,
+        AvailableRoles = availableRoles
     };
 
     return View(viewModel);
 }
 
-    /// <summary>
-    /// GET: Feeds/Following
-    /// Hiển thị danh sách bài đăng từ những người đã follow
-    /// </summary>
-    /// <param name="page">Số trang (bắt đầu từ 1)</param>
-    /// <param name="pageSize">Số bài đăng mỗi trang</param>
-    /// <returns>View danh sách bài đăng</returns>
-    public async Task<IActionResult> Following(int page = 1, int pageSize = 10)  // Đổi từ 20 thành 10
+/// <summary>
+/// GET: Feeds/Following
+/// Hiển thị danh sách bài đăng từ những người đã follow với sắp xếp và lọc
+/// </summary>
+public async Task<IActionResult> Following(int page = 1, int pageSize = 10, 
+    string sortBy = "newest", string filterRole = "All")
+{
+    var userId = GetCurrentUserId();
+    var userRoles = await GetCurrentUserRoles();
+    
+    // Gọi service để lấy bài đăng từ những người đã follow
+    var posts = await postService.GetFollowingPostsAsync(userId, page, pageSize, sortBy, filterRole);
+
+    // Tạo ViewModel cho dropdown lọc role
+    var availableRoles = new List<string> { "All" };
+    
+    if (userRoles.Contains("Admin") || userRoles.Contains("HighAdmin"))
     {
-        var userId = GetCurrentUserId();
+        availableRoles.AddRange(new[] { "Student", "Teacher", "Admin" });
+    }
+    else if (userRoles.Contains("Teacher"))
+    {
+        availableRoles.AddRange(new[] { "Student", "Teacher" });
+    }
+    else if (userRoles.Contains("Student"))
+    {
+        availableRoles.Add("Student");
+    }
 
-        // Gọi service để lấy bài đăng từ những người đã follow
-        var posts = await postService.GetFollowingPostsAsync(userId, page, pageSize);
-
-        // Nếu là AJAX request, trả về Partial View
-        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-        {
-            var partialViewModel = new PostListViewModel
-            {
-                Posts = posts.Select(p => new PostViewModel
-                {
-                    Id = p.Id,
-                    Title = p.Title,
-                    Content = p.Content,
-                    AuthorName = p.User.Username,
-                    AuthorAvatar = p.User.UserProfile.AvatarUrl,
-                    CreatedAt = p.CreatedAt,
-                    UpdatedAt = p.UpdatedAt,
-                    UpvoteCount = p.Votes.Count(v => v.VoteType),
-                    DownvoteCount = p.Votes.Count(v => !v.VoteType),
-                    CommentCount = p.Comments.Count,
-                    IsDeleted = p.IsDeleted,
-                    IsVisible = p.IsVisible,
-                    VisibleToRoles = p.VisibleToRoles,
-                    IsOwner = p.UserId == userId,
-                    CanDelete = p.UserId == userId,
-                    Attachments = p.Attachments.Select(a => new AttachmentViewModel
-                    {
-                        Id = a.Id,
-                        FileName = a.FileName,
-                        FilePath = a.FilePath,
-                        FileSize = a.FileSize,
-                        UploadedAt = a.UploadedAt
-                    }).ToList()
-                }).ToList(),
-                CurrentPage = page,
-                PageSize = pageSize,
-                HasMorePosts = posts.Count() == pageSize,
-                ViewType = "following"
-            };
-
-            return PartialView("_PostListPartial", partialViewModel);
-        }
-
-        var viewModel = new PostListViewModel
+    // Nếu là AJAX request, trả về Partial View
+    if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+    {
+        var partialViewModel = new PostListViewModel
         {
             Posts = posts.Select(p => new PostViewModel
             {
@@ -207,11 +214,64 @@ public class FeedsController(
             CurrentPage = page,
             PageSize = pageSize,
             HasMorePosts = posts.Count() == pageSize,
-            ViewType = "following"
+            ViewType = "following",
+            SortBy = sortBy,
+            FilterRole = filterRole,
+            AvailableRoles = availableRoles
         };
 
-        return View("Home", viewModel);
+        return PartialView("_PostListPartial", partialViewModel);
     }
+
+    var viewModel = new PostListViewModel
+    {
+        Posts = posts.Select(p => new PostViewModel
+        {
+            Id = p.Id,
+            Title = p.Title,
+            Content = p.Content,
+            AuthorName = p.User.Username,
+            AuthorAvatar = p.User.UserProfile.AvatarUrl,
+            CreatedAt = p.CreatedAt,
+            UpdatedAt = p.UpdatedAt,
+            UpvoteCount = p.Votes.Count(v => v.VoteType),
+            DownvoteCount = p.Votes.Count(v => !v.VoteType),
+            CommentCount = p.Comments.Count,
+            IsDeleted = p.IsDeleted,
+            IsVisible = p.IsVisible,
+            VisibleToRoles = p.VisibleToRoles,
+            IsOwner = p.UserId == userId,
+            CanDelete = p.UserId == userId,
+            Attachments = p.Attachments.Select(a => new AttachmentViewModel
+            {
+                Id = a.Id,
+                FileName = a.FileName,
+                FilePath = a.FilePath,
+                FileSize = a.FileSize,
+                UploadedAt = a.UploadedAt
+            }).ToList()
+        }).ToList(),
+        CurrentPage = page,
+        PageSize = pageSize,
+        HasMorePosts = posts.Count() == pageSize,
+        ViewType = "following",
+        SortBy = sortBy,
+        FilterRole = filterRole,
+        AvailableRoles = availableRoles
+    };
+
+    return View("Home", viewModel);
+}
+
+/// <summary>
+/// Lấy danh sách role của user hiện tại
+/// </summary>
+private async Task<List<string>> GetCurrentUserRoles()
+{
+    var userId = GetCurrentUserId();
+    return await db.GetUserRolesAsync(userId);
+}
+    
     /// <summary>
     /// POST: Feeds/Vote
     /// Vote bài đăng (upvote hoặc downvote) - AJAX endpoint

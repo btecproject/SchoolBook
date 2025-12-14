@@ -389,3 +389,84 @@
 .post-card {
     transition: opacity 0.3s ease;
 }
+
+/* Style cho dropdown buttons */
+ .btn-group .dropdown .btn-outline-secondary {
+     border: none !important;
+     background-color: transparent;
+     color: #495057;
+     border-radius: 50%; /* Hình tròn */
+     padding: 8px 16px;
+     transition: all 0.3s ease;
+ }
+
+.btn-group .dropdown .btn-outline-secondary:hover {
+    background-color: #fd964b; 
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.btn-group .dropdown .btn-outline-secondary:focus,
+.btn-group .dropdown .btn-outline-secondary:active {
+    background-color: #fd964b !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+.btn-group .dropdown .btn-outline-secondary .fas {
+    color: #6c757d;
+    transition: color 0.3s ease;
+}
+
+.btn-group .dropdown .btn-outline-secondary:hover .fas {
+    color: #ffffff;
+}
+
+/* Style cho dropdown menu */
+.btn-group .dropdown .dropdown-menu {
+    border-radius: 10px;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    margin-top: 8px !important;
+}
+
+.btn-group .dropdown .dropdown-item {
+    padding: 8px 16px;
+    border-radius: 5px;
+    margin: 2px 8px;
+    transition: all 0.2s ease;
+}
+
+.btn-group .dropdown .dropdown-item:hover {
+    background-color: #fd964b;
+    color: #ffffff;
+}
+
+.btn-group .dropdown .dropdown-item.active {
+    background-color: #fd964b;
+    color: #ffffff;
+    font-weight: 500;
+}
+
+/* Style cho icon trong dropdown items */
+.btn-group .dropdown .dropdown-item i {
+    width: 20px;
+    text-align: center;
+}
+
+/* Đảm bảo nút không có border mặc định */
+.btn-group .dropdown .btn-outline-secondary {
+    border-color: transparent !important;
+}
+
+/* Fix cho khi dropdown mở */
+.btn-group .dropdown.show .btn-outline-secondary {
+    background-color: #fd964b;
+    color: #fff;
+}
+
+.btn-group .dropdown.show .btn-outline-secondary .fas {
+    color: #fff;
+}

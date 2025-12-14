@@ -78,39 +78,95 @@ public class PostService
     /// <param name="page">Số trang (bắt đầu từ 1)</param>
     /// <param name="pageSize">Số bài đăng mỗi trang</param>
     /// <returns>Danh sách bài đăng</returns>
-    public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page = 1, int pageSize = 20)
+/// <summary>
+/// Lấy danh sách bài đăng user có quyền xem (có phân trang)
+/// - HighAdmin/Admin/Moderator: Xem tất cả
+/// - Teacher/Student: Chỉ xem bài visible, không deleted, và có quyền
+/// </summary>
+public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page = 1, int pageSize = 20, 
+    string sortBy = "newest", string filterRole = "All")
+{
+    var userRoles = await _db.GetUserRolesAsync(userId);
+    var isAdmin = userRoles.Contains("HighAdmin") || 
+                  userRoles.Contains("Admin") || 
+                  userRoles.Contains("Moderator");
+
+    IQueryable<Post> query;
+
+    if (isAdmin)
     {
-        var userRoles = await _db.GetUserRolesAsync(userId);
-        var isAdmin = userRoles.Contains("HighAdmin") || 
-                      userRoles.Contains("Admin") || 
-                      userRoles.Contains("Moderator");
-
-        var query = _db.Posts.AsQueryable();
-
-        if (!isAdmin)
+        // Admin: xem tất cả bài đăng
+        query = _db.Posts.AsQueryable();
+        
+        // Lọc theo role nếu không phải "All"
+        if (filterRole != "All")
         {
-            // Teacher/Student: Chỉ xem bài visible, không deleted, và có quyền
-            query = query.Where(p => 
-                p.IsVisible && 
-                !p.IsDeleted && 
-                (p.UserId == userId || // Bài của mình
-                 p.VisibleToRoles == null || 
-                 p.VisibleToRoles == "All" || 
-                 userRoles.Contains(p.VisibleToRoles))
-            );
+            query = query.Where(p => p.VisibleToRoles == filterRole);
         }
-        // Admin/Moderator: Xem tất cả (không filter)
-
-        return query
-            .Include(p => p.User)
-            .ThenInclude(u => u.UserProfile)
-            .Include(p => p.Votes) // QUAN TRỌNG: Đã có
-            .Include(p => p.Comments)
-            .Include(p => p.Attachments)
-            .OrderByDescending(p => p.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize);
     }
+    else
+    {
+        // User thường: chỉ xem bài có quyền
+        // Bao gồm:
+        // 1. Bài của chính mình (kể cả hidden/deleted)
+        // 2. Bài của người khác: visible, không deleted, và có quyền xem
+        
+        // Lấy bài của chính mình
+        var myPosts = _db.Posts.Where(p => p.UserId == userId);
+        
+        // Lấy bài của người khác mà user có quyền xem
+        var othersPosts = _db.Posts.Where(p => 
+            p.UserId != userId && 
+            p.IsVisible && 
+            !p.IsDeleted &&
+            (p.VisibleToRoles == null || 
+             p.VisibleToRoles == "All" || 
+             userRoles.Contains(p.VisibleToRoles)));
+        
+        // Kết hợp cả hai
+        query = myPosts.Union(othersPosts);
+        
+        // Lọc theo role nếu không phải "All"
+        if (filterRole != "All")
+        {
+            
+            query = query.Where(p => 
+                p.UserId == userId ||  // Bài của chính mình
+                p.VisibleToRoles == filterRole); // Bài của người khác có role trùng
+        }
+    }
+
+    // Áp dụng sắp xếp
+    switch (sortBy.ToLower())
+    {
+        case "hot":
+            // Sắp xếp theo hotness
+            query = query
+                .Select(p => new
+                {
+                    Post = p,
+                    HotScore = p.Votes.Count(v => v.VoteType) - p.Votes.Count(v => !v.VoteType)
+                })
+                .OrderByDescending(x => x.HotScore)
+                .ThenByDescending(x => x.Post.CreatedAt)
+                .Select(x => x.Post);
+            break;
+        
+        case "newest":
+        default:
+            query = query.OrderByDescending(p => p.CreatedAt);
+            break;
+    }
+
+    return query
+        .Include(p => p.User)
+        .ThenInclude(u => u.UserProfile)
+        .Include(p => p.Votes)
+        .Include(p => p.Comments)
+        .Include(p => p.Attachments)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize);
+}
     
     /// <summary>
     /// Tạo bài đăng mới
@@ -673,51 +729,74 @@ public class PostService
     /// <param name="page">Số trang (bắt đầu từ 1)</param>
     /// <param name="pageSize">Số bài đăng mỗi trang</param>
     /// <returns>Danh sách bài đăng</returns>
-    public async Task<IQueryable<Post>> GetFollowingPostsAsync(Guid userId, int page = 1, int pageSize = 20)
+    public async Task<IQueryable<Post>> GetFollowingPostsAsync(Guid userId, int page = 1, int pageSize = 20,
+    string sortBy = "newest", string filterRole = "All")
+{
+    // 1. Lấy danh sách người đang follow
+    var followingIds = await _db.Following
+        .Where(f => f.UserId == userId)
+        .Select(f => f.FollowingId)
+        .ToListAsync();
+
+    if (!followingIds.Any())
     {
-        // 1. Lấy danh sách người đang follow
-        var followingIds = await _db.Following
-            .Where(f => f.UserId == userId)
-            .Select(f => f.FollowingId)
-            .ToListAsync();
-
-        // Nếu không follow ai, trả về danh sách rỗng
-        if (!followingIds.Any())
-        {
-            return _db.Posts.Where(p => false); // Trả về empty query
-        }
-
-        var userRoles = await _db.GetUserRolesAsync(userId);
-        var isAdmin = userRoles.Contains("HighAdmin") || 
-                      userRoles.Contains("Admin") || 
-                      userRoles.Contains("Moderator");
-
-        // Query lấy bài đăng từ những người đã follow
-        var query = _db.Posts
-            .Where(p => followingIds.Contains(p.UserId));
-
-        // Áp dụng filter quyền xem
-        if (!isAdmin)
-        {
-            query = query.Where(p => 
-                p.IsVisible && 
-                !p.IsDeleted && 
-                (p.UserId == userId || // Bài của mình (nếu có trong following)
-                 p.VisibleToRoles == null || 
-                 p.VisibleToRoles == "All" || 
-                 userRoles.Contains(p.VisibleToRoles))
-            );
-        }
-
-        return query
-            .Include(p => p.User)
-            .ThenInclude(u => u.UserProfile)
-            .Include(p => p.Votes) // QUAN TRỌNG: Đã có
-            .Include(p => p.Comments)
-            .Include(p => p.Attachments)
-            .OrderByDescending(p => p.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize);
+        return _db.Posts.Where(p => false);
     }
+
+    var userRoles = await _db.GetUserRolesAsync(userId);
+    var isAdmin = userRoles.Contains("HighAdmin") || 
+                  userRoles.Contains("Admin") || 
+                  userRoles.Contains("Moderator");
+
+    // Query lấy bài đăng từ những người đã follow
+    var query = _db.Posts.Where(p => followingIds.Contains(p.UserId));
+
+    if (!isAdmin)
+    {
+        // User thường: chỉ xem bài có quyền
+        query = query.Where(p => 
+            p.IsVisible && 
+            !p.IsDeleted &&
+            (p.VisibleToRoles == null || 
+             p.VisibleToRoles == "All" || 
+             userRoles.Contains(p.VisibleToRoles)));
+    }
+    
+    // Lọc theo role nếu không phải "All"
+    if (filterRole != "All")
+    {
+        query = query.Where(p => p.VisibleToRoles == filterRole);
+    }
+
+    // Áp dụng sắp xếp
+    switch (sortBy.ToLower())
+    {
+        case "hot":
+            query = query
+                .Select(p => new
+                {
+                    Post = p,
+                    HotScore = p.Votes.Count(v => v.VoteType) - p.Votes.Count(v => !v.VoteType)
+                })
+                .OrderByDescending(x => x.HotScore)
+                .ThenByDescending(x => x.Post.CreatedAt)
+                .Select(x => x.Post);
+            break;
+            
+        case "newest":
+        default:
+            query = query.OrderByDescending(p => p.CreatedAt);
+            break;
+    }
+
+    return query
+        .Include(p => p.User)
+        .ThenInclude(u => u.UserProfile)
+        .Include(p => p.Votes)
+        .Include(p => p.Comments)
+        .Include(p => p.Attachments)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize);
+}
     
 }

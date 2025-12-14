@@ -14,5 +14,12 @@ namespace SchoolBookPlatform.ViewModels.Post
         public int TotalItems { get; set; }
         public bool HasMorePosts { get; set; } = true;
         
+        public string SortBy { get; set; } = "newest";
+        public string FilterRole { get; set; } = "All";
+        public List<string> AvailableRoles { get; set; } = new List<string> { "All" };
+        
+        // Helper properties
+        public bool IsNewestSort => SortBy == "newest";
+        public bool IsHotSort => SortBy == "hot";
     }
 }
