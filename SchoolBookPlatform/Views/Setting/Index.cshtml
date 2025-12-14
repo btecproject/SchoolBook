@@ -1,53 +1,573 @@
-﻿@{
-    
-}
-@model SchoolBookPlatform.ViewModels.Setting.IndexSettingViewModel
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>Setting Page</title>
-    @if (TempData["success"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            @TempData["success"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-    @if (TempData["error"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            @TempData["error"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-    @if (Model.user.TwoFactorEnabled == false)
-    {
-        <div class="alert alert-warning">
-            <p>You are not enable Two-factor Authentication! </p>
-        </div>
-    }
 </head>
 <body>
-<div>
-    <a class="accordion-button" asp-action="SettingChangePassword" asp-controller="Setting">Change Password</a>
-</div>
-<div>
-    <a class="accordion-button" asp-action="EnableGoogleAuthenticator" asp-controller="Setting">Enable Google 2FA</a>
-</div>
-<div>
-    <a class="accordion-button" asp-action="DisableGoogleAuthenticator" asp-controller="Setting">Disable Google 2FA</a>
-</div>
-<div>
-    <a class="accordion-button" asp-action="ChangePinCode" asp-controller="Setting">Change PinCode (Chat)</a>
-</div>
-@if (Model.user.TwoFactorEnabled == true)
-{
-    <div class="alert alert-warning">
-        Bạn còn <strong>@Model.user.RecoveryCodesLeft</strong> mã khôi phục!
-        <form asp-controller="Setting" asp-action="RegenerateRecoveryCodes" method="post">
-            <button type="submit" class="btn btn-warning">Tạo mã mới ngay</button>
-        </form>
+<div class="settings-wrapper">
+    <!-- Alert Container - Đảm bảo tất cả alert đều thẳng hàng -->
+    <div class="alert-container">
+        @if (TempData["success"] != null)
+        {
+        <div class="alert alert-success">
+            <span class="alert-icon">✓</span>
+            <div class="alert-content">
+                <p>@TempData["success"]</p>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert">×</button>
+        </div>
+        }
+        @if (TempData["error"] != null)
+        {
+        <div class="alert alert-danger">
+            <span class="alert-icon">!</span>
+            <div class="alert-content">
+                <p>@TempData["error"]</p>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert">×</button>
+        </div>
+        }
+        @if (Model.user.TwoFactorEnabled == false)
+        {
+        <div class="alert alert-warning">
+            <span class="alert-icon">⚠️</span>
+            <div class="alert-content">
+                <p>You are not enable Two-factor Authentication! </p>
+            </div>
+        </div>
+        }
     </div>
-}
+    <!-- Settings Navigation với Icons -->
+    <div class="settings-nav">
+        <div class="settings-nav-title">Security Settings</div>
+        <div class="settings-nav-items">
+            <a class="settings-nav-item" asp-action="SettingChangePassword" asp-controller="Setting">
+                <span class="icon">🔐</span>
+                <span class="text">Change Password</span>
+                <span class="arrow"></span>
+            </a>
+
+            <a class="settings-nav-item" asp-action="EnableGoogleAuthenticator" asp-controller="Setting">
+                <span class="icon">🔒</span>
+                <span class="text">Enable Google 2FA</span>
+                <span class="arrow"></span>
+            </a>
+
+            <a class="settings-nav-item" asp-action="DisableGoogleAuthenticator" asp-controller="Setting">
+                <span class="icon">🔓</span>
+                <span class="text">Disable Google 2FA</span>
+                <span class="arrow"></span>
+            </a>
+
+            <a class="settings-nav-item" asp-action="ChangePinCode" asp-controller="Setting">
+                <span class="icon">#️⃣</span>
+                <span class="text">Change PinCode (Chat)</span>
+                <span class="arrow"></span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Recovery Codes Section với Icon -->
+    @if (Model.user.TwoFactorEnabled == true)
+    {
+    <div class="recovery-section">
+        <div class="recovery-alert">
+            <div class="recovery-header">
+                <div class="recovery-icon">⚠️</div>
+                <div class="recovery-content">
+                    <p>You have <strong>@Model.user.RecoveryCodesLeft</strong> recovery codes remaining!</p>
+                    <p class="recovery-subtitle">Generate new codes if you're running low</p>
+                </div>
+            </div>
+            <form asp-controller="Setting" asp-action="RegenerateRecoveryCodes" method="post">
+                <button type="submit" class="recovery-btn">
+                    <span class="btn-icon">🔄</span>
+                    Generate New Codes Now
+                </button>
+            </form>
+        </div>
+    </div>
+    }
+</div>
+
+<script src="~/js/page/setting.js"></script>
+<script>
+    // Simple JavaScript for interactions
+    document.addEventListener('DOMContentLoaded', function() {
+        // Close alerts
+        const closeButtons = document.querySelectorAll('.btn-close');
+        closeButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const alert = this.closest('.alert');
+                alert.style.opacity = '0';
+                alert.style.transform = 'translateX(20px)';
+                setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 300);
+            });
+        });
+
+        // Auto-hide success alerts after 5 seconds
+        setTimeout(() => {
+            const successAlerts = document.querySelectorAll('.alert-success');
+            successAlerts.forEach(alert => {
+                alert.style.opacity = '0';
+                alert.style.transform = 'translateX(20px)';
+                setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 300);
+            });
+        }, 5000);
+
+        // Button loading state
+        const recoveryBtn = document.querySelector('.recovery-btn');
+        if (recoveryBtn) {
+            recoveryBtn.addEventListener('click', function(e) {
+                const confirmed = confirm(
+                    '⚠️ Warning: Generating new recovery codes will invalidate all existing codes.\n\n' +
+                    'Are you sure you want to generate new recovery codes?'
+                );
+
+                if (!confirmed) {
+                    e.preventDefault();
+                    return;
+                }
+
+                // Show loading state
+                const originalHTML = this.innerHTML;
+                this.innerHTML = '<span class="loading"></span> Processing...';
+                this.disabled = true;
+
+                // Reset button after 3 seconds if still disabled
+                setTimeout(() => {
+                    if (this.disabled) {
+                        this.innerHTML = originalHTML;
+                        this.disabled = false;
+                    }
+                }, 3000);
+            });
+        }
+
+        // Card hover effects
+        const navItems = document.querySelectorAll('.settings-nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                const icon = this.querySelector('.icon');
+                icon.style.transform = 'scale(1.1)';
+            });
+
+            item.addEventListener('mouseleave', function() {
+                const icon = this.querySelector('.icon');
+                icon.style.transform = 'scale(1)';
+            });
+
+            item.addEventListener('click', function() {
+                this.style.transform = 'scale(0.98)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+            });
+        });
+    });
+</script>
 </body>
 </html>
+<style>
+    /* ===== GITHUB STYLE SETTINGS CSS ===== */
+    /* Reset & Base Styles */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+        background-color: #ffffff;
+        color: #24292f;
+        line-height: 1.5;
+        min-height: 100vh;
+    }
+
+    /* Main Container */
+    .settings-wrapper {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px;
+    }
+
+    /* GitHub Style Header */
+    .settings-header {
+        border-bottom: 1px solid #d0d7de;
+        padding-bottom: 16px;
+        margin-bottom: 24px;
+    }
+
+    .settings-header h1 {
+        font-size: 32px;
+        font-weight: 600;
+        color: #24292f;
+        margin-bottom: 8px;
+    }
+
+    .settings-header p {
+        font-size: 16px;
+        color: #57606a;
+        max-width: 800px;
+    }
+
+    /* GitHub Style Alerts */
+    .alert {
+        padding: 16px;
+        margin-bottom: 16px;
+        border: 1px solid;
+        border-radius: 6px;
+        display: flex;
+        align-items: flex-start;
+        position: relative;
+        font-size: 14px;
+    }
+
+    .alert-success {
+        background-color: #dafbe1;
+        border-color: rgba(31, 136, 61, 0.15);
+        color: #1a7f37;
+    }
+
+    .alert-danger {
+        background-color: #ffebe9;
+        border-color: rgba(207, 34, 46, 0.15);
+        color: #cf222e;
+    }
+
+    .alert-warning {
+        background-color: #fff8c5;
+        border-color: rgba(174, 125, 9, 0.15);
+        color: #9a6700;
+    }
+
+    .alert p {
+        margin: 0;
+        flex: 1;
+        line-height: 1.5;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        font-size: 16px;
+        padding: 4px;
+        margin-left: 8px;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    .btn-close:hover {
+        opacity: 1;
+    }
+
+    /* GitHub Style Settings Navigation */
+    .settings-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin: 32px 0;
+    }
+
+    .settings-nav-items {
+        display: flex;
+        flex-direction: column;
+        gap: 8px; /* THÊM DÒNG NÀY ĐỂ TẠO KHOẢNG CÁCH GIỮA CÁC NÚT */
+    }
+
+    .settings-nav-item {
+        display: flex;
+        align-items: center;
+        padding: 16px 20px;
+        text-decoration: none;
+        color: #24292f;
+        background-color: #ffffff;
+        border: 1px solid #d0d7de;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s cubic-bezier(0.3, 0, 0.5, 1);
+        position: relative;
+        gap: 12px; /* Khoảng cách giữa icon và text */
+    }
+
+    .settings-nav-item:hover {
+        background-color: #f6f8fa;
+        border-color: #d0d7de;
+        text-decoration: none;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(140, 149, 159, 0.15);
+    }
+
+    .settings-nav-item:active {
+        background-color: #ebf0f4;
+        border-color: #d0d7de;
+        transform: translateY(0);
+    }
+
+    /* Icon styles */
+    .settings-nav-item .icon {
+        font-size: 18px;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s cubic-bezier(0.3, 0, 0.5, 1);
+    }
+
+    .settings-nav-item .text {
+        flex: 1;
+    }
+
+    /* GitHub Style Icons */
+    .settings-nav-item::before {
+        content: '';
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' width='16' height='16'%3E%3Cpath fill='%2357606a' d='M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06l2.97-2.97H3.75a.75.75 0 0 1 0-1.5h7.44L8.22 4.03a.75.75 0 0 1 0-1.06Z'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: center;
+        opacity: 0.6;
+        transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .settings-nav-item:hover::before {
+        opacity: 1;
+        transform: translateY(-50%) translateX(2px);
+    }
+
+    /* GitHub Style Recovery Codes Section */
+    .recovery-section {
+        margin-top: 40px;
+        padding-top: 32px;
+        border-top: 1px solid #d0d7de;
+    }
+
+    .recovery-alert {
+        background-color: #fff8c5;
+        border: 1px solid rgba(174, 125, 9, 0.15);
+        border-radius: 6px;
+        padding: 24px;
+        margin-bottom: 20px;
+    }
+
+    .recovery-alert p {
+        margin-bottom: 16px;
+        font-size: 14px;
+        color: #24292f;
+        line-height: 1.5;
+    }
+
+    .recovery-alert strong {
+        font-weight: 600;
+        color: #9a6700;
+        font-size: 24px;
+    }
+
+    /* GitHub Style Button */
+    .recovery-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        border: 1px solid;
+        border-radius: 6px;
+        transition: all 0.2s cubic-bezier(0.3, 0, 0.5, 1);
+        background-color: #2da44e;
+        border-color: rgba(31, 136, 61, 0.4);
+        color: #ffffff;
+        position: relative;
+    }
+
+    .recovery-btn:hover {
+        background-color: #2c974b;
+        border-color: rgba(31, 136, 61, 0.4);
+        text-decoration: none;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(45, 164, 78, 0.15);
+    }
+
+    .recovery-btn:active {
+        background-color: #298e46;
+        border-color: rgba(31, 136, 61, 0.4);
+        transform: translateY(0);
+    }
+
+    .recovery-btn::before {
+        content: '';
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' width='16' height='16'%3E%3Cpath fill='%23ffffff' d='M8 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm1 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6z'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+
+    /* GitHub Style Status Badges (Optional) */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: 2em;
+        margin-left: 12px;
+    }
+
+    .status-enabled {
+        background-color: rgba(31, 136, 61, 0.1);
+        color: #1a7f37;
+    }
+
+    .status-disabled {
+        background-color: rgba(174, 125, 9, 0.1);
+        color: #9a6700;
+    }
+
+    /* GitHub Style Loading Animation */
+    .loading {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #ffffff;
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* GitHub Style Focus States */
+    .settings-nav-item:focus,
+    .recovery-btn:focus,
+    .btn-close:focus {
+        outline: 2px solid #0969da;
+        outline-offset: 2px;
+    }
+
+    /* GitHub Style Responsive */
+    @@media (max-width: 768px) {
+    .settings-wrapper {
+        padding: 20px;
+    }
+
+    .settings-header h1 {
+        font-size: 24px;
+    }
+
+    .settings-nav-item {
+        padding: 14px 16px;
+    }
+
+    .recovery-alert {
+        padding: 20px;
+    }
+    }
+
+    /* GitHub Style Enhanced Alerts */
+    .alert::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        border-radius: 6px 0 0 6px;
+    }
+
+    .alert-success::before {
+        background-color: #1a7f37;
+    }
+
+    .alert-danger::before {
+        background-color: #cf222e;
+    }
+
+    .alert-warning::before {
+        background-color: #9a6700;
+    }
+
+    /* GitHub Style Subtle Animations */
+    .settings-nav-item,
+    .recovery-btn,
+    .alert {
+        transition: all 0.2s cubic-bezier(0.3, 0, 0.5, 1);
+    }
+
+    /* GitHub Style Container Shadows (on hover) */
+    .settings-nav-item:hover {
+        box-shadow: 0 3px 6px rgba(140, 149, 159, 0.15);
+    }
+
+    /* GitHub Style Active States */
+    .settings-nav-item:active {
+        background-color: #f6f8fa;
+        box-shadow: inset 0 1px 0 rgba(208, 215, 222, 0.2);
+    }
+
+    /* GitHub Style Button States */
+    .recovery-btn:disabled {
+        background-color: #94d3a2;
+        border-color: rgba(31, 136, 61, 0.4);
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    /* GitHub Style Subtle Text Colors */
+    .settings-nav-item {
+        color: #24292f;
+    }
+
+    /* GitHub Style Form Elements */
+    form {
+        margin: 0;
+    }
+
+    /* GitHub Style Text Selection */
+    ::selection {
+        background-color: #b6e3ff;
+        color: #24292f;
+    }
+
+    /* GitHub Style Scrollbar (Optional) */
+    ::-webkit-scrollbar {
+        width: 16px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background-color: #f6f8fa;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background-color: #d0d7de;
+        border-radius: 8px;
+        border: 4px solid #f6f8fa;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: #afb8c1;
+    }
+</style>
