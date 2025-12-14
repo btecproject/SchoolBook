@@ -110,6 +110,16 @@ public class TokenService(AppDbContext db, ILogger<TokenService> logger)
             await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return;
         }
+        //Fix gia hn token (sliding)
+        var timeRemaining = token.ExpiredAt - DateTime.UtcNow.AddHours(7);
+        if (timeRemaining.TotalDays < 3)
+        {
+            token.ExpiredAt = DateTime.UtcNow.AddHours(7).AddDays(7);
+            await db.SaveChangesAsync();
+            
+            context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7);
+            context.ShouldRenew = true;
+        }
         
         context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7);
         context.ShouldRenew = true;

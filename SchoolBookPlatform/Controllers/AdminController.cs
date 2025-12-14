@@ -26,6 +26,7 @@ public class AdminController(
     UserManagementService userManagementService,
     IConfiguration config,
     AvatarService avatarService,
+    EmailService emailService,
     PostService postService,
     ILogger<AdminController> logger)
     : Controller
@@ -478,47 +479,7 @@ public async Task<IActionResult> ImportStudentsFromExcel(IFormFile? excelFile,
 
     public async Task SendLoginInfoToEmail(string email, string username, string password)
     {
-        var apiKey = config["SendGrid:ApiKey"];
-        var fromEmail = config["SendGrid:FromEmail"];
-        var fromName = config["SendGrid:FromName"];
-
-        if (string.IsNullOrEmpty(apiKey))
-            throw new InvalidOperationException("SendGrid API Key chưa cấu hình.");
-
-        var client = new SendGridClient(apiKey);
-        var from = new EmailAddress(fromEmail, fromName);
-        var to = new EmailAddress(email);
-        var subject = "Thông tin đăng Nhập - SchoolBook";
-
-        var htmlContent = $@"
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;'>
-            <h2 style='text-align: center; color: #007bff;'>SchoolBook Platform</h2>
-            <p>Xin chào <strong>{email}</strong>,</p>
-            <p>Thông tin đăng nhập của bạn:</p>
-            <div style='text-align: center; margin: 20px 0;'>
-                <span style='font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #007bff;'>
-                    Username: {username}<br>
-                    Password: {password}<br>
-                </span>
-            </div>
-            <hr>
-            <small style='color: #666;'>
-                Vui lòng bảo quản kỹ thông tin đăng nhập của mình ! <br>
-                Email được gửi tự động, không trả lời.
-            </small>
-        </div>";
-
-        var msg = MailHelper.CreateSingleEmail(from, to, subject, null, htmlContent);
-        var response = await client.SendEmailAsync(msg);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorBody = await response.Body.ReadAsStringAsync();
-            logger.LogError("SendGrid lỗi {Status}: {Body}", response.StatusCode, errorBody);
-            throw new InvalidOperationException($"SendGrid lỗi: {response.StatusCode}");
-        }
-
-        logger.LogInformation("Email Login Info gửi thành công đến {Email}",email);
+        await emailService.SendLoginInfoToEmail(email, username, password);
     }
     
     // GET: Users/Edit

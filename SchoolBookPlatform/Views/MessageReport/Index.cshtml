@@ -1,0 +1,132 @@
+﻿@model SchoolBookPlatform.ViewModels.MessageReport.PaginatedReportViewModel
+@{
+    ViewData["Title"] = "Quản lý Báo cáo Tin nhắn";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container py-4">
+    <h2 class="mb-4">Báo cáo tin nhắn cần xử lý</h2>
+
+    @if (Model.Reports.Count == 0)
+    {
+        <div class="alert alert-success">Hiện không có báo cáo nào!</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover border">
+                <thead class="table-light">
+                    <tr>
+                        <th>Người báo cáo</th>
+                        <th>Người bị báo cáo</th>
+                        <th>Lý do</th>
+                        <th>Nội dung (Snapshot)</th>
+                        <th>Thời gian</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Reports)
+                    {
+                        <tr id="report-row-@item.Id">
+                            <td>
+                                <div class="fw-bold">@item.Reporter.Username</div>
+                            </td>
+                            <td>
+                                <div class="fw-bold text-danger">@item.ReportedUser.Username</div>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning text-dark">@item.Reason</span>
+                                @if (!string.IsNullOrEmpty(item.Details))
+                                {
+                                    <div class="small text-muted mt-1">Note: @item.Details</div>
+                                }
+                            </td>
+                            <td style="max-width: 300px;">
+                                <div class="p-2 bg-light rounded border">
+                                    @if (!string.IsNullOrEmpty(item.FileUrl))
+                                    {
+                                        <div class="mb-2">
+                                            <a href="@item.FileUrl" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-file-earmark"></i> Xem File đính kèm
+                                            </a>
+                                        </div>
+                                    }
+                                    <div class="text-break">@item.DecryptedContent</div>
+                                </div>
+                            </td>
+                            <td>@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                <div class="d-flex gap-2 flex-column">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="resolveReport('@item.Id', 'WarnAndDelete')">
+                                        <i class="bi bi-trash"></i> Xóa & Cảnh cáo
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning" onclick="resolveReport('@item.Id', 'WarnUser')">
+                                        <i class="bi bi-exclamation-triangle"></i> Chỉ Cảnh cáo
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="resolveReport('@item.Id', 'Deny')">
+                                        <i class="bi bi-x-circle"></i> Từ chối
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    @if (Model.TotalPages > 1)
+    {
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                @* Nút Previous *@
+                <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new { page = Model.CurrentPage - 1 })">Trước</a>
+                </li>
+
+                @* Các số trang *@
+                @for (int i = 1; i <= Model.TotalPages; i++)
+                {
+                    <li class="page-item @(Model.CurrentPage == i ? "active" : "")">
+                        <a class="page-link" href="@Url.Action("Index", new { page = i })">@i</a>
+                    </li>
+                }
+
+                @* Nút Next *@
+                <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new { page = Model.CurrentPage + 1 })">Sau</a>
+                </li>
+            </ul>
+        </nav>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        async function resolveReport(reportId, action) {
+            let notes = prompt("Nhập ghi chú xử lý (tùy chọn):", "");
+            if (notes === null) return; // Cancel
+
+            try {
+                const resp = await fetch('/MessageReport/Resolve', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                    },
+                    body: JSON.stringify({ reportId, action, notes })
+                });
+
+                if (resp.ok) {
+                    alert("Đã xử lý xong!");
+                    document.getElementById(`report-row-${reportId}`).remove();
+                } else {
+                    alert("Lỗi xử lý.");
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Lỗi kết nối.");
+            }
+        }
+    </script>
+}

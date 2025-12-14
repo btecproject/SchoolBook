@@ -58,6 +58,30 @@
                                 </a>
                             </li>
                         }
+                        @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Admin" asp-action="ApprovePosts">
+                                    <i class="bi bi-people"></i> Post Approval
+                                </a>
+                            </li>
+                        }
+                        @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Admin" asp-action="Reports">
+                                    <i class="bi bi-people"></i> Post Report
+                                </a>
+                            </li>
+                        }
+                        @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="MessageReport" asp-action="Index">
+                                    <i class="bi bi-people"></i> Chat Report
+                                </a>
+                            </li>
+                        }
                     }
                 </ul>
                 <ul class="navbar-nav">
@@ -176,6 +200,7 @@
             var isUserManageIndex = currentController == "Admin" && currentAction == "Index";
             var isApprovePost = currentController == "Admin" && currentAction == "ApprovePosts";
             var isReportManage = currentController == "Admin" && currentAction == "Reports";
+            var isChatManage = currentController == "MessageReportController" && currentAction == "Index";
             var isProfileIndex = currentController == "Profile" && currentAction == "Index";
             var isSettingIndex = currentController == "Setting" && currentAction == "Index";
         }
@@ -202,8 +227,13 @@
             
             <a class="sidebar-button @(isReportManage ? "active" : "")" href="@Url.Action("Reports", "Admin")">
                 <i class="fas fa-flag"></i>
-                <span>Report Management</span>
+                <span>Post Report</span>
                 @await Component.InvokeAsync("PendingReportsBadge")
+            </a>
+            <a class="sidebar-button @(isChatManage ? "active" : "")" href="@Url.Action("Index", "MessageReport")">
+                <i class="fas bi-mailbox-flag"></i>
+                <span>Chat Report</span>
+                @* @await Component.InvokeAsync("PendingReportsBadge") *@
             </a>
         }
         
@@ -230,7 +260,7 @@
             <span>Privacy Policy</span>
         </a>
         
-        <a class="sidebar-button" href="@Url.Action("Terms", "Home")">
+        <a class="sidebar-button" href="@Url.Action("Index", "Term")">
             <i class="fas fa-file-contract"></i>
             <span>Terms of Service</span>
         </a>

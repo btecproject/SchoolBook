@@ -46,6 +46,8 @@ public class Program
         builder.Services.AddScoped<RecoveryCodeService>();
         builder.Services.AddScoped<CloudinaryService>();
         builder.Services.AddScoped<ChatService>();
+        builder.Services.AddScoped<EmailService>();
+        builder.Services.AddScoped<MessageReportService>();
         
         // Post feature service
         builder.Services.AddScoped<PostService>();
@@ -201,7 +203,7 @@ public class Program
             
             // Post feature policy: Moderator, Admin, HighAdmin có quyền xử lý bài đăng
             options.AddPolicy("ModeratorOrHigher", policy =>
-                policy.RequireRole("HighAdmin", "Admin", "Moderator"));
+                policy.RequireRole("HighAdmin", "Moderator"));
         });
         
         var app = builder.Build();

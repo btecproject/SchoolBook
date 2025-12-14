@@ -883,7 +883,7 @@
     function togglePrivacy(field, isPublic) {
         console.log('togglePrivacy:', field, isPublic);
 
-        fetch('/Profile/UpdatePrivacy', {
+        fetch('@Url.Action("UpdatePrivacy", "Profile")', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1328,12 +1328,6 @@
             });
         });
     });
-    // ========== XỬ LÝ MODAL BÁO CÁO ==========
-
-    // Biến lưu modal instance
-    let reportModal = null;
-    let currentReportPostId = null;
-
     // ========== XỬ LÝ MODAL BÁO CÁO ==========
 
     // Biến lưu modal instance
