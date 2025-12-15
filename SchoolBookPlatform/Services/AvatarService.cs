@@ -20,26 +20,38 @@ public class AvatarService(
             PublicId = publicId,
             Overwrite = true,
             Transformation = new Transformation()
-                .Width(400).Height(400).Crop("thumb").Gravity("face") // Tự động crop theo khuôn mặt
+                .Width(400).Height(400).Crop("thumb").Gravity("face")
                 .Quality("auto").FetchFormat("jpg"),
             Folder = "schoolbook"
         };
+
         try
         {
             var uploadResult = await cloudinary.UploadAsync(uploadParams);
-            userProfile.AvatarUrl = uploadResult.SecureUrl.ToString();
-            userProfile.UpdatedAt = DateTime.UtcNow.AddHours(7);
+
             if (uploadResult.Error != null)
             {
-                logger.LogError("Avatar Service: Upload Avatar Failed");
+                logger.LogError($"Avatar Service: Upload Avatar Failed. Cloudinary Error: {uploadResult.Error.Message}");
                 return false;
             }
+
+            if (uploadResult.SecureUrl == null)
+            {
+                logger.LogError("Avatar Service: Upload Success but SecureUrl is NULL");
+                return false;
+            }
+
+            userProfile.AvatarUrl = uploadResult.SecureUrl.ToString();
+            userProfile.UpdatedAt = DateTime.UtcNow.AddHours(7);
+        
             await db.SaveChangesAsync();
         }
         catch (Exception e)
         {
-            logger.LogError("Avatar Service:" + e.Message);
+            logger.LogError($"Avatar Service Exception: {e.Message}");
+            return false;
         }
+    
         return true;
     }
     
