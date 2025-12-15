@@ -27,6 +27,45 @@
         body {
             padding-top: 70px;
         }
+        .search-result-item {
+            padding: 10px 15px;
+            transition: background-color 0.2s;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: #212529;
+        }
+        .search-result-item:hover {
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+        .search-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 12px;
+            border: 1px solid #dee2e6;
+        }
+        .search-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .search-username {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .search-subtext {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .no-results {
+            padding: 15px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -39,6 +78,20 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                <div class="mx-auto position-relative d-none d-md-block" style="width: 400px;">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        <input type="text" 
+                               id="globalSearchInput" 
+                               class="form-control bg-light border-start-0" 
+                               placeholder="Search users..." 
+                               autocomplete="off">
+                    </div>
+                    <div id="globalSearchResults" class="dropdown-menu w-100 shadow mt-1 border-0" style="display: none; max-height: 400px; overflow-y: auto;">
+                    </div>
+                </div>
                 <ul class="navbar-nav flex-grow-1">
                     <li class="nav-item">
                         <a class="nav-link text-dark" asp-area="" asp-controller="Authen" asp-action="Login">Home</a>
@@ -58,27 +111,30 @@
                                 </a>
                             </li>
                         }
+
                         @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
                         {
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="Admin" asp-action="ApprovePosts">
-                                    <i class="bi bi-people"></i> Post Approval
+                                    <i class="fas fa-check-circle"></i> Post Approval
                                 </a>
                             </li>
                         }
+
                         @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
                         {
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="Admin" asp-action="Reports">
-                                    <i class="bi bi-people"></i> Post Report
+                                    <i class="fas fa-flag"></i> Post Report
                                 </a>
                             </li>
                         }
+
                         @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
                         {
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="MessageReport" asp-action="Index">
-                                    <i class="bi bi-people"></i> Chat Report
+                                    <i class="fas bi-mailbox-flag"></i> Chat Report
                                 </a>
                             </li>
                         }
@@ -106,15 +162,15 @@
                                 <span class="badge @badgeClass">@role</span>
                             }
                         </li>
-                            
+
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button"
                                data-bs-toggle="dropdown" aria-expanded="false">
-                                <img src="/api/AvatarApi?userId=@currentUserId" 
-                                   alt="~/Images/Avatars/default.png"
-                                   class="rounded-circle"
-                                   width="20" height="20"
-                                   style="object-fit: cover;">  Hello, @User.Identity.Name
+                                <img src="/api/AvatarApi?userId=@currentUserId"
+                                     alt="~/Images/Avatars/default.png"
+                                     class="rounded-circle"
+                                     width="20" height="20"
+                                     style="object-fit: cover;"> Hello, @User.Identity.Name
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
                                 <li>
@@ -344,6 +400,98 @@
 <script src="~/js/StorageHelper.js"></script>
 
 <script>
+    //Search
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('globalSearchInput');
+        const searchResults = document.getElementById('globalSearchResults');
+        let debounceTimer;
+
+        const debounce = (func, delay) => {
+            return (...args) => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => func.apply(this, args), delay);
+            };
+        };
+
+        const performSearch = async (query) => {
+            if (!query.trim()) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/Home/SearchUsers?query=${encodeURIComponent(query)}`);
+                const result = await response.json();
+
+                if (result.success && result.data.length > 0) {
+                    renderResults(result.data);
+                } else {
+                    renderNoResults();
+                }
+            } catch (error) {
+                console.error('Lỗi tìm kiếm:', error);
+            }
+        };
+
+        const renderResults = (users) => {
+            searchResults.innerHTML = '';
+
+            users.forEach(user => {
+                const avatarSrc = user.avatar
+                    ? `/api/AvatarApi?userId=${user.id}`
+                    : '/images/avatars/default.png';
+
+                const profileUrl = `/Profile/?username=${user.username}`;
+
+                const item = document.createElement('a');
+                item.href = profileUrl;
+                item.className = 'search-result-item border-bottom';
+                item.innerHTML = `
+                    <img src="${avatarSrc}" alt="${user.username}" class="search-avatar">
+                    <div class="search-info">
+                        <span class="search-username">${user.username}</span>
+                        <span class="search-subtext">Người dùng</span>
+                    </div>
+                `;
+                searchResults.appendChild(item);
+            });
+
+            searchResults.style.display = 'block';
+        };
+
+        const renderNoResults = () => {
+            searchResults.innerHTML = `
+                <div class="no-results">
+                    <i class="fas fa-search mb-2"></i><br>
+                    Không tìm thấy người dùng nào
+                </div>
+            `;
+            searchResults.style.display = 'block';
+        };
+
+        if (searchInput) {
+            searchInput.addEventListener('input', debounce((e) => {
+                performSearch(e.target.value);
+            }, 300));
+
+            // Ẩn kết quả khi click ra ngoài
+            document.addEventListener('click', (e) => {
+                if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                    searchResults.style.display = 'none';
+                }
+            });
+
+            // Hiện lại kết quả cũ khi focus vào input
+            searchInput.addEventListener('focus', () => {
+                if (searchInput.value.trim() && searchResults.children.length > 0) {
+                    searchResults.style.display = 'block';
+                }
+            });
+        }
+    });
+    
+    
+    //===Side bar===
     // Sidebar toggle functionality
     function toggleSidebar() {
         const sidebar = document.getElementById('sidebar');

@@ -5,8 +5,7 @@
 }
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-<link rel="stylesheet" href="css/page/profile.css" asp-append-version="true"/>
-@* <link rel="stylesheet" href="~/css/page/profile.css" /> *@
+<link rel="stylesheet" href="~/css/page/profile.css"/>
 
 <div class="container mt-5 mb-5">
     @Html.AntiForgeryToken()
@@ -1255,40 +1254,40 @@
             }
         });
 
-        // JavaScript cho vote (AJAX)
-        document.querySelectorAll('.vote-btn').forEach(btn => {
-            btn.addEventListener('click', async function(e) {
-                e.stopPropagation(); // Ngăn chặn sự kiện click vào bài viết
-                
-                const postId = this.dataset.postId;
-                const isUpvote = this.dataset.voteType === 'true';
-                
-                try {
-                    const response = await fetch('/Post/Vote', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                        },
-                        body: `postId=${postId}&isUpvote=${isUpvote}`
-                    });
-                    
-                    const data = await response.json();
-                    if (data.success) {
-                        // Cập nhật tổng điểm vote
-                        const voteScoreElement = document.querySelector(`.vote-score[data-post-id="${postId}"]`);
-                        if (voteScoreElement) {
-                            voteScoreElement.textContent = data.voteScore < 0 ? 0 : data.voteScore;
-                        }
-                    } else {
-                        alert(data.message || 'Có lỗi xảy ra');
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Có lỗi xảy ra khi vote');
-                }
-            });
-        });
+        // JavaScript cho vote (AJAX) (thừa)
+        // document.querySelectorAll('.vote-btn').forEach(btn => {
+        //     btn.addEventListener('click', async function(e) {
+        //         e.stopPropagation(); // Ngăn chặn sự kiện click vào bài viết
+        //        
+        //         const postId = this.dataset.postId;
+        //         const isUpvote = this.dataset.voteType === 'true';
+        //        
+        //         try {
+        //             const response = await fetch('/Post/Vote', {
+        //                 method: 'POST',
+        //                 headers: {
+        //                     'Content-Type': 'application/x-www-form-urlencoded',
+        //                     'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+        //                 },
+        //                 body: `postId=${postId}&isUpvote=${isUpvote}`
+        //             });
+        //            
+        //             const data = await response.json();
+        //             if (data.success) {
+        //                 // Cập nhật tổng điểm vote
+        //                 const voteScoreElement = document.querySelector(`.vote-score[data-post-id="${postId}"]`);
+        //                 if (voteScoreElement) {
+        //                     voteScoreElement.textContent = data.voteScore < 0 ? 0 : data.voteScore;
+        //                 }
+        //             } else {
+        //                 alert(data.message || 'Có lỗi xảy ra');
+        //             }
+        //         } catch (error) {
+        //             console.error('Error:', error);
+        //             alert('Có lỗi xảy ra khi vote');
+        //         }
+        //     });
+        // });
 
         // JavaScript để cập nhật số đếm khi chuyển slide trong carousel post
         document.querySelectorAll('.carousel').forEach(carousel => {
