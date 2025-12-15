@@ -129,7 +129,6 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
         // Lọc theo role nếu không phải "All"
         if (filterRole != "All")
         {
-            
             query = query.Where(p => 
                 p.UserId == userId ||  // Bài của chính mình
                 p.VisibleToRoles == filterRole); // Bài của người khác có role trùng
@@ -139,33 +138,64 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
     // Áp dụng sắp xếp
     switch (sortBy.ToLower())
     {
-        case "hot":
-            // Sắp xếp theo hotness
-            query = query
+        case "best":
+            // Best: sắp xếp theo upvote nhiều nhất (upvote - downvote)
+            var bestQuery = query
                 .Select(p => new
                 {
                     Post = p,
-                    HotScore = p.Votes.Count(v => v.VoteType) - p.Votes.Count(v => !v.VoteType)
+                    BestScore = p.Votes.Count(v => v.VoteType) - p.Votes.Count(v => !v.VoteType)
+                })
+                .OrderByDescending(x => x.BestScore)
+                .ThenByDescending(x => x.Post.CreatedAt) // Thêm sắp xếp theo thời gian nếu BestScore bằng nhau
+                .Select(x => x.Post);
+                
+            return bestQuery
+                .Include(p => p.User)
+                .ThenInclude(u => u.UserProfile)
+                .Include(p => p.Votes)
+                .Include(p => p.Comments)
+                .Include(p => p.Attachments)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
+            
+        case "hot":
+            // Hot: sắp xếp theo tổng tương tác nhiều nhất (upvote + downvote)
+            var hotQuery = query
+                .Select(p => new
+                {
+                    Post = p,
+                    HotScore = p.Votes.Count() // Tổng số vote (upvote + downvote)
                 })
                 .OrderByDescending(x => x.HotScore)
-                .ThenByDescending(x => x.Post.CreatedAt)
+                .ThenByDescending(x => x.Post.CreatedAt) // Thêm sắp xếp theo thời gian nếu HotScore bằng nhau
                 .Select(x => x.Post);
-            break;
+                
+            return hotQuery
+                .Include(p => p.User)
+                .ThenInclude(u => u.UserProfile)
+                .Include(p => p.Votes)
+                .Include(p => p.Comments)
+                .Include(p => p.Attachments)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
         
         case "newest":
         default:
-            query = query.OrderByDescending(p => p.CreatedAt);
-            break;
+            // MỚI NHẤT: Sắp xếp chính xác theo thời gian (giờ, phút, giây)
+            // Sử dụng OrderByDescending với CreatedAt sẽ sắp xếp theo toàn bộ DateTime
+            var newestQuery = query
+                .OrderByDescending(p => p.CreatedAt);
+                
+            return newestQuery
+                .Include(p => p.User)
+                .ThenInclude(u => u.UserProfile)
+                .Include(p => p.Votes)
+                .Include(p => p.Comments)
+                .Include(p => p.Attachments)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
     }
-
-    return query
-        .Include(p => p.User)
-        .ThenInclude(u => u.UserProfile)
-        .Include(p => p.Votes)
-        .Include(p => p.Comments)
-        .Include(p => p.Attachments)
-        .Skip((page - 1) * pageSize)
-        .Take(pageSize);
 }
     
     /// <summary>
@@ -729,7 +759,7 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
     /// <param name="page">Số trang (bắt đầu từ 1)</param>
     /// <param name="pageSize">Số bài đăng mỗi trang</param>
     /// <returns>Danh sách bài đăng</returns>
-    public async Task<IQueryable<Post>> GetFollowingPostsAsync(Guid userId, int page = 1, int pageSize = 20,
+   public async Task<IQueryable<Post>> GetFollowingPostsAsync(Guid userId, int page = 1, int pageSize = 20,
     string sortBy = "newest", string filterRole = "All")
 {
     // 1. Lấy danh sách người đang follow
@@ -771,32 +801,63 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
     // Áp dụng sắp xếp
     switch (sortBy.ToLower())
     {
-        case "hot":
-            query = query
+        case "best":
+            // Best: sắp xếp theo upvote nhiều nhất
+            var bestQuery = query
                 .Select(p => new
                 {
                     Post = p,
-                    HotScore = p.Votes.Count(v => v.VoteType) - p.Votes.Count(v => !v.VoteType)
+                    BestScore = p.Votes.Count(v => v.VoteType) - p.Votes.Count(v => !v.VoteType)
+                })
+                .OrderByDescending(x => x.BestScore)
+                .ThenByDescending(x => x.Post.CreatedAt)
+                .Select(x => x.Post);
+                
+            return bestQuery
+                .Include(p => p.User)
+                .ThenInclude(u => u.UserProfile)
+                .Include(p => p.Votes)
+                .Include(p => p.Comments)
+                .Include(p => p.Attachments)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
+            
+        case "hot":
+            // Hot: sắp xếp theo tổng tương tác nhiều nhất
+            var hotQuery = query
+                .Select(p => new
+                {
+                    Post = p,
+                    HotScore = p.Votes.Count() // Tổng số vote
                 })
                 .OrderByDescending(x => x.HotScore)
                 .ThenByDescending(x => x.Post.CreatedAt)
                 .Select(x => x.Post);
-            break;
+                
+            return hotQuery
+                .Include(p => p.User)
+                .ThenInclude(u => u.UserProfile)
+                .Include(p => p.Votes)
+                .Include(p => p.Comments)
+                .Include(p => p.Attachments)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
             
         case "newest":
         default:
-            query = query.OrderByDescending(p => p.CreatedAt);
-            break;
+            // MỚI NHẤT: Sắp xếp chính xác theo thời gian
+            var newestQuery = query
+                .OrderByDescending(p => p.CreatedAt);
+                
+            return newestQuery
+                .Include(p => p.User)
+                .ThenInclude(u => u.UserProfile)
+                .Include(p => p.Votes)
+                .Include(p => p.Comments)
+                .Include(p => p.Attachments)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
     }
-
-    return query
-        .Include(p => p.User)
-        .ThenInclude(u => u.UserProfile)
-        .Include(p => p.Votes)
-        .Include(p => p.Comments)
-        .Include(p => p.Attachments)
-        .Skip((page - 1) * pageSize)
-        .Take(pageSize);
 }
     
 }

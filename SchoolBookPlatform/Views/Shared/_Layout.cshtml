@@ -136,61 +136,9 @@
                     </div>
                 </div>
                 
-                
-                <ul class="navbar-nav flex-grow-1">
-                    <li class="nav-item">
-                        <a class="nav-link text-dark" asp-area="" asp-controller="Authen" asp-action="Login">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                    </li>
-                </ul>
                 <ul class="navbar-nav">
                     @if (User.Identity?.IsAuthenticated == true)
                     {
-                        @if (User.IsInRole("HighAdmin") || User.IsInRole("Admin"))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Admin" asp-action="Index">
-                                    <i class="bi bi-people"></i> User Management
-                                </a>
-                            </li>
-                        }
-
-                        @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Admin" asp-action="ApprovePosts">
-                                    <i class="fas fa-check-circle"></i> Post Approval
-                                </a>
-                            </li>
-                        }
-
-                        @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Admin" asp-action="Reports">
-                                    <i class="fas fa-flag"></i> Post Report
-                                </a>
-                            </li>
-                        }
-
-                        @if (User.IsInRole("HighAdmin") || User.IsInRole("Moderator"))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="MessageReport" asp-action="Index">
-                                    <i class="fas bi-mailbox-flag"></i> Chat Report
-                                </a>
-                            </li>
-                        }
-                    }
-                </ul>
-                <ul class="navbar-nav">
-                    @if (User.Identity?.IsAuthenticated == true)
-                    {
-                        <a asp-action="Index" asp-controller="Chat" class="nav-link text-dark">
-                            <i class="bi bi-chat"></i> Chat
-                        </a>
                         <li class="nav-item d-flex align-items-center gap-1">
                             @foreach (var claim in User.Claims.Where(c => c.Type == ClaimTypes.Role))
                             {

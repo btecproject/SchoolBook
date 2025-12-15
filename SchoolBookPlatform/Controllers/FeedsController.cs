@@ -41,6 +41,11 @@ public async Task<IActionResult> Home(int page = 1, int pageSize = 10,
 
     // Tạo ViewModel cho dropdown lọc role
     var availableRoles = new List<string> { "All" };
+    // Validate sortBy
+    if (!new[] { "newest", "best", "hot" }.Contains(sortBy))
+    {
+        sortBy = "newest";
+    }
     
     if (userRoles.Contains("Admin") || userRoles.Contains("HighAdmin"))
     {
@@ -167,6 +172,11 @@ public async Task<IActionResult> Following(int page = 1, int pageSize = 10,
     // Tạo ViewModel cho dropdown lọc role
     var availableRoles = new List<string> { "All" };
     
+    // Validate sortBy
+    if (!new[] { "newest", "best", "hot" }.Contains(sortBy))
+    {
+        sortBy = "newest";
+    }
     if (userRoles.Contains("Admin") || userRoles.Contains("HighAdmin"))
     {
         availableRoles.AddRange(new[] { "Student", "Teacher", "Admin" });
@@ -202,6 +212,13 @@ public async Task<IActionResult> Following(int page = 1, int pageSize = 10,
                 VisibleToRoles = p.VisibleToRoles,
                 IsOwner = p.UserId == userId,
                 CanDelete = p.UserId == userId,
+                
+                // THÊM DÒNG NÀY - giống như trong Home action
+                UserVote = p.Votes
+                    .Where(v => v.UserId == userId)
+                    .Select(v => (bool?)v.VoteType)
+                    .FirstOrDefault(),
+                    
                 Attachments = p.Attachments.Select(a => new AttachmentViewModel
                 {
                     Id = a.Id,
@@ -242,6 +259,13 @@ public async Task<IActionResult> Following(int page = 1, int pageSize = 10,
             VisibleToRoles = p.VisibleToRoles,
             IsOwner = p.UserId == userId,
             CanDelete = p.UserId == userId,
+            
+            // THÊM DÒNG NÀY - giống như trong Home action
+            UserVote = p.Votes
+                .Where(v => v.UserId == userId)
+                .Select(v => (bool?)v.VoteType)
+                .FirstOrDefault(),
+                
             Attachments = p.Attachments.Select(a => new AttachmentViewModel
             {
                 Id = a.Id,
@@ -262,6 +286,7 @@ public async Task<IActionResult> Following(int page = 1, int pageSize = 10,
 
     return View("Home", viewModel);
 }
+
 
 /// <summary>
 /// Lấy danh sách role của user hiện tại

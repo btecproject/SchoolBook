@@ -21,5 +21,6 @@ namespace SchoolBookPlatform.ViewModels.Post
         // Helper properties
         public bool IsNewestSort => SortBy == "newest";
         public bool IsHotSort => SortBy == "hot";
+        public bool IsBestSort => SortBy == "best";
     }
 }

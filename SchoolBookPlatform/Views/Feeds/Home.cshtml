@@ -8,17 +8,99 @@ Layout = "~/Views/Shared/_Layout.cshtml";
     <div class="row">
         <div class="col-md-12">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h2>
-                    @if (Model.ViewType == "home")
-                    {
-                        <span>Bài đăng gần đây</span>
-                    }
-                    else
-                    {
-                        <span>Đang theo dõi</span>
-                    }
-                </h2>
-                
+              @* Controls for sorting and filtering *@
+            <div class="btn-group" role="group">
+                @* Sort Dropdown *@
+                <div class="dropdown me-2">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
+                            id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-sort me-1"></i>
+                        @if (Model.IsNewestSort)
+                        {
+                            <span>Mới nhất</span>
+                        }
+                        else if (Model.IsBestSort)
+                        {
+                            <span>Best</span>
+                        }
+                        else if (Model.IsHotSort)
+                        {
+                            <span>Hot</span>
+                        }
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="sortDropdown">
+                        <li>
+                            <a class="dropdown-item sort-option @(Model.IsNewestSort ? "active" : "")" 
+                               href="#" data-sort="newest">
+                                <i class="fas fa-clock me-2"></i>
+                                <span>Mới nhất</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item sort-option @(Model.IsBestSort ? "active" : "")" 
+                               href="#" data-sort="best">
+                                <i class="fas fa-star me-2"></i>
+                                <span>Best (nhiều upvote)</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item sort-option @(Model.IsHotSort ? "active" : "")" 
+                               href="#" data-sort="hot">
+                                <i class="fas fa-fire me-2"></i>
+                                <span>Hot (nhiều tương tác)</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                @* Filter Dropdown *@
+                <div class="dropdown" style="margin-bottom: 10px">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
+                            id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-filter me-1"></i>
+                        @if (Model.FilterRole == "All")
+                        {
+                            <span>Tất cả</span>
+                        }
+                        else
+                        {
+                            <span>@Model.FilterRole</span>
+                        }
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="filterDropdown">
+                        @foreach (var role in Model.AvailableRoles)
+                        {
+                            <li>
+                                <a class="dropdown-item filter-option @(Model.FilterRole == role ? "active" : "")" 
+                                   href="#" data-role="@role">
+                                    @if (role == "All")
+                                    {
+                                        <i class="fas fa-users me-2"></i>
+                                        <span>Tất cả</span>
+                                    }
+                                    else if (role == "Student")
+                                    {
+                                        <i class="fas fa-graduation-cap me-2"></i>
+                                        <span>Học sinh</span>
+                                    }
+                                    else if (role == "Teacher")
+                                    {
+                                        <i class="fas fa-chalkboard-teacher me-2"></i>
+                                        <span>Giáo viên</span>
+                                    }
+                                    else if (role == "Admin")
+                                    {
+                                        <i class="fas fa-user-shield me-2"></i>
+                                        <span>Quản trị viên</span>
+                                    }
+                                    @role
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+            
                 
                 <a asp-controller="Post" asp-action="Create" class="btn btn-primary">
                     <i class="fas fa-plus me-1"></i> 
@@ -43,6 +125,8 @@ Layout = "~/Views/Shared/_Layout.cshtml";
             </div>
             }
 
+            
+            
             @* Kiểm tra nếu là tab Following và không có bài đăng *@
             @if (Model.ViewType == "following" && !Model.Posts.Any())
             {
@@ -104,87 +188,6 @@ Layout = "~/Views/Shared/_Layout.cshtml";
                 </div>
             </div>
             
-            @* Controls for sorting and filtering *@
-            <div class="btn-group" role="group">
-                @* Sort Dropdown *@
-                <div class="dropdown me-2">
-                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
-                            id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-sort me-1"></i>
-                        @if (Model.IsNewestSort)
-                        {
-                            <span>Mới nhất</span>
-                        }
-                        else if (Model.IsHotSort)
-                        {
-                            <span>Hot</span>
-                        }
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="sortDropdown">
-                        <li>
-                            <a class="dropdown-item sort-option @(Model.IsNewestSort ? "active" : "")" 
-                               href="#" data-sort="newest">
-                                <i class="fas fa-clock me-2"></i>
-                                <span>Mới nhất</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item sort-option @(Model.IsHotSort ? "active" : "")" 
-                               href="#" data-sort="hot">
-                                <i class="fas fa-fire me-2"></i>
-                                <span>Hot</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-
-                @* Filter Dropdown *@
-                <div class="dropdown" style="margin-bottom: 10px">
-                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
-                            id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-filter me-1"></i>
-                        @if (Model.FilterRole == "All")
-                        {
-                            <span>Tất cả</span>
-                        }
-                        else
-                        {
-                            <span>@Model.FilterRole</span>
-                        }
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="filterDropdown">
-                        @foreach (var role in Model.AvailableRoles)
-                        {
-                            <li>
-                                <a class="dropdown-item filter-option @(Model.FilterRole == role ? "active" : "")" 
-                                   href="#" data-role="@role">
-                                    @if (role == "All")
-                                    {
-                                        <i class="fas fa-users me-2"></i>
-                                        <span>Tất cả</span>
-                                    }
-                                    else if (role == "Student")
-                                    {
-                                        <i class="fas fa-graduation-cap me-2"></i>
-                                        <span>Học sinh</span>
-                                    }
-                                    else if (role == "Teacher")
-                                    {
-                                        <i class="fas fa-chalkboard-teacher me-2"></i>
-                                        <span>Giáo viên</span>
-                                    }
-                                    else if (role == "Admin")
-                                    {
-                                        <i class="fas fa-user-shield me-2"></i>
-                                        <span>Quản trị viên</span>
-                                    }
-                                    @role
-                                </a>
-                            </li>
-                        }
-                    </ul>
-                </div>
-            </div>
             
             @* Danh sách bài đăng *@
             <div id="posts-container">
@@ -332,8 +335,12 @@ Layout = "~/Views/Shared/_Layout.cshtml";
                         postsContainer.appendChild(newPostsContainer);
                         // Cập nhật current page
                         currentPage = pageToLoad;
-                        // Khởi tạo lại các sự kiện cho bài đăng mới
-                        initializeNewPosts();
+                        // Khởi tạo lại PostVote cho bài đăng mới
+                        if (window.postVote) {
+                            window.postVote.cacheInitialVoteStatus();
+                            window.postVote.bindVoteEvents();
+                            window.postVote.bindReportEvents();
+                        }
                         // Kiểm tra xem còn bài đăng không
                         hasMorePosts = postCards.length === @Model.PageSize;
                         console.log('Has more posts:', hasMorePosts);
@@ -660,27 +667,6 @@ Layout = "~/Views/Shared/_Layout.cshtml";
         });
     }
 
-    // Cập nhật hàm initializeNewPosts
-    function initializeNewPosts() {
-        // Khởi tạo sự kiện click cho bài đăng mới
-        document.querySelectorAll('.post-card:not([data-initialized])').forEach(card => {
-            card.setAttribute('data-initialized', 'true');
-            card.addEventListener('click', function () {
-                const postId = this.dataset.postId;
-                window.location.href = `/Post/Details/${postId}`;
-            });
-
-            // Khởi tạo media cho bài post
-            initializePostMedia(card);
-
-            // Thiết lập sự kiện click cho media
-            setupMediaClickEvents(card);
-        });
-
-        // Khởi tạo carousel cho bài đăng mới
-        initializeNewCarousels();
-    }
-
     // Thêm CSS cho modal báo cáo (Simplified)
     function addReportModalStyles() {
         const style = document.createElement('style');
@@ -810,8 +796,6 @@ Layout = "~/Views/Shared/_Layout.cshtml";
             setupLazyLoading();
         }
 
-        // Khởi tạo bài đăng ban đầu
-        initializeNewPosts();
         console.log('Feed page initialization complete');
     });
 
@@ -826,7 +810,23 @@ Layout = "~/Views/Shared/_Layout.cshtml";
                 e.stopPropagation();
 
                 const sortBy = this.dataset.sort;
-                const sortText = sortBy === 'newest' ? 'Mới nhất' : 'Hot (nhiều upvote)';
+                let sortText = '';
+                let sortIcon = '';
+
+                switch(sortBy) {
+                    case 'newest':
+                        sortText = 'Mới nhất';
+                        sortIcon = 'fas fa-clock me-1';
+                        break;
+                    case 'best':
+                        sortText = 'Best';
+                        sortIcon = 'fas fa-star me-1';
+                        break;
+                    case 'hot':
+                        sortText = 'Hot';
+                        sortIcon = 'fas fa-fire me-1';
+                        break;
+                }
 
                 // Cập nhật text trên dropdown button NGAY LẬP TỨC
                 const sortDropdown = document.querySelector('#sortDropdown');
@@ -840,7 +840,7 @@ Layout = "~/Views/Shared/_Layout.cshtml";
                     // Cập nhật icon
                     const icon = sortDropdown.querySelector('i');
                     if (icon) {
-                        icon.className = sortBy === 'newest' ? 'fas fa-clock me-1' : 'fas fa-fire me-1';
+                        icon.className = sortIcon;
                     }
                 }
 
@@ -973,8 +973,10 @@ Layout = "~/Views/Shared/_Layout.cshtml";
                 if (html.trim()) {
                     postsContainer.innerHTML = html;
 
-                    // Khởi tạo lại các sự kiện cho bài đăng mới
-                    initializeNewPosts();
+                    // Khởi tạo lại PostVote system
+                    if (window.postVote) {
+                        window.postVote.init();
+                    }
 
                     // Cập nhật lại sorting/filtering events (vì dropdown items mới)
                     setupSorting();
@@ -1058,8 +1060,23 @@ Layout = "~/Views/Shared/_Layout.cshtml";
         // Cập nhật sort button
         const sortDropdown = document.querySelector('#sortDropdown');
         if (sortDropdown) {
-            const sortText = currentSortBy === 'newest' ? 'Mới nhất' : 'Hot (nhiều upvote)';
-            const sortIcon = currentSortBy === 'newest' ? 'fas fa-clock me-1' : 'fas fa-fire me-1';
+            let sortText = '';
+            let sortIcon = '';
+
+            switch(currentSortBy) {
+                case 'newest':
+                    sortText = 'Mới nhất';
+                    sortIcon = 'fas fa-clock me-1';
+                    break;
+                case 'best':
+                    sortText = 'Best';
+                    sortIcon = 'fas fa-star me-1';
+                    break;
+                case 'hot':
+                    sortText = 'Hot';
+                    sortIcon = 'fas fa-fire me-1';
+                    break;
+            }
 
             const buttonTextSpan = sortDropdown.querySelector('span');
             const icon = sortDropdown.querySelector('i');
@@ -1068,7 +1085,7 @@ Layout = "~/Views/Shared/_Layout.cshtml";
             if (icon) icon.className = sortIcon;
         }
 
-        // Cập nhật filter button
+        // Cập nhật filter button (giữ nguyên)
         const filterDropdown = document.querySelector('#filterDropdown');
         if (filterDropdown) {
             let filterText = currentFilterRole;
@@ -1099,6 +1116,9 @@ Layout = "~/Views/Shared/_Layout.cshtml";
             if (buttonTextSpan) buttonTextSpan.textContent = filterText;
             if (icon) icon.className = filterIcon;
         }
-}
+    }
 </script>
+
+@* THÊM SCRIPT POST VOTE *@
+<script src="~/js/postVote.js" asp-append-version="true"></script>
 }
