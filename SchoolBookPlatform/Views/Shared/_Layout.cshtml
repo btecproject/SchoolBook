@@ -23,10 +23,10 @@
             height: 70px;
             z-index: 1030;
         }
-        
         body {
             padding-top: 70px;
         }
+
         .search-result-item {
             padding: 10px 15px;
             transition: background-color 0.2s;
@@ -40,31 +40,54 @@
             background-color: #f8f9fa;
             color: #212529;
         }
+
+        /* Style riêng cho User */
         .search-avatar {
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             object-fit: cover;
             margin-right: 12px;
             border: 1px solid #dee2e6;
         }
-        .search-info {
+
+        /* Style riêng cho Post */
+        .search-post-icon {
+            width: 40px;
+            height: 40px;
+            background-color: #e9ecef;
+            border-radius: 8px;
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            color: #6c757d;
         }
-        .search-username {
+
+        .search-info {
+            flex: 1;
+            overflow: hidden;
+        }
+        .search-title {
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .search-subtext {
             font-size: 0.8rem;
             color: #6c757d;
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .no-results {
-            padding: 15px;
+            padding: 20px;
             text-align: center;
             color: #6c757d;
-            font-size: 0.9rem;
         }
     </style>
 </head>
@@ -78,20 +101,42 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                <div class="mx-auto position-relative d-none d-md-block" style="width: 400px;">
+                <!-- Search-->
+                <div class="mx-auto position-relative d-none d-md-block" style="width: 500px;">
                     <div class="input-group">
-                        <span class="input-group-text bg-light border-end-0">
-                            <i class="fas fa-search text-muted"></i>
-                        </span>
+                        <button class="btn btn-light border border-end-0 dropdown-toggle" type="button" 
+                                data-bs-toggle="dropdown" aria-expanded="false" id="searchTypeBtn">
+                            <i class="fas fa-user text-muted" id="searchTypeIcon"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item active search-type-option" href="#" data-type="user">
+                                    <i class="fas fa-user me-2"></i>Người dùng
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item search-type-option" href="#" data-type="post">
+                                    <i class="fas fa-newspaper me-2"></i>Bài viết
+                                </a>
+                            </li>
+                        </ul>
+
                         <input type="text" 
                                id="globalSearchInput" 
                                class="form-control bg-light border-start-0" 
-                               placeholder="Search users..." 
+                               placeholder="Tìm kiếm người dùng..." 
                                autocomplete="off">
+        
+                        <span class="input-group-text bg-light border-start-0">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
                     </div>
-                    <div id="globalSearchResults" class="dropdown-menu w-100 shadow mt-1 border-0" style="display: none; max-height: 400px; overflow-y: auto;">
+                    <div id="globalSearchResults" class="dropdown-menu w-100 shadow mt-1 border-0" 
+                         style="display: none; max-height: 500px; overflow-y: auto;">
                     </div>
                 </div>
+                
+                
                 <ul class="navbar-nav flex-grow-1">
                     <li class="nav-item">
                         <a class="nav-link text-dark" asp-area="" asp-controller="Authen" asp-action="Login">Home</a>
@@ -400,11 +445,38 @@
 <script src="~/js/StorageHelper.js"></script>
 
 <script>
-    //Search
+    //===Search===
     document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('globalSearchInput');
         const searchResults = document.getElementById('globalSearchResults');
+        const searchTypeBtn = document.getElementById('searchTypeBtn');
+        const searchTypeIcon = document.getElementById('searchTypeIcon');
+        
+        let currentSearchType = 'user';
         let debounceTimer;
+
+        // Xử lý chuyển đổi loại tìm kiếm
+        document.querySelectorAll('.search-type-option').forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelectorAll('.search-type-option').forEach(opt => opt.classList.remove('active'));
+                this.classList.add('active');
+                currentSearchType = this.dataset.type;
+
+                if (currentSearchType === 'user') {
+                    searchTypeIcon.className = 'fas fa-user text-muted';
+                    searchInput.placeholder = 'Tìm kiếm người dùng...';
+                } else {
+                    searchTypeIcon.className = 'fas fa-newspaper text-muted';
+                    searchInput.placeholder = 'Tìm kiếm bài viết...';
+                }
+
+                // Trigger search lại nếu đang có text
+                if (searchInput.value.trim()) {
+                    performSearch(searchInput.value);
+                }
+            });
+        });
 
         const debounce = (func, delay) => {
             return (...args) => {
@@ -419,12 +491,20 @@
                 return;
             }
 
+            const endpoint = currentSearchType === 'user'
+                ? `/Home/SearchUsers?query=${encodeURIComponent(query)}`
+                : `/Home/SearchPosts?query=${encodeURIComponent(query)}`;
+
             try {
-                const response = await fetch(`/Home/SearchUsers?query=${encodeURIComponent(query)}`);
+                const response = await fetch(endpoint);
                 const result = await response.json();
 
                 if (result.success && result.data.length > 0) {
-                    renderResults(result.data);
+                    if (currentSearchType === 'user') {
+                        renderUserResults(result.data);
+                    } else {
+                        renderPostResults(result.data);
+                    }
                 } else {
                     renderNoResults();
                 }
@@ -433,15 +513,13 @@
             }
         };
 
-        const renderResults = (users) => {
+        const renderUserResults = (users) => {
             searchResults.innerHTML = '';
+            searchResults.innerHTML += '<div class="dropdown-header">Người dùng</div>';
 
             users.forEach(user => {
-                const avatarSrc = user.avatar
-                    ? `/api/AvatarApi?userId=${user.id}`
-                    : '/images/avatars/default.png';
-
-                const profileUrl = `/Profile/?username=${user.username}`;
+                const avatarSrc = user.avatar || '/images/avatars/default.png';
+                const profileUrl = `/Profile?username=${user.username}`;
 
                 const item = document.createElement('a');
                 item.href = profileUrl;
@@ -449,21 +527,54 @@
                 item.innerHTML = `
                     <img src="${avatarSrc}" alt="${user.username}" class="search-avatar">
                     <div class="search-info">
-                        <span class="search-username">${user.username}</span>
+                        <div class="search-title">${user.username}</div>
                         <span class="search-subtext">Người dùng</span>
                     </div>
                 `;
                 searchResults.appendChild(item);
             });
+            searchResults.style.display = 'block';
+        };
 
+        const renderPostResults = (posts) => {
+            searchResults.innerHTML = '';
+            searchResults.innerHTML += '<div class="dropdown-header">Bài viết</div>';
+
+            posts.forEach(post => {
+                const postUrl = `/Post/Details/${post.id}`;
+                const date = new Date(post.createdAt).toLocaleDateString('vi-VN');
+                const authorAvatar = post.authorAvatar || '/images/avatars/default.png';
+
+                const item = document.createElement('a');
+                item.href = postUrl;
+                item.className = 'search-result-item border-bottom';
+
+                item.innerHTML = `
+                    <div class="search-post-icon">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <div class="search-info">
+                        <div class="search-title">${post.title}</div>
+                        <span class="search-subtext text-truncate">${post.content}</span>
+                        <div class="d-flex align-items-center mt-1">
+                            <img src="${authorAvatar}" class="rounded-circle me-1" width="16" height="16">
+                            <small class="text-muted" style="font-size: 0.75rem;">
+                                ${post.authorName} • ${date}
+                            </small>
+                        </div>
+                    </div>
+                `;
+                searchResults.appendChild(item);
+            });
             searchResults.style.display = 'block';
         };
 
         const renderNoResults = () => {
+            const text = currentSearchType === 'user' ? 'người dùng' : 'bài viết';
             searchResults.innerHTML = `
                 <div class="no-results">
-                    <i class="fas fa-search mb-2"></i><br>
-                    Không tìm thấy người dùng nào
+                    <i class="fas fa-search mb-2 fa-2x text-muted"></i><br>
+                    Không tìm thấy ${text} nào phù hợp
                 </div>
             `;
             searchResults.style.display = 'block';
@@ -474,14 +585,18 @@
                 performSearch(e.target.value);
             }, 300));
 
-            // Ẩn kết quả khi click ra ngoài
             document.addEventListener('click', (e) => {
-                if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                // Sửa logic click outside để bao gồm cả nút dropdown type
+                const isClickInside = searchInput.contains(e.target) ||
+                    searchResults.contains(e.target) ||
+                    searchTypeBtn.contains(e.target) ||
+                    e.target.closest('.dropdown-menu');
+
+                if (!isClickInside) {
                     searchResults.style.display = 'none';
                 }
             });
 
-            // Hiện lại kết quả cũ khi focus vào input
             searchInput.addEventListener('focus', () => {
                 if (searchInput.value.trim() && searchResults.children.length > 0) {
                     searchResults.style.display = 'block';

@@ -43,7 +43,37 @@ public class HomeController(ILogger<HomeController> logger,
 
         return Json(new { success = true, data = result });
     }
-    
+    [HttpGet]
+    public async Task<IActionResult> SearchPosts(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return Json(new { success = true, data = new List<object>() });
+        }
+
+        //Không bị xóa, Đang hiển thị, Tiêu đề hoặc Nội dung chứa query
+        var posts = await _context.Posts
+            .Include(p => p.User)
+            .ThenInclude(u => u.UserProfile)
+            .Where(p => !p.IsDeleted && p.IsVisible && 
+                        (p.Title.Contains(query) || p.Content.Contains(query)))
+            .OrderByDescending(p => p.CreatedAt) // Ưu tiên bài mới
+            .Take(5)
+            .Select(p => new
+            {
+                id = p.Id,
+                title = p.Title,
+                // Lấy 100 ký tự đầu của nội dung để hiển thị snippet
+                content = p.Content.Length > 60 ? p.Content.Substring(0, 60) + "..." : p.Content,
+                authorName = p.User.Username,
+                // Xử lý avatar an toàn trong LINQ
+                authorAvatar = p.User.UserProfile != null ? p.User.UserProfile.AvatarUrl : null,
+                createdAt = p.CreatedAt
+            })
+            .ToListAsync();
+
+        return Json(new { success = true, data = posts });
+    }
     public IActionResult Privacy()
     {
         return View();
