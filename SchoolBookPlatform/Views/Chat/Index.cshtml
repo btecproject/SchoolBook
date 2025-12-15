@@ -229,7 +229,7 @@ ViewData["Title"] = "Chat";
 
     let reportModalInstance = null;
 
-    const FALLBACK_IMAGE = '/images/file-error.png'; // Đường dẫn đến PNG fallback
+    const FALLBACK_IMAGE = '~/images/icon/file-error.png'; // Đường dẫn đến PNG fallback
     
     const currentUsername = '@User.Identity!.Name';
 
@@ -1523,10 +1523,9 @@ ViewData["Title"] = "Chat";
             return `
         <div class="file-attachment">
             <video controls style="max-width: 300px; border-radius: 8px;"
-                   poster="${FALLBACK_IMAGE}" <!-- Thêm poster fallback -->
+                   poster="${FALLBACK_IMAGE}"
                    onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'text-center p-3 bg-light rounded\'><i class=\'bi bi-file-earmark-x text-muted fs-3\'></i><div class=\'small mt-2\'>Không thể tải video</div></div>';">
                 <source src="${url}" type="video/${attachment.format || 'mp4'}">
-                <!-- Fallback nếu trình duyệt không hỗ trợ -->
                 <div class="video-fallback text-center p-3">
                     <img src="${FALLBACK_IMAGE}" alt="Video không thể phát" style="max-width: 200px; opacity: 0.7;">
                     <div class="small mt-2">Trình duyệt không hỗ trợ video hoặc video bị lỗi</div>
