@@ -442,8 +442,16 @@ public class SettingController(
     }
 
     [HttpGet]
-    public IActionResult ChangePinCode()
+    public async Task<IActionResult> ChangePinCode()
     {
+        var currentUser = await HttpContext.GetCurrentUserAsync(db);
+        if (currentUser == null) return RedirectToAction("Login", "Authen");
+        var isChatActivated = await chatService.IsChatActivatedAsync(currentUser.Id);
+        if (!isChatActivated)
+        {
+            TempData["error"] = "Chưa kích hoạt chat!";
+            return RedirectToAction("Index");
+        }
         return View();
     }
 
