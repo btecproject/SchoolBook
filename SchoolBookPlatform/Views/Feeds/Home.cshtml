@@ -11,8 +11,41 @@ Layout = "~/Views/Shared/_Layout.cshtml";
               @* Controls for sorting and filtering *@
             <div class="btn-group" role="group">
                 @* Sort Dropdown *@
-                <div class="dropdown me-2">
-                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
+                <div class="dropdown me-2" style="margin-bottom: 10px">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
+                        id="timeFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    <span id="timeFilterLabel">
+                        @if(Model.FilterTime == "all") { <text>Mọi lúc</text> }
+                        else if(Model.FilterTime == "today") { <text>Hôm nay</text> }
+                        else if(Model.FilterTime == "week") { <text>Tuần này</text> }
+                        else if(Model.FilterTime == "month") { <text>Tháng này</text> }
+                        else { <text>Tùy chọn</text> }
+                    </span>
+                </button>
+                <ul class="dropdown-menu p-2" style="min-width: 250px;">
+                    <li><a class="dropdown-item time-option" href="#" data-time="all">Mọi lúc</a></li>
+                    <li><a class="dropdown-item time-option" href="#" data-time="today">Hôm nay</a></li>
+                    <li><a class="dropdown-item time-option" href="#" data-time="week">Tuần này</a></li>
+                    <li><a class="dropdown-item time-option" href="#" data-time="month">Tháng này</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item time-option" href="#" data-time="custom">Tùy chọn ngày...</a></li>
+                    
+                    <li id="customDateRange" class="@(Model.FilterTime == "custom" ? "" : "d-none") mt-2">
+                        <div class="mb-2">
+                            <label class="form-label small">Từ ngày</label>
+                            <input type="date" class="form-control form-control-sm" id="startDate" 
+                                   value="@Model.StartDate?.ToString("yyyy-MM-dd")" max="@DateTime.Now.ToString("yyyy-MM-dd")">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Đến ngày</label>
+                            <input type="date" class="form-control form-control-sm" id="endDate" 
+                                   value="@Model.EndDate?.ToString("yyyy-MM-dd")" max="@DateTime.Now.ToString("yyyy-MM-dd")">
+                        </div>
+                        <button class="btn btn-primary btn-sm w-100" id="applyDateFilter">Áp dụng</button>
+                    </li>
+                </ul>
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button"
                             id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-sort me-1"></i>
                         @if (Model.IsNewestSort)
@@ -30,21 +63,21 @@ Layout = "~/Views/Shared/_Layout.cshtml";
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="sortDropdown">
                         <li>
-                            <a class="dropdown-item sort-option @(Model.IsNewestSort ? "active" : "")" 
+                            <a class="dropdown-item sort-option @(Model.IsNewestSort ? "active" : "")"
                                href="#" data-sort="newest">
                                 <i class="fas fa-clock me-2"></i>
                                 <span>Mới nhất</span>
                             </a>
                         </li>
                         <li>
-                            <a class="dropdown-item sort-option @(Model.IsBestSort ? "active" : "")" 
+                            <a class="dropdown-item sort-option @(Model.IsBestSort ? "active" : "")"
                                href="#" data-sort="best">
                                 <i class="fas fa-star me-2"></i>
                                 <span>Best (nhiều upvote)</span>
                             </a>
                         </li>
                         <li>
-                            <a class="dropdown-item sort-option @(Model.IsHotSort ? "active" : "")" 
+                            <a class="dropdown-item sort-option @(Model.IsHotSort ? "active" : "")"
                                href="#" data-sort="hot">
                                 <i class="fas fa-fire me-2"></i>
                                 <span>Hot (nhiều tương tác)</span>
@@ -55,7 +88,7 @@ Layout = "~/Views/Shared/_Layout.cshtml";
 
                 @* Filter Dropdown *@
                 <div class="dropdown" style="margin-bottom: 10px">
-                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button"
                             id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-filter me-1"></i>
                         @if (Model.FilterRole == "All")
@@ -71,7 +104,7 @@ Layout = "~/Views/Shared/_Layout.cshtml";
                         @foreach (var role in Model.AvailableRoles)
                         {
                             <li>
-                                <a class="dropdown-item filter-option @(Model.FilterRole == role ? "active" : "")" 
+                                <a class="dropdown-item filter-option @(Model.FilterRole == role ? "active" : "")"
                                    href="#" data-role="@role">
                                     @if (role == "All")
                                     {
@@ -101,8 +134,8 @@ Layout = "~/Views/Shared/_Layout.cshtml";
                 </div>
             </div>
             
-                
-                <a asp-controller="Post" asp-action="Create" class="btn btn-primary">
+            
+            <a asp-controller="Post" asp-action="Create" class="btn btn-primary">
                     <i class="fas fa-plus me-1"></i> 
                     <span>Đăng bài mới</span>
                 </a>
@@ -236,6 +269,9 @@ Layout = "~/Views/Shared/_Layout.cshtml";
 
     let currentSortBy = "@Model.SortBy";
     let currentFilterRole = "@Model.FilterRole";
+    let currentFilterTime = "@Model.FilterTime";
+    let currentStartDate = "@Model.StartDate?.ToString("yyyy-MM-dd")";
+    let currentEndDate = "@Model.EndDate?.ToString("yyyy-MM-dd")";
 
     // Hàm lazyload khi scroll đến cuối
     function setupLazyLoading() {
@@ -698,6 +734,7 @@ Layout = "~/Views/Shared/_Layout.cshtml";
         // Khởi tạo các controls
         setupSorting();
         setupFiltering();
+        setupTimeFilter();
         // Khởi tạo modal image
         initializeModal();
 
@@ -856,6 +893,59 @@ Layout = "~/Views/Shared/_Layout.cshtml";
         });
     }
 
+    function setupTimeFilter() {
+        document.querySelectorAll('.time-option').forEach(opt => {
+            opt.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation(); // Ngăn đóng dropdown để user nhập nếu chọn custom
+
+                const timeType = this.dataset.time;
+
+                if (timeType === 'custom') {
+                    document.getElementById('customDateRange').classList.remove('d-none');
+                } else {
+                    document.getElementById('customDateRange').classList.add('d-none');
+                    // Reload ngay nếu không phải custom
+                    reloadWithTime(timeType, null, null);
+                }
+            });
+        });
+
+        document.getElementById('applyDateFilter').addEventListener('click', function() {
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+            const today = new Date().toISOString().split('T')[0];
+
+            if (!start || !end) {
+                alert("Vui lòng chọn đầy đủ ngày bắt đầu và kết thúc");
+                return;
+            }
+            if (start > end) {
+                alert("Ngày bắt đầu không được lớn hơn ngày kết thúc");
+                return;
+            }
+            if (start > today || end > today) {
+                alert("Không được chọn ngày trong tương lai");
+                return;
+            }
+
+            reloadWithTime('custom', start, end);
+        });
+
+        // Ràng buộc input date không chọn quá hiện tại (UI constraint)
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('startDate').setAttribute('max', todayStr);
+        document.getElementById('endDate').setAttribute('max', todayStr);
+    }
+
+    function reloadWithTime(timeType, start, end) {
+        currentFilterTime = timeType;
+        currentStartDate = start;
+        currentEndDate = end;
+
+        reloadPostsWithFilters(currentSortBy, currentFilterRole);
+    }
+    
     function setupFiltering() {
         document.querySelectorAll('.filter-option').forEach(option => {
             // Xóa event listener cũ để tránh trùng lặp
@@ -959,8 +1049,10 @@ Layout = "~/Views/Shared/_Layout.cshtml";
         try {
             // Xác định action dựa trên viewType
             const action = viewType === 'following' ? 'Following' : 'Home';
-            const url = `/Feeds/${action}?page=1&sortBy=${sortBy}&filterRole=${filterRole}`;
-
+            let url = `/Feeds/${viewType === 'following' ? 'Following' : 'Home'}?page=1&sortBy=${sortBy}&filterRole=${filterRole}&filterTime=${currentFilterTime}`;
+            if(currentFilterTime === 'custom' && currentStartDate && currentEndDate) {
+                url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
+            }
             const response = await fetch(url, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -990,8 +1082,8 @@ Layout = "~/Views/Shared/_Layout.cshtml";
                     updateLoadingUI();
 
                     // Cập nhật URL trong trình duyệt (không reload page)
-                    updateBrowserUrl(sortBy, filterRole);
-
+                    updateBrowserUrl(sortBy, filterRole, currentFilterTime, currentStartDate, currentEndDate);
+                    updateTimeLabel(currentFilterTime);
                     // Đặt lại observer cho lazy loading
                     if (observer) {
                         observer.disconnect();
@@ -1045,14 +1137,27 @@ Layout = "~/Views/Shared/_Layout.cshtml";
     }
 
     // Hàm cập nhật URL trình duyệt
-    function updateBrowserUrl(sortBy, filterRole) {
+    function updateBrowserUrl(sortBy, filterRole, filterTime, start, end) {
         const urlParams = new URLSearchParams(window.location.search);
         urlParams.set('sortBy', sortBy);
         urlParams.set('filterRole', filterRole);
         urlParams.set('page', '1');
+        urlParams.set('filterTime', filterTime);
+        if(start) urlParams.set('startDate', start);
+        if(end) urlParams.set('endDate', end);
 
         const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
         window.history.pushState({}, '', newUrl);
+    }
+    function updateTimeLabel(type) {
+        const label = document.getElementById('timeFilterLabel');
+        switch(type) {
+            case 'today': label.innerText = 'Hôm nay'; break;
+            case 'week': label.innerText = 'Tuần này'; break;
+            case 'month': label.innerText = 'Tháng này'; break;
+            case 'custom': label.innerText = 'Tùy chọn'; break;
+            default: label.innerText = 'Mọi lúc';
+        }
     }
 
     // Hàm cập nhật dropdown buttons dựa trên current state

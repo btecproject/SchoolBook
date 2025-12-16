@@ -31,13 +31,14 @@ public class FeedsController(
 /// <param name="filterRole">Lọc theo role: "All", "Student", "Teacher", "Admin"</param>
 /// <returns>View danh sách bài đăng</returns>
 public async Task<IActionResult> Home(int page = 1, int pageSize = 10, 
-    string sortBy = "newest", string filterRole = "All")
+    string sortBy = "newest", string filterRole = "All",
+    string filterTime = "all", DateTime? startDate = null, DateTime? endDate = null)
 {
     var userId = GetCurrentUserId();
     var userRoles = await GetCurrentUserRoles();
     
     // Lấy bài đăng với các tham số sắp xếp và lọc
-    var posts = await postService.GetVisiblePostsAsync(userId, page, pageSize, sortBy, filterRole);
+    var posts = await postService.GetVisiblePostsAsync(userId, page, pageSize, sortBy, filterRole,  filterTime, startDate, endDate);
 
     // Tạo ViewModel cho dropdown lọc role
     var availableRoles = new List<string> { "All" };
@@ -148,6 +149,9 @@ public async Task<IActionResult> Home(int page = 1, int pageSize = 10,
         ViewType = "home",
         SortBy = sortBy,
         FilterRole = filterRole,
+        FilterTime = filterTime,
+        StartDate = startDate,
+        EndDate = endDate,
         AvailableRoles = availableRoles
     };
 

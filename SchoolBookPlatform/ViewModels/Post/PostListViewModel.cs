@@ -18,6 +18,11 @@ namespace SchoolBookPlatform.ViewModels.Post
         public string FilterRole { get; set; } = "All";
         public List<string> AvailableRoles { get; set; } = new List<string> { "All" };
         
+        //Time filter
+        public string FilterTime { get; set; } = "all"; // "all", "today", "week", "month", "custom"
+        public DateTime? StartDate { get; set; } // Dùng cho Custom
+        public DateTime? EndDate { get; set; }   // Dùng cho Custom
+        
         // Helper properties
         public bool IsNewestSort => SortBy == "newest";
         public bool IsHotSort => SortBy == "hot";

@@ -86,7 +86,8 @@ public class PostService
 // Trong file SRC/Services/PostService.cs
 
 public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page = 1, int pageSize = 20, 
-    string sortBy = "newest", string filterRole = "All")
+    string sortBy = "newest", string filterRole = "All",
+    string filterTime = "all", DateTime? startDate = null, DateTime? endDate = null)
 {
     var userRoles = await _db.GetUserRolesAsync(userId);
     var isAdmin = userRoles.Contains("HighAdmin") || 
@@ -94,8 +95,7 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
                   userRoles.Contains("Moderator");
 
     IQueryable<Post> query;
-
-    // BƯỚC 1: XÁC ĐỊNH QUYỀN XEM (VISIBILITY)
+    
     if (isAdmin)
     {
         // Admin: xem tất cả bài đăng
@@ -117,9 +117,7 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
         // Kết hợp cả hai
         query = myPosts.Union(othersPosts);
     }
-
-    // BƯỚC 2: LỌC THEO ROLE NGƯỜI ĐĂNG (AUTHOR ROLE)
-    // Di chuyển logic lọc ra ngoài để áp dụng thống nhất cho cả Admin và User thường
+    //sort role
     if (filterRole != "All")
     {
         if (filterRole == "Admin")
@@ -136,8 +134,47 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
             query = query.Where(p => p.User.UserRoles.Any(ur => ur.Role.Name == filterRole));
         }
     }
+    //sort time
+    if (filterTime != "all")
+    {
+        var nowVn = DateTime.UtcNow.AddHours(7); // Giờ hiện tại VN
+        DateTime fromDateUtc = DateTime.MinValue;
+        DateTime toDateUtc = DateTime.MaxValue;
 
-    // BƯỚC 3: SẮP XẾP VÀ PHÂN TRANG (Giữ nguyên logic cũ)
+        switch (filterTime.ToLower())
+        {
+            case "today":
+                // Từ 00:00 hôm nay (VN) -> đổi sang UTC (-7h)
+                fromDateUtc = nowVn.Date.AddHours(-7);
+                break;
+            case "week":
+                // 7 ngày gần nhất
+                fromDateUtc = DateTime.UtcNow.AddDays(-7);
+                break;
+            case "month":
+                // 30 ngày gần nhất
+                fromDateUtc = DateTime.UtcNow.AddDays(-30);
+                break;
+            case "custom":
+                if (startDate.HasValue)
+                    fromDateUtc = startDate.Value.Date.AddHours(-7); // Bắt đầu ngày VN -> UTC
+
+                if (endDate.HasValue)
+                    // Hết ngày VN (23:59:59) -> UTC. 
+                    // endDate.Value.Date là 0h, cộng 1 ngày là 0h hôm sau, trừ 1 tick
+                    toDateUtc = endDate.Value.Date.AddDays(1).AddHours(-7).AddTicks(-1);
+                break;
+        }
+
+        query = query.Where(p => p.CreatedAt >= fromDateUtc);
+
+        // Chỉ áp dụng cận trên nếu là custom (để chặn ngày tương lai hoặc khoảng custom)
+        if (filterTime.ToLower() == "custom" && endDate.HasValue)
+        {
+            query = query.Where(p => p.CreatedAt <= toDateUtc);
+        }
+    }
+
     switch (sortBy.ToLower())
     {
         case "best":
@@ -758,7 +795,8 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
     /// <param name="pageSize">Số bài đăng mỗi trang</param>
     /// <returns>Danh sách bài đăng</returns>
    public async Task<IQueryable<Post>> GetFollowingPostsAsync(Guid userId, int page = 1, int pageSize = 20,
-    string sortBy = "newest", string filterRole = "All")
+    string sortBy = "newest", string filterRole = "All",
+    string filterTime = "all", DateTime? startDate = null, DateTime? endDate = null)
 {
     // 1. Lấy danh sách người đang follow
     var followingIds = await _db.Following
@@ -806,6 +844,47 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
         }
     }
 
+    //sort time
+    if (filterTime != "all")
+    {
+        var nowVn = DateTime.UtcNow.AddHours(7); // Giờ hiện tại VN
+        DateTime fromDateUtc = DateTime.MinValue;
+        DateTime toDateUtc = DateTime.MaxValue;
+
+        switch (filterTime.ToLower())
+        {
+            case "today":
+                // Từ 00:00 hôm nay (VN) -> đổi sang UTC (-7h)
+                fromDateUtc = nowVn.Date.AddHours(-7);
+                break;
+            case "week":
+                // 7 ngày gần nhất
+                fromDateUtc = DateTime.UtcNow.AddDays(-7);
+                break;
+            case "month":
+                // 30 ngày gần nhất
+                fromDateUtc = DateTime.UtcNow.AddDays(-30);
+                break;
+            case "custom":
+                if (startDate.HasValue)
+                    fromDateUtc = startDate.Value.Date.AddHours(-7); // Bắt đầu ngày VN -> UTC
+
+                if (endDate.HasValue)
+                    // Hết ngày VN (23:59:59) -> UTC. 
+                    // endDate.Value.Date là 0h, cộng 1 ngày là 0h hôm sau, trừ 1 tick
+                    toDateUtc = endDate.Value.Date.AddDays(1).AddHours(-7).AddTicks(-1);
+                break;
+        }
+
+        query = query.Where(p => p.CreatedAt >= fromDateUtc);
+
+        // Chỉ áp dụng cận trên nếu là custom (để chặn ngày tương lai hoặc khoảng custom)
+        if (filterTime.ToLower() == "custom" && endDate.HasValue)
+        {
+            query = query.Where(p => p.CreatedAt <= toDateUtc);
+        }
+    }
+    
     // Áp dụng sắp xếp
     switch (sortBy.ToLower())
     {
