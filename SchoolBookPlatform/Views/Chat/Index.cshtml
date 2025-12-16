@@ -87,6 +87,11 @@ ViewData["Title"] = "Chat";
                         <div class="flex-grow-1">
                             <h6 class="mb-0 fw-semibold" id="chatDisplayName"></h6>
                             <small class="text-muted" id="chatUsername"></small>
+                            <button class="btn btn-sm btn-light text-primary rounded-pill px-2 py-0 border-0" 
+                                    onclick="showSafetyNumberModal()" 
+                                    title="Xem mã xác thực an toàn">
+                                <i class="bi bi-shield-lock-fill"></i> <span class="small fw-bold">E2EE</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -145,6 +150,44 @@ ViewData["Title"] = "Chat";
                         </div>
                     </form>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="safetyNumberModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light border-0">
+                <h5 class="modal-title fw-bold text-primary">
+                    <i class="bi bi-shield-check"></i> Mã an toàn đầu cuối
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center pt-4 pb-4">
+                <p class="text-muted mb-4">
+                    Đây là mã xác thực riêng biệt cho cuộc trò chuyện giữa bạn và 
+                    <strong id="safetyPartnerName" class="text-dark">User</strong>.
+                </p>
+
+                <div class="safety-number-box bg-light p-3 rounded-3 border mb-4 position-relative">
+                    <div id="safetyNumberDisplay" class="safety-digits">
+                        <div class="spinner-border text-primary spinner-border-sm"></div> Đang tính toán...
+                    </div>
+                </div>
+
+                <div class="alert alert-info d-flex align-items-start text-start small mb-0">
+                    <i class="bi bi-info-circle-fill fs-5 me-2 mt-1"></i>
+                    <div>
+                        <strong>Cách kiểm tra chống giả mạo (MITM):</strong><br/>
+                        Hãy gọi điện hoặc gặp mặt người bạn này và so sánh dãy số trên. 
+                        Nếu dãy số trên máy bạn và máy họ <strong>TRÙNG KHỚP HOÀN TOÀN</strong>, 
+                        nghĩa là cuộc trò chuyện an toàn và không bị Server hay Hacker nghe lén.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 justify-content-center pb-4">
+                <button class="btn btn-outline-primary px-4" data-bs-dismiss="modal">Đã xác minh</button>
             </div>
         </div>
     </div>
@@ -1733,6 +1776,83 @@ ViewData["Title"] = "Chat";
         vid.pause();
         vid.src = "";
     });
+    
+    //==== Safety-number =====
+    async function showSafetyNumberModal() {
+        if (!currentConversationId || !currentRecipientId) return;
+
+        const displayName = document.getElementById('chatDisplayName').textContent;
+        document.getElementById('safetyPartnerName').textContent = displayName;
+
+        const modalEl = document.getElementById('safetyNumberModal');
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+
+        const displayEl = document.getElementById('safetyNumberDisplay');
+        displayEl.innerHTML = '<div class="spinner-border text-primary spinner-border-sm"></div> Đang tính toán...';
+
+        try {
+            const myResp = await fetch(`@Url.Action("GetUserPublicKey", "Chat")?userId=${currentUserId}`);
+            if (!myResp.ok) throw new Error("Không lấy được khóa của bạn");
+            const myData = await myResp.json();
+            const myPub = myData.publicKey;
+
+
+            let partnerPub = currentRecipientPublicKey;
+            if (!partnerPub) {
+                const pResp = await fetch(`@Url.Action("GetUserPublicKey", "Chat")?userId=${currentRecipientId}`);
+                if (pResp.ok) {
+                    const pData = await pResp.json();
+                    partnerPub = pData.publicKey;
+                }
+            }
+
+            if (!myPub || !partnerPub) {
+                displayEl.innerHTML = '<span class="text-danger">Thiếu khóa bảo mật. Không thể tạo mã.</span>';
+                return;
+            }
+
+            const fingerprint = await calculateFingerprint(myPub, partnerPub);
+            
+            const formattedHTML = formatFingerprint(fingerprint);
+
+            displayEl.innerHTML = formattedHTML;
+
+        } catch (e) {
+            console.error(e);
+            displayEl.innerHTML = '<span class="text-danger">Lỗi tính toán mã an toàn.</span>';
+        }
+}
+
+    async function calculateFingerprint(key1, key2) {
+        const cleanKey = (k) => k.replace(/-----BEGIN PUBLIC KEY-----/g, '')
+            .replace(/-----END PUBLIC KEY-----/g, '')
+            .replace(/[\n\r]/g, '')
+            .trim();
+
+        const k1 = cleanKey(key1);
+        const k2 = cleanKey(key2);
+        
+        const sortedKeys = [k1, k2].sort();
+        const combinedString = sortedKeys.join('');
+
+        const msgBuffer = new TextEncoder().encode(combinedString);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+
+        let numberString = "";
+        for (const byte of hashArray) {
+            numberString += byte.toString().padStart(3, '0');
+        }
+        //Lấy 30 số đầu
+        return numberString.substring(0, 30);
+    }
+
+    function formatFingerprint(numberString) {
+        const chunks = numberString.match(/.{1,5}/g);
+        return chunks.map(chunk => `<span class="safety-group">${chunk}</span>`).join('');
+    }
+    
     // ===== INIT =====
     window.addEventListener('load', async () => {
         if (await autoVerifyPin() && await loadCurrentUserInfo()) {
