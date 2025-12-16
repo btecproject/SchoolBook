@@ -8,6 +8,11 @@
 <link rel="stylesheet" href="~/css/page/detail.css" asp-append-version="true"/>
 
 <div class="container mt-4">
+    <div class="d-flex align-items-center mb-3">
+        <a href="javascript:history.back()" class="btn btn-back rounded-pill px-3 py-2 fw-semibold text-decoration-none d-inline-flex align-items-center">
+            <i class="bi bi-arrow-left me-2"></i> Quay lại
+        </a>
+    </div>
     <div class="row">
         <div class="col-md-12">
             @* Thông báo *@
@@ -26,21 +31,21 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             }
-            
+
             @* Tạo một PostListViewModel từ dữ liệu hiện có để tái sử dụng _PostListPartial *@
             @{
                 var postListViewModel = new SchoolBookPlatform.ViewModels.Post.PostListViewModel
                 {
-                    Posts = new List<SchoolBookPlatform.ViewModels.Post.PostViewModel> 
-                    { 
-                        Model.Post 
+                    Posts = new List<SchoolBookPlatform.ViewModels.Post.PostViewModel>
+                    {
+                        Model.Post
                     },
                     CurrentPage = 1,
                     TotalPages = 1,
                     ViewType = "details"
                 };
             }
-            
+
             @await Html.PartialAsync("_PostListPartial", postListViewModel)
 
             <div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
@@ -60,23 +65,23 @@
                     </div>
                 </div>
             </div>
-            
+
             @* Danh sách comment *@
             <div class="card mb-4">
                 <div class="card-body">
                     <h5 class="card-title">Bình luận (@Model.Comments.Count)</h5>
-                     
+
                     @* Form comment mới *@
                     <div class="mb-3">
                         <textarea id="commentContent" class="form-control" rows="3" 
                                   placeholder="Viết bình luận..."></textarea>
-                        <button id="submitComment" class="btn btn-primary btn-sm mt-2" 
+                        <button id="submitComment" class="btn btn-primary btn-sm mt-2"
                                 data-post-id="@Model.Post.Id">
                             Gửi bình luận
                         </button>
                     </div>
 
-                    <hr />
+                    <hr/>
 
                     @* Danh sách comment *@
                     <div id="commentsList">
@@ -86,11 +91,11 @@
                                 <div class="d-flex">
                                     <div class="flex-grow-1">
                                         <a asp-controller="Profile" asp-action="Index" asp-route-username="@comment.AuthorName">
-                                        <img src="@(string.IsNullOrEmpty(comment.AuthorAvatar) ? "/images/avatars/default.png" : comment.AuthorAvatar)"
-                                             alt="@comment.AuthorName"
-                                             class="rounded-circle"
-                                             width="32" height="32"
-                                             style="object-fit: cover;">
+                                            <img src="@(string.IsNullOrEmpty(comment.AuthorAvatar) ? "/images/avatars/default.png" : comment.AuthorAvatar)"
+                                                 alt="@comment.AuthorName"
+                                                 class="rounded-circle"
+                                                 width="32" height="32"
+                                                 style="object-fit: cover;">
                                         </a>
                                         <strong>@comment.AuthorName</strong>
                                         <small class="text-muted ms-2">@comment.CreatedAt.ToString("g")</small>
@@ -119,7 +124,7 @@
                                         }
                                     </div>
                                 </div>
-                                <hr />
+                                <hr/>
                             </div>
                         }
                     </div>

@@ -72,7 +72,7 @@ ViewData["Title"] = "Chat";
             </div>
 
             <div id="chatWindow" style="display: none;" class="d-flex flex-column flex-grow-1 bg-white">
-                <div class="chat-header p-3 border-bottom bg-white">
+                <div class="chat-header p-3 border-bottom bg-white" id="chatHeader" style="display: none">
                     <div class="d-flex align-items-center">
                         <div class="avatar-chat me-3">
                             <div class="avatar-circle-chat" id="headerAvatar">
@@ -96,19 +96,21 @@ ViewData["Title"] = "Chat";
                     </div>
                 </div>
 
-                <div id="messagesArea" class="flex-grow-1 overflow-auto p-3">
-                    <div class="text-center text-muted py-4">
+                <div id="messagesArea" class="flex-grow-1 overflow-auto p-4 bg-light" style="scroll-behavior: smooth;">
+                    <div class="text-center text-muted py-5 mt-5">
                         <div class="avatar-large mb-3">
-                            <i class="bi bi-person-fill"></i>
+                            <div class="bg-white rounded-circle d-inline-flex p-3 shadow-sm">
+                                <i class="bi bi-person-fill fs-1 text-secondary"></i>
+                            </div>
                         </div>
-                        <h5 class="fw-semibold" id="welcomeName"></h5>
+                        <h5 class="fw-semibold" id="welcomeName">Bắt đầu trò chuyện</h5>
                         <p class="text-muted small">
-                            <i class="bi bi-lock-fill"></i> Tin nhắn được mã hóa đầu cuối
+                            <i class="bi bi-lock-fill text-success"></i> Tin nhắn được mã hóa đầu cuối
                         </p>
                     </div>
                 </div>
 
-                <div class="message-input-area p-3 border-top bg-white">
+                <div class="message-input-area p-3 border-top bg-white" id="messageInputArea" style="display: none">
                     <form id="messageForm">
                         <div id="filePreview" class="d-none mb-2">
                             <div class="card bg-light border-0">
@@ -144,7 +146,7 @@ ViewData["Title"] = "Chat";
                                    class="form-control rounded-pill border-0 bg-light px-4 py-2"
                                    placeholder="Aa" autocomplete="off" disabled></textarea>
 
-                            <button type="submit" class="btn btn-primary rounded-circle p-2" id="sendBtn" disabled>
+                            <button type="submit" class="btn btn-outline-primary rounded-circle p-3" id="sendBtn" disabled>
                                 <i class="bi bi-send-fill"></i>
                             </button>
                         </div>
@@ -663,58 +665,8 @@ ViewData["Title"] = "Chat";
         } else {
             console.error("❌ Lỗi khởi tạo key trên server");
         }
-}
-    // async function startChatWithUser(userId, username, displayName, forceConversationÌd = null) {
-    //     if (!currentUserId) return;
-    //     showLoading('Đang tải chat...');
-    //    
-    //     // UI Update
-    //     document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
-    //     const activeItem = document.getElementById(`contact-${userId}`);
-    //     if(activeItem) {
-    //         activeItem.classList.add('active');
-    //         const badge = activeItem.querySelector('.unread-badge');
-    //         if(badge) badge.remove();
-    //     }
-    //    
-    //     try {
-    //         // 1. Mark Read
-    //         await markAsRead(userId);
-    //        
-    //         // 2. Get Public Key & Conv
-    //         const keyResp = await fetch(`@Url.Action("GetUserPublicKey", "Chat")?userId=${userId}`);
-    //         if (keyResp.ok) currentRecipientPublicKey = (await keyResp.json()).publicKey;
-    //
-    //         const convResp = await fetch(`@Url.Action("GetOrCreateConversation", "Chat")?recipientId=${userId}`, {
-    //             method: 'POST',
-    //             headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() }
-    //         });
-    //         const convData = await convResp.json();
-    //         currentConversationId = convData.conversationId;
-    //         currentRecipientId = userId;
-    //
-    //         if (connection?.state === signalR.HubConnectionState.Connected) {
-    //             await connection.invoke("JoinConversation", currentConversationId);
-    //         }
-    //        
-    //         if (!convData.isKeyInitialized) {
-    //             console.log("🆕 Chưa có key, đang khởi tạo...");
-    //             if (currentRecipientPublicKey) {
-    //                 await setupNewConversation(currentConversationId, userId, currentRecipientPublicKey);
-    //             }
-    //         }
-    //         // Đảm bảo key đã được load vào cache
-    //         await getConversationKey(currentConversationId);
-    //
-    //         const messages = await loadMessagesAndReturn(currentConversationId);
-    //         await displayMessages(messages);
-    //         showChatWindow(username, displayName);
-    //         setTimeout(() => scrollToBottom(false), 100);
-    //
-    //     } catch (e) { console.error(e); }
-    //     finally { hideLoading(); }
-    // }
-
+    }
+    
     // FIX: Thêm tham số forceConversationId (mặc định null)
     async function startChatWithUser(userId, username, displayName, forceConversationId = null) {
         if (!currentUserId) return;
@@ -982,6 +934,9 @@ ViewData["Title"] = "Chat";
     function showChatWindow(userId, username, displayName) {
         document.getElementById('welcomeScreen').style.display = 'none';
         document.getElementById('chatWindow').style.display = 'flex';
+        document.getElementById('messageInputArea').style.display = 'block';
+        document.getElementById('chatHeader').style.display = 'flex';
+
 
         const elDisplayName = document.getElementById('chatDisplayName');
         if(elDisplayName) elDisplayName.textContent = displayName;
@@ -1631,6 +1586,7 @@ ViewData["Title"] = "Chat";
         } catch (e){
             console.error("Lỗi xóa tin nhắn: ", e);
         }
+        document.getElementById('messageInputArea').style.display = 'block';
     }
     // ==== Scroll (pagination) ====
     document.getElementById('messagesArea').addEventListener('scroll', async function() {
