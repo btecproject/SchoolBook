@@ -150,6 +150,21 @@ ViewData["Title"] = "Chat";
     </div>
 </div>
 
+<div class="modal fade" id="mediaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen" style="background-color: rgba(0,0,0,0.9);">
+        <div class="modal-content bg-transparent border-0">
+            <div class="modal-header border-0 position-absolute top-0 end-0" style="z-index: 1056;">
+                <button type="button" class="btn-close btn-close-white p-3" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body d-flex align-items-center justify-content-center p-0">
+                <img id="modalImage" src="" class="d-none" style="max-height: 100vh; max-width: 100vw; object-fit: contain;">
+                <video id="modalVideo" controls class="d-none" style="max-height: 100vh; max-width: 100vw;"></video>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="loadingModal" data-bs-backdrop="static" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content border-0 shadow">
@@ -229,7 +244,7 @@ ViewData["Title"] = "Chat";
 
     let reportModalInstance = null;
 
-    const FALLBACK_IMAGE = '~/images/icon/file-error.png'; // Đường dẫn đến PNG fallback
+    const FALLBACK_IMAGE = '/images/icon/file-error.png'; // Đường dẫn đến PNG fallback
     
     const currentUsername = '@User.Identity!.Name';
 
@@ -1438,25 +1453,18 @@ ViewData["Title"] = "Chat";
         console.log("🖼️ Creating placeholder for type:", messageType);
 
         if (messageType === 1) {
-            // Image với fallback
+            // Image Placeholder
             return `
-        <div class="file-attachment">
-            <div style="position: relative; max-width: 300px; max-height: 300px;">
-                <img src="${url}" alt="Image" 
-                     style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; cursor: pointer;"
-                     onclick="window.open('${url}', '_blank')"
-                     onerror="this.onerror=null; this.src='${FALLBACK_IMAGE}';"/>
-                <!-- Loading overlay -->
-                <div class="image-loading-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; border-radius: 8px;">
-                    <div class="text-center">
-                        <div class="spinner-border spinner-border-sm text-primary mb-1"></div>
-                        <div class="small text-muted">Đang tải ảnh...</div>
-                    </div>
+            <div class="file-attachment">
+                <div style="position: relative; max-width: 300px; max-height: 300px;">
+                    <img src="${url}" alt="Image" 
+                         style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; cursor: pointer;"
+                         onclick="openMediaModal('${url}', 'image')"
+                         onerror="this.onerror=null; this.src='${FALLBACK_IMAGE}';"/>
                 </div>
-            </div>
-        </div>
-    `;
-        } else if (messageType === 2) {
+            </div>`;
+        }
+         else if (messageType === 2) {
             // Video với fallback
             return `
         <div class="file-attachment">
@@ -1509,61 +1517,58 @@ ViewData["Title"] = "Chat";
         // Image
         if (messageType === 1) {
             return `
-        <div class="file-attachment">
-            <img src="${url}" alt="${escapeHtml(fileName)}" 
-                 style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer;"
-                 onclick="window.open('${url}', '_blank')"
-                 onerror="this.onerror=null; this.src='${FALLBACK_IMAGE}';"/>
-        </div>
-    `;
+            <div class="file-attachment">
+                <img src="${url}" alt="${escapeHtml(fileName)}" 
+                     style="max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer; object-fit: cover;"
+                     onclick="openMediaModal('${url}', 'image')"
+                     onerror="this.onerror=null; this.src='${FALLBACK_IMAGE}';"/>
+            </div>`;
         }
 
         // Video
         if (messageType === 2) {
             return `
-        <div class="file-attachment">
-            <video controls style="max-width: 300px; border-radius: 8px;"
-                   poster="${FALLBACK_IMAGE}"
-                   onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'text-center p-3 bg-light rounded\'><i class=\'bi bi-file-earmark-x text-muted fs-3\'></i><div class=\'small mt-2\'>Không thể tải video</div></div>';">
-                <source src="${url}" type="video/${attachment.format || 'mp4'}">
-                <div class="video-fallback text-center p-3">
-                    <img src="${FALLBACK_IMAGE}" alt="Video không thể phát" style="max-width: 200px; opacity: 0.7;">
-                    <div class="small mt-2">Trình duyệt không hỗ trợ video hoặc video bị lỗi</div>
-                </div>
-            </video>
-            <div class="small mt-1 opacity-75">${escapeHtml(fileName)}</div>
-        </div>
-    `;
+            <div class="file-attachment position-relative" style="max-width: 300px;">
+                <video controls style="width: 100%; border-radius: 8px;"
+                       poster="${FALLBACK_IMAGE}"
+                       onerror="this.style.display='none';">
+                    <source src="${url}" type="video/${attachment.format || 'mp4'}">
+                    Trình duyệt không hỗ trợ.
+                </video>
+                
+                <button class="btn btn-sm btn-dark position-absolute top-0 end-0 m-1 opacity-75" 
+                        onclick="openMediaModal('${url}', 'video')"
+                        title="Xem toàn màn hình">
+                    <i class="bi bi-arrows-fullscreen"></i>
+                </button>
+                
+                <div class="small mt-1 opacity-75 text-truncate">${escapeHtml(fileName)}</div>
+            </div>`;
         }
 
         // Other files
         const ext = attachment.format || 'file';
         let iconClass = 'bi-file-earmark';
 
-        if (['pdf'].includes(ext.toLowerCase())) {
-            iconClass = 'bi-file-earmark-pdf';
-        } else if (['doc', 'docx'].includes(ext.toLowerCase())) {
-            iconClass = 'bi-file-earmark-word';
-        } else if (['xls', 'xlsx'].includes(ext.toLowerCase())) {
-            iconClass = 'bi-file-earmark-excel';
-        } else if (['zip', 'rar'].includes(ext.toLowerCase())) {
-            iconClass = 'bi-file-earmark-zip';
-        }
+        // (Logic chọn icon giữ nguyên như cũ)
+        if (['pdf'].includes(ext.toLowerCase())) iconClass = 'bi-file-earmark-pdf';
+        else if (['doc', 'docx'].includes(ext.toLowerCase())) iconClass = 'bi-file-earmark-word';
+        else if (['xls', 'xlsx'].includes(ext.toLowerCase())) iconClass = 'bi-file-earmark-excel';
+        else if (['zip', 'rar'].includes(ext.toLowerCase())) iconClass = 'bi-file-earmark-zip';
 
         return `
         <div class="file-attachment">
-            <a href="${url}" target="_blank" 
-               class="text-decoration-none text-inherit d-flex align-items-center p-2 rounded" 
-               style="background: rgba(0,0,0,0.05);"
-               onclick="if(!this.getAttribute('href')) return false;">
-                <i class="bi ${iconClass} fs-4 me-2"></i>
-                <div>
-                    <div class="fw-semibold">${escapeHtml(fileName)}</div>
-                    <div class="small opacity-75">${ext.toUpperCase()}</div>
+            <a href="${url}" target="_blank" download="${fileName}"
+               class="text-decoration-none text-inherit d-flex align-items-center p-2 rounded bg-light border" 
+               style="cursor: pointer;">
+                <i class="bi ${iconClass} fs-2 me-3 text-primary"></i>
+                <div class="overflow-hidden">
+                    <div class="fw-semibold text-truncate" style="max-width: 200px;">${escapeHtml(fileName)}</div>
+                    <div class="small text-muted text-uppercase">${ext}</div>
                 </div>
+                <i class="bi bi-download ms-auto text-secondary"></i>
             </a>
-        </div>
-    `;
+        </div>`;
     }
     // ==== Delete Message ====
     async function handleDeleteMessage(messageId){
@@ -1698,6 +1703,36 @@ ViewData["Title"] = "Chat";
             alert("Lỗi kết nối");
         }
     }
+    // ===== MEDIA MODAL =====
+    function openMediaModal(url, type) {
+        const modalEl = document.getElementById('mediaModal');
+        const img = document.getElementById('modalImage');
+        const vid = document.getElementById('modalVideo');
+
+        // Reset trạng thái
+        img.classList.add('d-none');
+        vid.classList.add('d-none');
+        vid.pause();
+        vid.src = "";
+
+        if (type === 'image') {
+            img.src = url;
+            img.classList.remove('d-none');
+        } else if (type === 'video') {
+            vid.src = url;
+            vid.classList.remove('d-none');
+        }
+
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+
+    // Dừng video khi đóng modal
+    document.getElementById('mediaModal').addEventListener('hidden.bs.modal', function () {
+        const vid = document.getElementById('modalVideo');
+        vid.pause();
+        vid.src = "";
+    });
     // ===== INIT =====
     window.addEventListener('load', async () => {
         if (await autoVerifyPin() && await loadCurrentUserInfo()) {
