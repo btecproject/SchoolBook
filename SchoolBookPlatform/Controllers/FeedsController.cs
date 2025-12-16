@@ -47,20 +47,18 @@ public async Task<IActionResult> Home(int page = 1, int pageSize = 10,
         sortBy = "newest";
     }
     
-    if (userRoles.Contains("Admin") || userRoles.Contains("HighAdmin"))
+    if (userRoles.Contains("Admin") || userRoles.Contains("HighAdmin") || userRoles.Contains("Moderator"))
     {
         // Admin có thể xem tất cả role
-        availableRoles.AddRange(new[] { "Student", "Teacher", "Admin" });
+        availableRoles.AddRange(new[] { "Student", "Teacher", "Admin"});
     }
     else if (userRoles.Contains("Teacher"))
     {
-        // Teacher có thể xem bài của Student và Teacher
-        availableRoles.AddRange(new[] { "Student", "Teacher" });
+        availableRoles.AddRange(new[] { "Student", "Teacher", "Admin"});
     }
     else if (userRoles.Contains("Student"))
     {
-        // Student chỉ có thể xem bài của Student
-        availableRoles.Add("Student");
+        availableRoles.AddRange(new[] { "Student", "Teacher", "Admin"});
     }
 
     // Nếu là AJAX request, trả về Partial View
@@ -177,17 +175,17 @@ public async Task<IActionResult> Following(int page = 1, int pageSize = 10,
     {
         sortBy = "newest";
     }
-    if (userRoles.Contains("Admin") || userRoles.Contains("HighAdmin"))
+    if (userRoles.Contains("Admin") || userRoles.Contains("HighAdmin") || userRoles.Contains("Moderator"))
     {
-        availableRoles.AddRange(new[] { "Student", "Teacher", "Admin" });
+        availableRoles.AddRange(new[] { "Student", "Teacher", "Admin"});
     }
     else if (userRoles.Contains("Teacher"))
     {
-        availableRoles.AddRange(new[] { "Student", "Teacher" });
+        availableRoles.AddRange(new[] { "Student", "Teacher", "Admin"});
     }
     else if (userRoles.Contains("Student"))
     {
-        availableRoles.Add("Student");
+        availableRoles.AddRange(new[] { "Student", "Teacher", "Admin"});
     }
 
     // Nếu là AJAX request, trả về Partial View
