@@ -253,7 +253,7 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
 
         // Kiểm tra quyền user - HighAdmin/Moderator thì auto approve (IsVisible = true)
         var userRoles = await _db.GetUserRolesAsync(userId);
-        var isModerator = userRoles.Contains("HighAdmin") || userRoles.Contains("Moderator");
+        var isModerator = userRoles.Contains("HighAdmin") || userRoles.Contains("Moderator")||userRoles.Contains("Admin");
 
         var post = new Post
         {
