@@ -59,7 +59,7 @@
                                         <button id="fullname-save-btn"
                                                 class="btn btn-success btn-sm"
                                                 onclick="saveFullName()"
-                                                disabled>Lưu</button>
+                                                >Lưu</button>
 
                                         <button id="fullname-cancel-btn"
                                                 class="btn btn-secondary btn-sm"
@@ -583,31 +583,65 @@
             input.value = display.innerText.trim();
             console.log('Set input value to:', input.value);
         }
-}
+    }
 
     function saveFullName() {
         console.log('Saving fullname');
 
-        const newName = document.getElementById("fullname-input").value.trim();
-        if (!newName) {
-            console.log('Empty name, not saving');
-            return;
-        }
-
-        document.getElementById("fullname-display").innerText = newName;
-
-        // Khôi phục giao diện
-        const display = document.getElementById("fullname-display");
         const input = document.getElementById("fullname-input");
-        const editBtn = document.getElementById("fullname-edit-btn");
-        const actions = document.getElementById("fullname-actions");
+        const newName = input.value.trim();
 
-        if (display) display.style.setProperty('display', 'inline-block', 'important');
-        if (input) input.style.setProperty('display', 'none', 'important');
-        if (editBtn) editBtn.style.setProperty('display', 'inline-block', 'important');
-        if (actions) actions.style.setProperty('display', 'none', 'important');
+        if (!newName) return; 
 
-        console.log('Restored fullname UI');
+        const saveBtn = document.getElementById("fullname-save-btn");
+
+        saveBtn.disabled = true;
+        saveBtn.innerText = "Đang lưu...";
+
+        fetch('/Profile/UpdateField', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            },
+            body: JSON.stringify({
+                field: "FullName", 
+                value: newName,
+                dateValue: null
+            })
+        })
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    document.getElementById("fullname-display").innerText = newName;
+
+                    const display = document.getElementById("fullname-display");
+                    const editBtn = document.getElementById("fullname-edit-btn");
+                    const actions = document.getElementById("fullname-actions");
+
+                    if (display) display.style.setProperty('display', 'inline-block', 'important');
+                    if (input) input.style.setProperty('display', 'none', 'important');
+                    if (editBtn) editBtn.style.setProperty('display', 'inline-block', 'important');
+                    if (actions) actions.style.setProperty('display', 'none', 'important');
+
+                    showToast('Đã cập nhật tên thành công', 'success');
+                } else {
+                    alert(data.message || "Lưu thất bại!");
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                alert("Đã xảy ra lỗi khi lưu: " + error.message);
+            })
+            .finally(() => {
+                if(saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerText = "Lưu";
+                }
+            });
     }
 
     function cancelFullName() {
