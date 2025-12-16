@@ -83,6 +83,8 @@ public class PostService
 /// - HighAdmin/Admin/Moderator: Xem tất cả
 /// - Teacher/Student: Chỉ xem bài visible, không deleted, và có quyền
 /// </summary>
+// Trong file SRC/Services/PostService.cs
+
 public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page = 1, int pageSize = 20, 
     string sortBy = "newest", string filterRole = "All")
 {
@@ -93,28 +95,17 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
 
     IQueryable<Post> query;
 
+    // BƯỚC 1: XÁC ĐỊNH QUYỀN XEM (VISIBILITY)
     if (isAdmin)
     {
         // Admin: xem tất cả bài đăng
         query = _db.Posts.AsQueryable();
-        
-        // Lọc theo role nếu không phải "All"
-        if (filterRole != "All")
-        {
-            query = query.Where(p => p.VisibleToRoles == filterRole);
-        }
     }
     else
     {
         // User thường: chỉ xem bài có quyền
-        // Bao gồm:
-        // 1. Bài của chính mình (kể cả hidden/deleted)
-        // 2. Bài của người khác: visible, không deleted, và có quyền xem
-        
-        // Lấy bài của chính mình
         var myPosts = _db.Posts.Where(p => p.UserId == userId);
         
-        // Lấy bài của người khác mà user có quyền xem
         var othersPosts = _db.Posts.Where(p => 
             p.UserId != userId && 
             p.IsVisible && 
@@ -125,21 +116,31 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
         
         // Kết hợp cả hai
         query = myPosts.Union(othersPosts);
-        
-        // Lọc theo role nếu không phải "All"
-        if (filterRole != "All")
+    }
+
+    // BƯỚC 2: LỌC THEO ROLE NGƯỜI ĐĂNG (AUTHOR ROLE)
+    // Di chuyển logic lọc ra ngoài để áp dụng thống nhất cho cả Admin và User thường
+    if (filterRole != "All")
+    {
+        if (filterRole == "Admin")
         {
-            query = query.Where(p => 
-                p.UserId == userId ||  // Bài của chính mình
-                p.VisibleToRoles == filterRole); // Bài của người khác có role trùng
+            // Nếu chọn "Admin": Lấy bài của Admin, HighAdmin và Moderator
+            query = query.Where(p => p.User.UserRoles.Any(ur => 
+                ur.Role.Name == "Admin" || 
+                ur.Role.Name == "HighAdmin" || 
+                ur.Role.Name == "Moderator"));
+        }
+        else
+        {
+            // Nếu chọn Student hoặc Teacher: Lấy đúng theo role đó
+            query = query.Where(p => p.User.UserRoles.Any(ur => ur.Role.Name == filterRole));
         }
     }
 
-    // Áp dụng sắp xếp
+    // BƯỚC 3: SẮP XẾP VÀ PHÂN TRANG (Giữ nguyên logic cũ)
     switch (sortBy.ToLower())
     {
         case "best":
-            // Best: sắp xếp theo upvote nhiều nhất (upvote - downvote)
             var bestQuery = query
                 .Select(p => new
                 {
@@ -147,7 +148,7 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
                     BestScore = p.Votes.Count(v => v.VoteType) - p.Votes.Count(v => !v.VoteType)
                 })
                 .OrderByDescending(x => x.BestScore)
-                .ThenByDescending(x => x.Post.CreatedAt) // Thêm sắp xếp theo thời gian nếu BestScore bằng nhau
+                .ThenByDescending(x => x.Post.CreatedAt)
                 .Select(x => x.Post);
                 
             return bestQuery
@@ -160,15 +161,14 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
                 .Take(pageSize);
             
         case "hot":
-            // Hot: sắp xếp theo tổng tương tác nhiều nhất (upvote + downvote)
             var hotQuery = query
                 .Select(p => new
                 {
                     Post = p,
-                    HotScore = p.Votes.Count() // Tổng số vote (upvote + downvote)
+                    HotScore = p.Votes.Count()
                 })
                 .OrderByDescending(x => x.HotScore)
-                .ThenByDescending(x => x.Post.CreatedAt) // Thêm sắp xếp theo thời gian nếu HotScore bằng nhau
+                .ThenByDescending(x => x.Post.CreatedAt)
                 .Select(x => x.Post);
                 
             return hotQuery
@@ -182,8 +182,6 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
         
         case "newest":
         default:
-            // MỚI NHẤT: Sắp xếp chính xác theo thời gian (giờ, phút, giây)
-            // Sử dụng OrderByDescending với CreatedAt sẽ sắp xếp theo toàn bộ DateTime
             var newestQuery = query
                 .OrderByDescending(p => p.CreatedAt);
                 
@@ -795,7 +793,17 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
     // Lọc theo role nếu không phải "All"
     if (filterRole != "All")
     {
-        query = query.Where(p => p.VisibleToRoles == filterRole);
+        if (filterRole == "Admin")
+        {
+            query = query.Where(p => p.User.UserRoles.Any(ur =>
+                ur.Role.Name == "Admin" ||
+                ur.Role.Name == "HighAdmin" ||
+                ur.Role.Name == "Moderator"));
+        }
+        else
+        {
+            query = query.Where(p => p.User.UserRoles.Any(ur => ur.Role.Name == filterRole));
+        }
     }
 
     // Áp dụng sắp xếp
