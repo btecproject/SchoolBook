@@ -1,6 +1,430 @@
-﻿@{
-    ViewData["Title"] = "Privacy Policy";
-}
-<h1>@ViewData["Title"]</h1>
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <br>
+    <br>
+    <title>Privacy Policy</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
 
-<p>We don't use your data for Adverstiment'.</p>
+        :root {
+            --primary: #2d3748;
+            --secondary: #4a5568;
+            --accent: #4299e1;
+            --light: #f7fafc;
+            --dark: #1a202c;
+            --success: #48bb78;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            --radius: 16px;
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @@keyframes float {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+            position: relative;
+            z-index: 1;
+        }
+
+        .content {
+            padding: 50px;
+        }
+
+        .privacy-statement {
+            background: linear-gradient(135deg, #edf2f7 0%, #e2e8f0 100%);
+            padding: 30px;
+            border-radius: var(--radius);
+            margin-bottom: 40px;
+            position: relative;
+            transition: var(--transition);
+        }
+
+        .privacy-statement:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 20px rgba(66, 153, 225, 0.15);
+        }
+
+        .statement-text {
+            font-size: 1.5rem;
+            color: var(--primary);
+            font-weight: 600;
+            line-height: 1.5;
+        }
+
+        .emphasis {
+
+            font-weight: 700;
+            position: relative;
+            display: inline-block;
+        }
+
+        .emphasis::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, transparent);
+            border-radius: 2px;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-top: 40px;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            transition: var(--transition);
+            border: 1px solid #e2e8f0;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+
+        }
+
+        .feature-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .feature-desc {
+            color: var(--secondary);
+            font-size: 0.95rem;
+        }
+
+        .commitment {
+            background: linear-gradient(135deg, var(--light) 0%, #e6fffa 100%);
+            padding: 30px;
+            border-radius: var(--radius);
+            margin-top: 40px;
+            border: 2px dashed var(--success);
+            text-align: center;
+        }
+
+        .commitment h3 {
+            color: var(--success);
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 40px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            display: block;
+            line-height: 1;
+        }
+
+        .stat-label {
+            color: var(--secondary);
+            font-size: 0.9rem;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .footer {
+            background: var(--primary);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .toggle-btn {
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.3);
+        }
+
+        .toggle-btn:hover {
+            background: #3182ce;
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(66, 153, 225, 0.4);
+        }
+
+        .details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease;
+            margin-top: 20px;
+            background: var(--light);
+            border-radius: var(--radius);
+            padding: 0 25px;
+        }
+
+        .details.show {
+            max-height: 500px;
+            padding: 25px;
+        }
+
+        @@media (max-width: 768px) {
+            .container {
+                margin: 10px;
+            }
+            
+            .header {
+                padding: 30px 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .content {
+                padding: 30px;
+            }
+            
+            .statement-text {
+                font-size: 1.3rem;
+            }
+            
+            .features {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
+        @@media (max-width: 480px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .privacy-statement {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Privacy Policy</h1>
+            <p class="subtitle">Transparent. Secure. Ethical.</p>
+        </div>
+        
+        <div class="content">
+            <div class="privacy-statement">
+                <p class="statement-text">
+                    We <span class="emphasis">don't use</span> your data for <span class="emphasis">Advertisement</span>.
+                </p>
+            </div>
+            
+            <p style="text-align: center; color: var(--secondary); margin-bottom: 30px;">
+                Your privacy is our top priority. We believe in transparency and ethical data practices.
+            </p>
+            
+            <div class="features">
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3 class="feature-title">No Data Selling</h3>
+                    <p class="feature-desc">We never sell, rent, or trade your personal information to third parties.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">👁️</div>
+                    <h3 class="feature-title">Transparent Tracking</h3>
+                    <p class="feature-desc">Clear disclosure of what data we collect and why we collect it.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🚫</div>
+                    <h3 class="feature-title">Ad-Free Experience</h3>
+                    <p class="feature-desc">Your data will never be used for targeted advertising purposes.</p>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-number" id="years">0</span>
+                    <span class="stat-label">Years of Trust</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">100%</span>
+                    <span class="stat-label">Ad-Free Policy</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">0</span>
+                    <span class="stat-label">Data Sold</span>
+                </div>
+            </div>
+            
+            <div class="commitment">
+                <h3>Our Commitment to You</h3>
+                <p>We are committed to protecting your privacy and ensuring your data is used only to improve your experience with our services.</p>
+            </div>
+            
+            <div style="text-align: center;">
+                <button class="toggle-btn" onclick="toggleDetails()">
+                    <span>Learn More About Our Policies</span>
+                    <span id="toggle-icon">▼</span>
+                </button>
+                
+                <div class="details" id="details">
+                    <h4 style="margin-bottom: 15px; color: var(--primary);">Additional Information</h4>
+                    <ul style="padding-left: 20px; color: var(--secondary);">
+                        <li style="margin-bottom: 10px;">We only collect essential data to provide our services</li>
+                        <li style="margin-bottom: 10px;">All data is encrypted and stored securely</li>
+                        <li style="margin-bottom: 10px;">You have full control over your data and can request deletion at any time</li>
+                        <li style="margin-bottom: 10px;">Regular security audits and privacy assessments</li>
+                        <li>Compliance with global privacy regulations (GDPR, CCPA, etc.)</li>
+                    </ul>
+                    <p style="margin-top: 20px; font-style: italic; color: var(--secondary);">
+                        Last updated: <span id="current-date"></span>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        // Set current date
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        // Animated counter for years
+        function animateCounter(elementId, targetValue, duration = 2000) {
+            const element = document.getElementById(elementId);
+            let current = 0;
+            const increment = targetValue / (duration / 16); // 60fps
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= targetValue) {
+                    current = targetValue;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.floor(current);
+            }, 16);
+        }
+        
+        // Start animation when page loads
+        window.addEventListener('load', () => {
+            animateCounter('years', 5);
+        });
+        
+        // Toggle details section
+        function toggleDetails() {
+            const details = document.getElementById('details');
+            const icon = document.getElementById('toggle-icon');
+            
+            details.classList.toggle('show');
+            
+            if (details.classList.contains('show')) {
+                icon.textContent = '▲';
+            } else {
+                icon.textContent = '▼';
+            }
+        }
+        
+        // Add some interactive effects to feature cards
+        document.querySelectorAll('.feature-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                const icon = this.querySelector('.feature-icon');
+                icon.style.transform = 'scale(1.2)';
+                icon.style.transition = 'transform 0.3s ease';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                const icon = this.querySelector('.feature-icon');
+                icon.style.transform = 'scale(1)';
+            });
+        });
+    </script>
+</body>
+</html>

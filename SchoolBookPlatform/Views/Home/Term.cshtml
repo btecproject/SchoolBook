@@ -1,6 +1,954 @@
-﻿@{
-    ViewData["Title"] = "Term and Services";
-}
-<h1>@ViewData["Title"]</h1>
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Service - School Book Forum | SchoolBook</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
 
-<p>Term And Services</p>
+        :root {
+            --primary: #fd964b; /* Màu chủ đạo mới */
+            --primary-dark: #e8823a; /* Màu đậm hơn */
+            --primary-light: #ffad73; /* Màu nhạt hơn */
+            --secondary: #1abc9c;
+            --accent: #e74c3c;
+            --light: #f8f9fa;
+            --dark: #2c3e50;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            --radius: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            color: var(--dark);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* Back Button với màu mới */
+        .back-button {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            background: var(--primary);
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(253, 150, 75, 0.3);
+            transition: var(--transition);
+            z-index: 100;
+            border: none;
+            outline: none;
+        }
+
+        .back-button:hover {
+            background: var(--primary-dark);
+            transform: scale(1.1);
+        }
+
+        /* TITLE SECTION thay thế Header */
+        .title-section {
+            background: white;
+            color: var(--dark);
+            padding: 25px 20px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 2px solid var(--primary);
+        }
+
+        .title-section h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+            color: var(--primary);
+        }
+
+        .title-section .subtitle {
+            font-size: 1rem;
+            opacity: 0.8;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* CONTENT AREA */
+        .content-area {
+            background: white;
+            border-radius: var(--radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+        }
+
+        .content-section {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--light);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .content-section.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .section-title {
+            color: var(--primary);
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 3px solid var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-icon {
+            color: var(--primary);
+            font-size: 1.3rem;
+        }
+
+        .section-content {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .section-content p {
+            margin-bottom: 12px;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(253, 150, 75, 0.1) 0%, rgba(253, 150, 75, 0.05) 100%);
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            border-radius: 0 var(--radius) var(--radius) 0;
+            margin: 15px 0;
+            font-size: 0.9rem;
+        }
+
+        /* BTEC Rules với màu mới */
+        .btec-rules {
+            background: linear-gradient(135deg, rgba(253, 150, 75, 0.1) 0%, rgba(253, 150, 75, 0.05) 100%);
+            border: 2px solid var(--primary);
+            border-radius: var(--radius);
+            padding: 18px;
+            margin: 18px 0;
+        }
+
+        .btec-rules h4 {
+            color: var(--primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.1rem;
+        }
+
+        /* Agreement Section với màu mới */
+        .agreement-section {
+            background: linear-gradient(135deg, rgba(253, 150, 75, 0.1) 0%, rgba(253, 150, 75, 0.05) 100%);
+            border-radius: var(--radius);
+            padding: 25px;
+            text-align: center;
+            margin-top: 30px;
+            border: 2px solid var(--primary);
+        }
+
+        .agreement-title {
+            font-size: 1.4rem;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .agreement-options {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .agreement-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 50px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .agree-btn {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .disagree-btn {
+            background: linear-gradient(135deg, #c0392b);
+            color: white;
+        }
+
+        .agreement-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Quick Navigation với màu mới */
+        .quick-nav {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            border-radius: 50px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        /* Print Button với màu mới */
+        .print-btn {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            background: var(--primary);
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(253, 150, 75, 0.3);
+            transition: var(--transition);
+            z-index: 100;
+        }
+
+        .print-btn:hover {
+            background: var(--primary-dark);
+            transform: scale(1.1);
+        }
+
+        /* Progress Bar với màu mới */
+        .progress-container {
+            position: sticky;
+            top: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--light);
+            z-index: 99;
+            margin-bottom: 15px;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* RESPONSIVE DESIGN */
+        @@media (max-width: 768px) {
+            .title-section {
+                padding: 20px 15px;
+            }
+            
+            .title-section h1 {
+                font-size: 1.7rem;
+            }
+            
+            .content-area {
+                padding: 18px;
+            }
+            
+            .section-title {
+                font-size: 1.3rem;
+            }
+            
+            .agreement-options {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .agreement-btn {
+                width: 100%;
+                max-width: 280px;
+                justify-content: center;
+            }
+            
+            .back-button {
+                top: 8px;
+                left: 8px;
+                width: 38px;
+                height: 38px;
+                font-size: 1rem;
+            }
+            
+            body {
+                padding: 10px;
+            }
+        }
+
+        @@media (max-width: 480px) {
+            body {
+                padding: 8px;
+            }
+            
+            .title-section {
+                padding: 15px 10px;
+                margin-bottom: 15px;
+            }
+            
+            .title-section h1 {
+                font-size: 1.4rem;
+            }
+            
+            .content-area {
+                padding: 12px;
+            }
+            
+            .section-title {
+                font-size: 1.1rem;
+                gap: 6px;
+            }
+            
+            .agreement-section {
+                padding: 15px;
+                margin-top: 20px;
+            }
+            
+            .title-section .subtitle {
+                font-size: 0.9rem;
+            }
+        }
+
+        /* List styling */
+        .section-content ul {
+            padding-left: 20px;
+            margin-bottom: 12px;
+        }
+
+        .section-content li {
+            margin-bottom: 8px;
+            position: relative;
+        }
+
+        .section-content li:before {
+            content: "•";
+            color: var(--primary);
+            font-weight: bold;
+            display: inline-block;
+            width: 1em;
+            margin-left: -1em;
+        }
+
+        /* Contact Info với màu mới */
+        .contact-info {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--dark);
+            font-size: 0.85rem;
+        }
+
+        .contact-item i {
+            color: var(--primary);
+        }
+
+        /* Modal với màu mới */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: var(--radius);
+            max-width: 450px;
+            text-align: center;
+            animation: modalIn 0.3s ease;
+            border: 2px solid var(--primary);
+        }
+
+        @@keyframes modalIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .modal-text {
+            font-size: 1rem;
+            margin-bottom: 20px;
+            color: var(--dark);
+        }
+
+        .modal-btn {
+            padding: 8px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .modal-btn:hover {
+            background: var(--primary-dark);
+            transform: scale(1.05);
+        }
+
+        /* Last Updated info */
+        .last-updated {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: #7f8c8d;
+        }
+
+        .last-updated i {
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Back Button -->
+    <button class="back-button" id="backBtn" title="Go Back">
+        <i class="fas fa-arrow-left"></i>
+    </button>
+
+    <!-- Print Button -->
+    <div class="print-btn" id="printBtn" title="Print Terms">
+        <i class="fas fa-print"></i>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div class="container">
+        <!-- Title Section thay thế Header -->
+        <div class="title-section">
+            <h1>Terms of Service</h1>
+            <p class="subtitle">School Book Forum - SchoolBook's Student Community Platform</p>
+            <div class="last-updated">
+                <i class="fas fa-clock"></i>
+                <span>Last Updated: <span id="currentDate"></span></span>
+                <i class="fas fa-users"></i>
+                <span>For SchoolBook Students Only</span>
+            </div>
+        </div>
+
+        <!-- Quick Navigation -->
+        <div class="quick-nav">
+            <button class="nav-btn" data-section="acceptance">
+                <i class="fas fa-check-circle"></i> Acceptance
+            </button>
+            <button class="nav-btn" data-section="academic">
+                <i class="fas fa-book"></i> Academic Rules
+            </button>
+            <button class="nav-btn" data-section="privacy">
+                <i class="fas fa-shield-alt"></i> Privacy
+            </button>
+            <button class="nav-btn" data-section="content">
+                <i class="fas fa-file-alt"></i> Content Rules
+            </button>
+            <button class="nav-btn" onclick="scrollToAgreement()">
+                <i class="fas fa-file-signature"></i> Agreement
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- Section 1 -->
+            <div class="content-section visible" id="acceptance">
+                <h2 class="section-title">
+                    <span class="section-icon"><i class="fas fa-check-circle"></i></span>
+                    <span>1. Acceptance of Terms</span>
+                </h2>
+                <div class="section-content">
+                    <p>Welcome to the <strong>School Book Forum</strong>, the official student community platform of <strong>SchoolBook</strong>. By accessing, registering, or using our forum, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.</p>
+                    
+                    <div class="highlight-box">
+                        <p><strong>Important Notice:</strong> This forum is exclusively for current students, faculty, and staff of SchoolBook. Your school credentials must be verified during registration. Unauthorized access is strictly prohibited.</p>
+                    </div>
+                    
+                    <p>These terms constitute a legally binding agreement between you and SchoolBook regarding your use of the School Book Forum. Your continued use of the forum indicates your acceptance of these terms and any future modifications.</p>
+                </div>
+            </div>
+
+            <!-- Section 2 -->
+            <div class="content-section" id="description">
+                <h2 class="section-title">
+                    <span class="section-icon"><i class="fas fa-info-circle"></i></span>
+                    <span>2. Forum Purpose & Description</span>
+                </h2>
+                <div class="section-content">
+                    <p>The School Book Forum serves as an <strong>educational community platform</strong> designed to facilitate:</p>
+                    <ul>
+                        <li>Academic discussions and knowledge sharing</li>
+                        <li>Study material exchange (notes, presentations, assignments)</li>
+                        <li>Peer-to-peer learning and collaboration</li>
+                        <li>Announcements and updates from faculty</li>
+                        <li>Student support and mentorship programs</li>
+                        <li>Academic resource sharing within SchoolBook guidelines</li>
+                    </ul>
+                    
+                    <div class="btec-rules">
+                        <h4><i class="fas fa-university"></i> SchoolBook Academic Integrity</h4>
+                        <p>This forum operates under <strong>SchoolBook's Academic Integrity Policy</strong>. All content shared must comply with the institution's standards for academic honesty and ethical conduct.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3 -->
+            <div class="content-section" id="account">
+                <h2 class="section-title">
+                    <span class="section-icon"><i class="fas fa-user"></i></span>
+                    <span>3. Account Registration & Verification</span>
+                </h2>
+                <div class="section-content">
+                    <p>To participate in the School Book Forum, you must:</p>
+                    <ul>
+                        <li>Be a currently enrolled student at SchoolBook</li>
+                        <li>Use your official school email address (@@student.btec.fpt.edu.vn)</li>
+                        <li>Provide accurate and current academic information</li>
+                        <li>Maintain one account per person (no shared accounts)</li>
+                        <li>Keep your login credentials confidential</li>
+                    </ul>
+                    
+                    <div class="highlight-box">
+                        <p><strong>Verification Process:</strong> All accounts undergo verification against SchoolBook's student records. Accounts found to be fraudulent or using unauthorized credentials will be immediately suspended and reported to the Academic Department.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 4 -->
+            <div class="content-section" id="academic">
+                <h2 class="section-title">
+                    <span class="section-icon"><i class="fas fa-graduation-cap"></i></span>
+                    <span>4. Academic Conduct & Rules</span>
+                </h2>
+                <div class="section-content">
+                    <p>As a SchoolBook student, you must adhere to the following academic standards:</p>
+                    
+                    <div class="btec-rules">
+                        <h4><i class="fas fa-balance-scale"></i> Permitted Activities</h4>
+                        <ul>
+                            <li>Discussing course concepts and theories</li>
+                            <li>Sharing study guides and learning resources</li>
+                            <li>Collaborating on group projects (with proper attribution)</li>
+                            <li>Asking for clarification on assignments</li>
+                            <li>Sharing legitimate academic resources</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="btec-rules">
+                        <h4><i class="fas fa-ban"></i> Prohibited Academic Activities</h4>
+                        <ul>
+                            <li><strong>Plagiarism:</strong> Copying others' work without attribution</li>
+                            <li><strong>Assignment Sharing:</strong> Distributing complete assignment solutions</li>
+                            <li><strong>Exam Discussion:</strong> Sharing exam questions or answers during assessment periods</li>
+                            <li><strong>Unauthorized Collaboration:</strong> Working together on individual assignments</li>
+                            <li><strong>Copyright Violation:</strong> Sharing copyrighted materials without permission</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 5 -->
+            <div class="content-section" id="content">
+                <h2 class="section-title">
+                    <span class="section-icon"><i class="fas fa-file-alt"></i></span>
+                    <span>5. Content Guidelines & Posting Rules</span>
+                </h2>
+                <div class="section-content">
+                    <p>All content posted on the School Book Forum must comply with these guidelines:</p>
+                    
+                    <div class="highlight-box">
+                        <p><strong>Quality Standards:</strong> Content should be constructive, relevant to SchoolBook courses, and contribute positively to the learning community.</p>
+                    </div>
+                    
+                    <p><strong>Allowed Content:</strong></p>
+                    <ul>
+                        <li>Course-related questions and discussions</li>
+                        <li>Study notes and summaries (properly cited)</li>
+                        <li>Academic resource recommendations</li>
+                        <li>Legitimate study group announcements</li>
+                        <li>Educational event information</li>
+                    </ul>
+                    
+                    <p><strong>Prohibited Content:</strong></p>
+                    <ul>
+                        <li>Personal attacks, harassment, or bullying</li>
+                        <li>Discriminatory or offensive language</li>
+                        <li>Spam, advertising, or commercial promotion</li>
+                        <li>Misinformation or false academic claims</li>
+                        <li>Any content violating SchoolBook's code of conduct</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6 -->
+            <div class="content-section" id="privacy">
+                <h2 class="section-title">
+                    <span class="section-icon"><i class="fas fa-shield-alt"></i></span>
+                    <span>6. Privacy & Data Protection</span>
+                </h2>
+                <div class="section-content">
+                    <p>Your privacy is important to us. The School Book Forum operates under <strong>SchoolBook's Privacy Policy</strong> and complies with applicable data protection regulations.</p>
+                    
+                    <div class="highlight-box">
+                        <p><strong>Data Collection:</strong> We collect only necessary information for forum functionality and academic verification. Your data is never sold or shared with third parties for marketing purposes.</p>
+                    </div>
+                    
+                    <p><strong>Your Rights:</strong></p>
+                    <ul>
+                        <li>Access to your personal data</li>
+                        <li>Correction of inaccurate information</li>
+                        <li>Data deletion upon graduation (with exceptions for academic records)</li>
+                        <li>Opt-out of non-essential communications</li>
+                    </ul>
+                    
+                    <p><strong>Academic Record Integration:</strong> Forum activity may be referenced in academic integrity cases, but never in regular grading without explicit consent.</p>
+                </div>
+            </div>
+
+            <!-- Section 7 -->
+            <div class="content-section" id="intellectual">
+                <h2 class="section-title">
+                    <span class="section-icon"><i class="fas fa-copyright"></i></span>
+                    <span>7. Intellectual Property Rights</span>
+                </h2>
+                <div class="section-content">
+                    <p><strong>Student Content:</strong> You retain ownership of original content you create and share on the forum. However, by posting, you grant SchoolBook a non-exclusive license to display, distribute, and use your content for educational purposes.</p>
+                    
+                    <div class="highlight-box">
+                        <p><strong>SchoolBook Materials:</strong> All official course materials, lectures, and resources shared by faculty remain the intellectual property of SchoolBook. Redistribution without permission is prohibited.</p>
+                    </div>
+                    
+                    <p><strong>Proper Attribution:</strong> Always credit original sources when sharing content. Use proper citation formats (APA, MLA, etc.) for academic materials.</p>
+                </div>
+            </div>
+
+            <!-- Section 8 -->
+            <div class="content-section" id="termination">
+                <h2 class="section-title">
+                    <span class="section-icon"><i class="fas fa-power-off"></i></span>
+                    <span>8. Account Termination & Consequences</span>
+                </h2>
+                <div class="section-content">
+                    <p>Accounts may be suspended or terminated for violations of these terms, including:</p>
+                    <ul>
+                        <li>Academic dishonesty or plagiarism</li>
+                        <li>Harassment or inappropriate conduct</li>
+                        <li>Sharing unauthorized materials</li>
+                        <li>Violation of SchoolBook policies</li>
+                        <li>Using fake or unauthorized credentials</li>
+                    </ul>
+                    
+                    <div class="btec-rules">
+                        <h4><i class="fas fa-exclamation-triangle"></i> Academic Consequences</h4>
+                        <p>Serious violations may be reported to the <strong>SchoolBook Academic Department</strong> and could result in:</p>
+                        <ul>
+                            <li>Forum access suspension</li>
+                            <li>Academic penalties per SchoolBook policies</li>
+                            <li>Disciplinary action according to student code of conduct</li>
+                            <li>In extreme cases, academic probation or expulsion</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 9 -->
+            <div class="content-section" id="changes">
+                <h2 class="section-title">
+                    <span class="section-icon"><i class="fas fa-exchange-alt"></i></span>
+                    <span>9. Modifications & Updates</span>
+                </h2>
+                <div class="section-content">
+                    <p>SchoolBook reserves the right to modify these Terms of Service to reflect changes in:</p>
+                    <ul>
+                        <li>Academic policies and requirements</li>
+                        <li>Technological developments</li>
+                        <li>Legal or regulatory requirements</li>
+                        <li>Forum features and functionality</li>
+                    </ul>
+                    
+                    <p>Significant changes will be communicated through:</p>
+                    <ul>
+                        <li>Official SchoolBook student email</li>
+                        <li>Forum announcements</li>
+                        <li>Notification at least 14 days before changes take effect</li>
+                    </ul>
+                    
+                    <div class="highlight-box">
+                        <p><strong>Continued Use:</strong> Your continued use of the School Book Forum after changes are posted constitutes acceptance of the modified terms.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agreement Section -->
+            <div class="agreement-section" id="agreementSection">
+                <h3 class="agreement-title">Student Acknowledgement & Agreement</h3>
+                <p>As a SchoolBook's user, please indicate your understanding and acceptance of these Terms of Service.</p>
+                <p style="margin-top: 12px; font-size: 0.8rem; color: #7f8c8d;">
+                    <i class="fas fa-info-circle"></i> By accepting, you confirm you have read and understood all terms above and agree to abide by SchoolBook policies.
+                </p>
+                
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <span>forum.support@school.book.edu.vn</span>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-phone"></i>
+                        <span>Academic Support: +84 123 456 789</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+
+    <script>
+        // Set current date
+        const currentDate = new Date();
+        const formattedDate = currentDate.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        document.getElementById('currentDate').textContent = formattedDate;
+
+        // Back button functionality
+        document.getElementById('backBtn').addEventListener('click', function() {
+            if (document.referrer && document.referrer !== window.location.href) {
+                window.history.back();
+            } else {
+                window.location.href = '/';
+            }
+        });
+
+        // Quick navigation buttons
+        document.querySelectorAll('.nav-btn[data-section]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const sectionId = this.getAttribute('data-section');
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    window.scrollTo({
+                        top: section.offsetTop - 80,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+
+        // Scroll to agreement section
+        function scrollToAgreement() {
+            const agreementSection = document.getElementById('agreementSection');
+            if (agreementSection) {
+                window.scrollTo({
+                    top: agreementSection.offsetTop - 80,
+                    behavior: 'smooth'
+                });
+            }
+        }
+
+        // Scroll progress bar and section visibility
+        window.addEventListener('scroll', function() {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('progressBar').style.width = scrolled + "%";
+            
+            // Show sections as they come into view
+            const sections = document.querySelectorAll('.content-section');
+            sections.forEach(section => {
+                const sectionTop = section.getBoundingClientRect().top;
+                if (sectionTop < window.innerHeight * 0.75) {
+                    section.classList.add('visible');
+                }
+            });
+        });
+
+        // Agreement buttons
+        document.getElementById('agreeBtn').addEventListener('click', function() {
+            const studentName = prompt("Please enter your full name (as registered at SchoolBook):");
+            const studentID = prompt("Please enter your student ID:");
+            
+            if (studentName && studentID) {
+                showModal('Agreement Confirmed', `Thank you, ${studentName} (ID: ${studentID}). Your agreement has been recorded with SchoolBook Academic Affairs. You now have full access to the School Book Forum.`);
+                
+                localStorage.setItem('btec_termsAgreed', 'true');
+                localStorage.setItem('btec_agreementDate', new Date().toISOString());
+                localStorage.setItem('btec_studentName', studentName);
+                localStorage.setItem('btec_studentID', studentID);
+                
+                this.innerHTML = `<i class="fas fa-check-circle"></i> Verified - ${studentID}`;
+                this.style.background = 'linear-gradient(135deg, var(--primary), var(--primary-dark))';
+                
+                document.getElementById('disagreeBtn').style.opacity = '0.5';
+                document.getElementById('disagreeBtn').style.pointerEvents = 'none';
+            } else {
+                alert("Both name and student ID are required to agree to the terms.");
+            }
+        });
+
+        document.getElementById('disagreeBtn').addEventListener('click', function() {
+            showModal('Terms Not Accepted', 'You must agree to the Terms of Service to access the School Book Forum. Please contact SchoolBook Academic Affairs if you have questions or concerns.');
+            
+            this.innerHTML = '<i class="fas fa-exclamation-circle"></i> Terms Not Accepted';
+            
+            document.querySelectorAll('.btec-rules').forEach(box => {
+                box.style.animation = 'pulse 2s infinite';
+                box.style.border = '2px solid var(--accent)';
+            });
+            
+            if (!document.querySelector('#pulse-animation')) {
+                const style = document.createElement('style');
+                style.id = 'pulse-animation';
+                style.textContent = `
+                    @@keyframes pulse {
+                        0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+                        70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+                        100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        });
+
+        // Modal functions
+        function showModal(title, text) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalText').textContent = text;
+            document.getElementById('agreementModal').style.display = 'flex';
+        }
+
+        document.getElementById('modalCloseBtn').addEventListener('click', function() {
+            document.getElementById('agreementModal').style.display = 'none';
+        });
+
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('agreementModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+
+        // Print functionality
+        document.getElementById('printBtn').addEventListener('click', function() {
+            window.print();
+        });
+
+        // Check for previous agreement
+        window.addEventListener('load', function() {
+            const termsAgreed = localStorage.getItem('btec_termsAgreed');
+            if (termsAgreed === 'true') {
+                const studentID = localStorage.getItem('btec_studentID');
+                if (studentID) {
+                    document.getElementById('agreeBtn').innerHTML = `<i class="fas fa-check-circle"></i> Verified - ${studentID}`;
+                    document.getElementById('agreeBtn').style.background = 'linear-gradient(135deg, var(--primary), var(--primary-dark))';
+                    document.getElementById('disagreeBtn').style.opacity = '0.5';
+                    document.getElementById('disagreeBtn').style.pointerEvents = 'none';
+                }
+            }
+            
+            document.querySelectorAll('.content-section')[0].classList.add('visible');
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('agreementModal');
+                if (modal.style.display === 'flex') {
+                    modal.style.display = 'none';
+                }
+            }
+            
+            if (e.key === 'b' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+                document.getElementById('backBtn').click();
+            }
+        });
+    </script>
+</body>
+</html>
