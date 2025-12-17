@@ -104,7 +104,7 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
     else
     {
         // User thường: chỉ xem bài có quyền
-        var myPosts = _db.Posts.Where(p => p.UserId == userId);
+        var myPosts = _db.Posts.Where(p => p.UserId == userId).Where(p => p.IsDeleted == false);
         
         var othersPosts = _db.Posts.Where(p => 
             p.UserId != userId && 
@@ -262,7 +262,7 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
             Title = title,
             Content = content,
             VisibleToRoles = visibleToRoles,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow.AddHours(7),
             // HighAdmin/Moderator: auto approve, user thường: chờ duyệt
             IsVisible = isModerator
         };
@@ -448,7 +448,7 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
             UserId = userId,
             Content = content,
             ParentCommentId = parentCommentId,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow.AddHours(7)
         };
 
         _db.PostComments.Add(comment);
@@ -528,7 +528,7 @@ public async Task<IQueryable<Post>> GetVisiblePostsAsync(Guid userId, int page =
             ReportedBy = userId,
             Reason = reason,
             Status = "Pending",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow.AddHours(7)
         };
 
         _db.PostReports.Add(report);
