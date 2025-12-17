@@ -179,7 +179,6 @@
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script>
-        // Toggle PIN visibility
         function setupTogglePassword(buttonId, inputId, iconId) {
             document.getElementById(buttonId).addEventListener('click', function() {
                 const input = document.getElementById(inputId);
@@ -223,7 +222,6 @@
             return { strength: 75, text: 'Trung bình', color: 'info' };
         }
 
-        // Validate PIN and update UI
         function validatePin() {
             const pin = document.getElementById('pinCodeInput').value;
             const pinConfirm = document.getElementById('pinCodeConfirmInput').value;
@@ -300,12 +298,10 @@
             return isValid;
         }
 
-        // Hash PIN using SHA-256
         function hashPin(pin) {
             return CryptoJS.SHA256(pin).toString();
         }
 
-        // Save PIN to localStorage
         function savePinToLocalStorage(pin) {
             const userName = document.getElementById("thisUserName").value;
             var keyName = 'pinCode_'+userName ;
@@ -352,16 +348,13 @@
             const pinHash = hashPin(pin);
             document.getElementById('pinCodeHashInput').value = pinHash;
 
-            // Save PIN to localStorage (plaintext as per requirement)
             savePinToLocalStorage(pin);
 
-            // Submit form after short delay for better UX
             setTimeout(() => {
                 this.submit();
             }, 500);
         });
 
-        // Auto-focus on first empty field
         window.addEventListener('load', function() {
             const displayName = document.getElementById('DisplayName');
             if (!displayName.value) {

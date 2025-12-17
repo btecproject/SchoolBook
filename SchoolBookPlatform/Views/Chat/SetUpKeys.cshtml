@@ -87,14 +87,12 @@
         let retryCount = 0;
         const maxRetries = 3;
         const ChatPin = "pinCode_"+document.getElementById("thisUserName").value;
-        // Update progress bar
         function updateProgress(percent, message) {
             const progressBar = document.getElementById('progressBar');
             progressBar.style.width = percent + '%';
             progressBar.textContent = percent + '%';
         }
 
-        // Show state
         function showState(state) {
             document.getElementById('loadingState').style.display = 'none';
             document.getElementById('successState').style.display = 'none';
@@ -109,13 +107,11 @@
             }
         }
 
-        // Generate RSA keys
         async function generateRsaKeys() {
             try {
                 showState('loading');
                 updateProgress(10, 'Đang khởi tạo...');
 
-                // Get PIN from localStorage
                 const pin = localStorage.getItem(ChatPin);
                 if (!pin) {
                     throw new Error('Không tìm thấy mã PIN. Vui lòng đăng ký lại.');
@@ -123,10 +119,9 @@
 
                 updateProgress(25, 'Đang tạo cặp khóa RSA...');
 
-                // Generate RSA key pair (2048 bits)
+                //RSA key pair (2048 bits)
                 const crypt = new JSEncrypt({ default_key_size: 2048 });
                 
-                // This is computationally intensive, so we simulate progress
                 await new Promise(resolve => setTimeout(resolve, 500));
                 updateProgress(50, 'Đang tạo khóa...');
 
@@ -140,12 +135,10 @@
                 updateProgress(75, 'Đang mã hóa private key...');
                 await new Promise(resolve => setTimeout(resolve, 300));
 
-                // Encrypt private key with PIN using AES
                 const privateKeyEncrypted = CryptoJS.AES.encrypt(privateKey, pin).toString();
 
                 updateProgress(90, 'Đang lưu khóa lên server...');
 
-                // Upload keys to server
                 const response = await fetch('@Url.Action("UploadKeys", "Chat")', {
                     method: 'POST',
                     headers: {
@@ -175,7 +168,6 @@
             }
         }
 
-        // Retry key generation
         function retryKeyGeneration() {
             retryCount++;
             if (retryCount > maxRetries) {
@@ -185,7 +177,6 @@
             generateRsaKeys();
         }
 
-        // Start generation on page load
         window.addEventListener('load', function() {
             setTimeout(() => {
                 generateRsaKeys();

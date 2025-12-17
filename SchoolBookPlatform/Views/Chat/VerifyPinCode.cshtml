@@ -92,7 +92,6 @@ Layout = "_Layout";
     window.addEventListener('load', async function () {
         try {
             let pinValue = StorageHelper.get('pinCode_'+currentUsername1);
-            // Hash PIN bằng SHA-256
             const hashedPin = CryptoJS.SHA256(pinValue).toString();
 
             console.log('Verifying PIN for user:', currentUsername1);
@@ -121,13 +120,11 @@ Layout = "_Layout";
             const result = await response.json();
 
             if (result.success) {
-                // Lưu PIN  với key là pinCode_{username}
                 const storageKey = `pinCode_${currentUsername1}`;
                 StorageHelper.set(storageKey, pinValue);
 
                 console.log('PIN verified and saved to Storage:', storageKey);
 
-                // Hiển thị thông báo thành công
                 verifyBtnText.textContent = 'Thành công!';
                 pinError.classList.add('d-none');
 
@@ -136,14 +133,12 @@ Layout = "_Layout";
                     window.location.href = '@Url.Action("Index", "Chat")';
                 }, 500);
             } else {
-                // PIN sai
                 pinError.classList.remove('d-none');
                 pinErrorMessage.textContent = result.message || 'Mã PIN không đúng. Vui lòng thử lại.';
                 StorageHelper.remove("pinCode_"+currentUsername1);
                 pinInput.value = '';
                 pinInput.focus();
 
-                // Reset button
                 verifyBtn.disabled = false;
                 verifyBtnText.textContent = 'Xác nhận';
                 verifyBtnSpinner.classList.add('d-none');
@@ -155,7 +150,6 @@ Layout = "_Layout";
             pinErrorMessage.textContent = error.message === "Server Error or Auth Session Expired"
                 ? "Lỗi kết nối hoặc hết phiên đăng nhập"
                 : (error.message || 'Đã xảy ra lỗi.');
-            // Reset button
             pinInput.value = '';
             pinInput.focus();
             verifyBtn.disabled = false;
@@ -165,7 +159,6 @@ Layout = "_Layout";
     })
 </script>
 <script>
-    // Lấy username hiện tại từ server
     const currentUsername = '@User.Identity.Name';
 
     // Toggle hiện/ẩn PIN
@@ -184,7 +177,6 @@ Layout = "_Layout";
         }
     });
 
-    // Xử lý form submit
     document.getElementById('pinForm').addEventListener('submit', async function(e) {
         e.preventDefault();
 
@@ -197,7 +189,6 @@ Layout = "_Layout";
 
         const pinValue = pinInput.value.trim();
 
-        // Validate độ dài PIN
         if (pinValue.length < 6 || pinValue.length > 8) {
             pinError.classList.remove('d-none');
             pinErrorMessage.textContent = 'Mã PIN phải từ 6 đến 8 chữ số';
@@ -205,7 +196,6 @@ Layout = "_Layout";
             return;
         }
 
-        // Validate chỉ chứa số
         if (!/^\d{6,8}$/.test(pinValue)) {
             pinError.classList.remove('d-none');
             pinErrorMessage.textContent = 'Mã PIN chỉ được chứa số';
@@ -213,20 +203,17 @@ Layout = "_Layout";
             return;
         }
 
-        // Hiển thị loading
         verifyBtn.disabled = true;
         verifyBtnText.textContent = 'Đang xác thực...';
         verifyBtnSpinner.classList.remove('d-none');
         pinError.classList.add('d-none');
 
         try {
-            // Hash PIN bằng SHA-256
             const hashedPin = CryptoJS.SHA256(pinValue).toString();
 
             console.log('Verifying PIN for user:', currentUsername);
             console.log('Hashed PIN:', hashedPin);
 
-            // Gửi request verify
             const response = await fetch('@Url.Action("VerifyPinCode", "Chat")', {
                 method: 'POST',
                 headers: {
@@ -237,12 +224,11 @@ Layout = "_Layout";
             });
 
             if (response.url && response.url.includes("429.html")) {
-                window.location.href = response.url; // Chuyển sang trang chờ
+                window.location.href = response.url;
                 return;
             }
             const contentType = response.headers.get("content-type");
             if (contentType && contentType.indexOf("application/json") === -1) {
-                // Server trả về HTML (Lỗi hệ thống hoặc Login)
                 throw new Error("Server Error or Auth Session Expired");
             }
             if (!response.ok) throw new Error('Network response was not ok');
@@ -250,28 +236,23 @@ Layout = "_Layout";
 
             if (result.success) {
                 const isTrusted = document.getElementById('trustDevice').checked;
-                // Lưu PIN vào Storage với key là pinCode_{username}
                 const storageKey = `pinCode_${currentUsername}`;
                 StorageHelper.set(storageKey, pinValue, isTrusted);
 
                 console.log('PIN verified and saved to Storage:', storageKey);
 
-                // Hiển thị thông báo thành công
                 verifyBtnText.textContent = 'Thành công!';
                 pinError.classList.add('d-none');
 
-                // Chuyển hướng đến trang chat sau 500ms
                 setTimeout(() => {
                     window.location.href = '@Url.Action("Index", "Chat")';
                 }, 500);
             } else {
-                // PIN sai
                 pinError.classList.remove('d-none');
                 pinErrorMessage.textContent = result.message || 'Mã PIN không đúng. Vui lòng thử lại.';
                 pinInput.value = '';
                 pinInput.focus();
 
-                // Reset button
                 verifyBtn.disabled = false;
                 verifyBtnText.textContent = 'Xác nhận';
                 verifyBtnSpinner.classList.add('d-none');
@@ -283,7 +264,6 @@ Layout = "_Layout";
             pinErrorMessage.textContent = error.message === "Server Error or Auth Session Expired"
                 ? "Lỗi kết nối hoặc hết phiên đăng nhập"
                 : (error.message || 'Đã xảy ra lỗi.');
-            // Reset button
             pinInput.value = '';
             pinInput.focus();
             verifyBtn.disabled = false;
@@ -292,7 +272,6 @@ Layout = "_Layout";
         }
     });
 
-    // Auto focus vào input khi trang load
     window.addEventListener('load', function() {
         document.getElementById('pinInput').focus();
     });
