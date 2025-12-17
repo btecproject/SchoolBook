@@ -133,37 +133,51 @@ class PostVote {
     // --- PHẦN REPORT LOGIC ---
 
     bindReportEvents() {
-        // Bind report buttons
+        // Bind report buttons (giữ nguyên logic bind button)
         document.querySelectorAll('[data-bs-target="#reportModal"]').forEach(button => {
             this.bindReportButton(button);
         });
 
-        // Bind form submit event (Global delegate)
-        document.addEventListener('submit', async (e) => {
-            if (e.target.classList.contains('report-form')) {
-                e.preventDefault();
-                await this.handleReportSubmit(e.target);
-            }
-        });
+        // QUAN TRỌNG: Kiểm tra xem sự kiện submit global đã được gắn chưa
+        // Nếu đã gắn rồi thì không gắn lại nữa để tránh submit nhiều lần
+        if (!window.postVoteSubmitHandlerAttached) {
+            // Bind form submit event (Global delegate)
+            document.addEventListener('submit', async (e) => {
+                if (e.target.classList.contains('report-form')) {
+                    e.preventDefault();
+                    // Đảm bảo sử dụng instance hiện tại hoặc instance toàn cục
+                    const instance = window.postVote || this;
+                    await instance.handleReportSubmit(e.target);
+                }
+            });
+
+            // Đánh dấu đã gắn sự kiện
+            window.postVoteSubmitHandlerAttached = true;
+            console.log('Report form submit handler attached');
+        }
 
         // Event delegation cho nút chọn lý do mẫu (btn-add-reason)
-        document.body.addEventListener('click', (e) => {
-            if (e.target.classList.contains('btn-add-reason')) {
-                const reason = e.target.dataset.reason;
-                const form = e.target.closest('form');
-                if (form) {
-                    const textarea = form.querySelector('textarea[name="reason"]');
-                    if (textarea) {
-                        if (textarea.value.trim()) {
-                            textarea.value += '\n' + reason;
-                        } else {
-                            textarea.value = reason;
+        // Cũng cần kiểm tra tương tự để tránh gắn nhiều lần
+        if (!window.postVoteReasonHandlerAttached) {
+            document.body.addEventListener('click', (e) => {
+                if (e.target.classList.contains('btn-add-reason')) {
+                    const reason = e.target.dataset.reason;
+                    const form = e.target.closest('form');
+                    if (form) {
+                        const textarea = form.querySelector('textarea[name="reason"]');
+                        if (textarea) {
+                            if (textarea.value.trim()) {
+                                textarea.value += '\n' + reason;
+                            } else {
+                                textarea.value = reason;
+                            }
+                            textarea.focus();
                         }
-                        textarea.focus();
                     }
                 }
-            }
-        });
+            });
+            window.postVoteReasonHandlerAttached = true;
+        }
     }
 
     // SỬA LỖI: Thêm hàm bindReportButton bị thiếu
@@ -198,6 +212,7 @@ class PostVote {
             console.error('Cannot find postId for report button');
         }
     }
+    
 
     async loadReportForm(postId) {
         const modalBody = document.getElementById('reportModalBody');
